@@ -2,7 +2,7 @@
 
 from fastapi import File, UploadFile, Form, HTTPException, Request, FastAPI
 from fastapi.responses import HTMLResponse
-from typing import List, Optional
+from typing import List
 from PIL import Image
 import uvicorn
 import shutil
@@ -15,16 +15,14 @@ import cv2
 import numpy as np
 import base64
 from app_init import app
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
-from db import add_person, search_people
+from db import add_person
 from search import find_similar_people
 
-from fastapi.websockets import WebSocketDisconnect
-from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
+from twilio.twiml.voice_response import VoiceResponse, Connect
 from Twilio.call import process_stream
 
 # Load environment variables
