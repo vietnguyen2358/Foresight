@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 
@@ -42,6 +41,76 @@ export function CameraFeed() {
       setIsStreaming(false);
     }
   };
+
+  const processFrame = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw current video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert canvas to base64
+    const frameData = canvas.toDataURL('image/jpeg');
+
+    try {
+      const response = await fetch('http://localhost:8000/process_frame', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ frame_data: frameData }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process frame');
+      }
+
+      const data: FrameResponse = await response.json();
+      setDetections(data.detections);
+      setDescription(data.description);
+
+      // Draw detections on canvas
+      context.strokeStyle = '#00ff00';
+      context.lineWidth = 2;
+      context.font = '16px Arial';
+      context.fillStyle = '#00ff00';
+
+      data.detections.forEach(detection => {
+        const [x1, y1, x2, y2] = detection.bbox;
+        context.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        context.fillText(
+          `${detection.label} (${(detection.confidence * 100).toFixed(1)}%)`,
+          x1,
+          y1 - 5
+        );
+      });
+    } catch (err) {
+      setError('Error processing frame: ' + (err as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (isStreaming) {
+      intervalId = setInterval(processFrame, 1000); // Process every second
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isStreaming]);
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">

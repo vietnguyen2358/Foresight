@@ -28,14 +28,6 @@ export default function SearchSection() {
   const resultsEndRef = useRef<HTMLDivElement>(null)
   const { setSelectedCamera, cameras } = useCamera()
 
-  const scrollToBottom = () => {
-    resultsEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [results])
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!query.trim()) return
