@@ -4,37 +4,42 @@ import chromadb
 import uuid
 import json
 import os
-from chromadb.utils import embedding_functions
-
+from dotenv import load_dotenv
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 # Setup persistent ChromaDB client
-PERSIST_DIR = "./chroma_storage"
-COLLECTION_NAME = "people"
-chroma_client = chromadb.PersistentClient(path=PERSIST_DIR)
+load_dotenv()
+password = (os.getenv("DB_PASS"))
+uri = f"mongodb+srv://localmatt:{password}@sfhacks.xbqsdad.mongodb.net/?appName=SFHacks"
 
-# Ensure collection exists
-if COLLECTION_NAME in [c.name for c in chroma_client.list_collections()]:
-    collection = chroma_client.get_collection(COLLECTION_NAME)
-else:
-    collection = chroma_client.create_collection(COLLECTION_NAME)
+client = MongoClient(uri, server_api=ServerApi('1'))
+
+# Send a ping to confirm a successful connection
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)
+
+# Use the 'people' collection in MongoDB
+db = client['sfhacks']
+collection = db['people']
 
 def reset_collection():
-    """Reset the ChromaDB collection (for debugging/testing)."""
-    chroma_client.delete_collection(COLLECTION_NAME)
-    return chroma_client.create_collection(COLLECTION_NAME)
-
+    """Reset the MongoDB collection (for debugging/testing)."""
+    collection.drop()
+    return collection
 
 def add_person(embedding, description_json, metadata={}):
-    """Add a person to the ChromaDB vector database."""
+    """Add a person to MongoDB."""
     uid = str(uuid.uuid4())
     
-    # Add image path to metadata if available
+    # Handle image storage
     if "image_path" not in metadata and "image" in metadata:
-        # Save the image to a file
         image_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
         os.makedirs(image_dir, exist_ok=True)
         image_path = os.path.join(image_dir, f"{uid}.jpg")
         
-        # Save the image
         if isinstance(metadata["image"], bytes):
             with open(image_path, "wb") as f:
                 f.write(metadata["image"])
@@ -42,26 +47,64 @@ def add_person(embedding, description_json, metadata={}):
             metadata["image"].save(image_path)
         
         metadata["image_path"] = image_path
-    
-    collection.add(
-        ids=[uid],
-        embeddings=[embedding],
-        documents=[json.dumps(description_json)],
-        metadatas=[{
+
+    # Prepare document for MongoDB
+    document = {
+        "_id": uid,
+        "embedding": embedding,
+        "description": description_json,
+        "metadata": {
             "gender": description_json.get("gender", ""),
             "age_group": description_json.get("age_group", ""),
             "track_id": metadata.get("track_id", -1),
             "frame": metadata.get("frame", -1),
-            "image_path": metadata.get("image_path", ""),
-        }]
-    )
+            "image_path": metadata.get("image_path", "")
+        }
+    }
+    
+    collection.insert_one(document)
 
+import math
+import base64
+
+def cosine_similarity(vec1, vec2):
+    """Compute cosine similarity between two lists."""
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    magnitude1 = math.sqrt(sum(a * a for a in vec1))
+    magnitude2 = math.sqrt(sum(b * b for b in vec2))
+    if magnitude1 == 0 or magnitude2 == 0:
+        return 0.0
+    return dot_product / (magnitude1 * magnitude2)
 
 def search_people(query_embedding, n=3):
-    """Search for similar people in ChromaDB."""
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n,
-        include=["documents", "metadatas", "distances"]
-    )
-    return results
+    people = list(collection.find({}))
+    results = []
+
+    for person in people:
+        person_embedding = person['embedding']
+        sim = cosine_similarity(query_embedding, person_embedding)
+        sim_percentage = round(sim * 100, 1)
+
+        # Load and encode image
+        image_path = person["metadata"].get("image_path", "")
+        try:
+            with open(image_path, "rb") as img_file:
+                encoded_img = base64.b64encode(img_file.read()).decode("utf-8")
+        except Exception:
+            encoded_img = None  # If image path is bad or file is missing
+
+        results.append({
+            "description": person["description"],
+            "similarity": sim * 100,
+            "similarity_percentage": f"{sim_percentage}%",
+            "processed_image": encoded_img
+        })
+
+    # Sort results by similarity and get top N
+    top_matches = sorted(results, key=lambda x: x["similarity"], reverse=True)[:n]
+
+    return {
+        "query": "find someone",
+        "matches": top_matches,
+        "count": len(top_matches)
+    }
