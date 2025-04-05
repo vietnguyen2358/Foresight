@@ -9,6 +9,7 @@ import { Search, Filter, Clock, MapPin, User, Calendar, ChevronDown, ChevronUp }
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { searchPerson, type SearchResult } from "@/lib/api"
 
 // Mock data for individuals
 const mockPeople = [
@@ -161,70 +162,27 @@ export default function SearchSection() {
     },
   })
 
-  const [results, setResults] = useState(mockPeople)
+  const [results, setResults] = useState<SearchResult["matches"]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Handle search
-  const handleSearch = () => {
-    let filtered = [...mockPeople]
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (person) =>
-          person.description.toLowerCase().includes(query) ||
-          person.location.toLowerCase().includes(query) ||
-          person.attributes.clothing.some((item) => item.toLowerCase().includes(query)),
-      )
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const searchResults = await searchPerson(searchQuery);
+      setResults(searchResults.matches || []);
+    } catch (err) {
+      console.error("Search error:", err);
+      setError("Failed to perform search. Please try again.");
+      setResults([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Apply filters
-    if (filters.gender) {
-      filtered = filtered.filter((person) => person.attributes.gender.toLowerCase() === filters.gender.toLowerCase())
-    }
-
-    if (filters.ageRange) {
-      filtered = filtered.filter((person) => person.attributes.ageRange === filters.ageRange)
-    }
-
-    if (filters.timeOfDay) {
-      // Simple time of day filtering
-      const isAfternoon = (time: string) => {
-        const hour = Number.parseInt(time.split(":")[0])
-        return hour >= 12
-      }
-
-      filtered = filtered.filter((person) => {
-        if (filters.timeOfDay === "Morning") {
-          return !isAfternoon(person.time)
-        } else {
-          return isAfternoon(person.time)
-        }
-      })
-    }
-
-    if (filters.date) {
-      filtered = filtered.filter((person) => person.date === filters.date)
-    }
-
-    if (filters.location) {
-      filtered = filtered.filter((person) => person.location === filters.location)
-    }
-
-    // Filter by clothing colors
-    const selectedColors = Object.entries(filters.clothing)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([color]) => color)
-
-    if (selectedColors.length > 0) {
-      filtered = filtered.filter((person) =>
-        person.attributes.clothing.some((item) =>
-          selectedColors.some((color) => item.toLowerCase().includes(color.toLowerCase())),
-        ),
-      )
-    }
-
-    setResults(filtered)
   }
 
   // Reset filters
@@ -245,324 +203,94 @@ export default function SearchSection() {
       },
     })
     setSearchQuery("")
-    setResults(mockPeople)
+    setResults([])
   }
 
   // Get unique locations for filter dropdown
   const locations = [...new Set(mockPeople.map((person) => person.location))]
 
   return (
-    <div className="flex flex-col h-full bg-gray-950">
-      {/* Search Header */}
-      <div className="p-4 border-b border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by description, location, or clothing..."
-              className="pl-9 bg-gray-900 border-gray-800 text-white focus-visible:ring-blue-600"
-            />
-          </div>
-          <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
+    <div className="w-full max-w-4xl mx-auto p-4">
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Describe who you're looking for..."
+            className="flex-1"
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          <Button onClick={handleSearch} disabled={isLoading}>
+            <Search className="h-4 w-4 mr-2" />
             Search
           </Button>
-          <Button
-            variant="outline"
-            className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
-            onClick={() => setShowFilters(!showFilters)}
-          >
+          <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-4 w-4 mr-2" />
             Filters
             {showFilters ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
           </Button>
         </div>
 
-        {/* Filters Section */}
-        {showFilters && (
-          <div className="bg-gray-900 rounded-md p-4 border border-gray-800 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Gender Filter */}
-              <div>
-                <Label className="text-sm text-gray-400 mb-1 block">Gender</Label>
-                <Select value={filters.gender} onValueChange={(value) => setFilters({ ...filters, gender: value })}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Any gender" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="any">Any gender</SelectItem>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {error && (
+          <div className="text-red-500 text-sm">{error}</div>
+        )}
 
-              {/* Age Range Filter */}
-              <div>
-                <Label className="text-sm text-gray-400 mb-1 block">Age Range</Label>
-                <Select value={filters.ageRange} onValueChange={(value) => setFilters({ ...filters, ageRange: value })}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Any age" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="any">Any age</SelectItem>
-                    <SelectItem value="15-20">15-20</SelectItem>
-                    <SelectItem value="20-30">20-30</SelectItem>
-                    <SelectItem value="30-40">30-40</SelectItem>
-                    <SelectItem value="40-50">40-50</SelectItem>
-                    <SelectItem value="60+">60+</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Time of Day Filter */}
-              <div>
-                <Label className="text-sm text-gray-400 mb-1 block">Time of Day</Label>
-                <Select
-                  value={filters.timeOfDay}
-                  onValueChange={(value) => setFilters({ ...filters, timeOfDay: value })}
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Any time" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="any">Any time</SelectItem>
-                    <SelectItem value="Morning">Morning</SelectItem>
-                    <SelectItem value="Afternoon">Afternoon/Evening</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Date Filter */}
-              <div>
-                <Label className="text-sm text-gray-400 mb-1 block">Date</Label>
-                <Select value={filters.date} onValueChange={(value) => setFilters({ ...filters, date: value })}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Any date" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="any">Any date</SelectItem>
-                    <SelectItem value="Today">Today</SelectItem>
-                    <SelectItem value="Yesterday">Yesterday</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Location Filter */}
-              <div>
-                <Label className="text-sm text-gray-400 mb-1 block">Location</Label>
-                <Select value={filters.location} onValueChange={(value) => setFilters({ ...filters, location: value })}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Any location" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                    <SelectItem value="any">Any location</SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem key={location} value={location}>
-                        {location}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Clothing Color Filters */}
-              <div>
-                <Label className="text-sm text-gray-400 mb-1 block">Clothing Colors</Label>
-                <div className="flex flex-wrap gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="red"
-                      checked={filters.clothing.red}
-                      onCheckedChange={(checked) =>
-                        setFilters({
-                          ...filters,
-                          clothing: { ...filters.clothing, red: checked === true },
-                        })
-                      }
-                    />
-                    <label
-                      htmlFor="red"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                    >
-                      Red
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="blue"
-                      checked={filters.clothing.blue}
-                      onCheckedChange={(checked) =>
-                        setFilters({
-                          ...filters,
-                          clothing: { ...filters.clothing, blue: checked === true },
-                        })
-                      }
-                    />
-                    <label
-                      htmlFor="blue"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                    >
-                      Blue
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="green"
-                      checked={filters.clothing.green}
-                      onCheckedChange={(checked) =>
-                        setFilters({
-                          ...filters,
-                          clothing: { ...filters.clothing, green: checked === true },
-                        })
-                      }
-                    />
-                    <label
-                      htmlFor="green"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                    >
-                      Green
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="black"
-                      checked={filters.clothing.black}
-                      onCheckedChange={(checked) =>
-                        setFilters({
-                          ...filters,
-                          clothing: { ...filters.clothing, black: checked === true },
-                        })
-                      }
-                    />
-                    <label
-                      htmlFor="black"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                    >
-                      Black
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="white"
-                      checked={filters.clothing.white}
-                      onCheckedChange={(checked) =>
-                        setFilters({
-                          ...filters,
-                          clothing: { ...filters.clothing, white: checked === true },
-                        })
-                      }
-                    />
-                    <label
-                      htmlFor="white"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                    >
-                      White
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="yellow"
-                      checked={filters.clothing.yellow}
-                      onCheckedChange={(checked) =>
-                        setFilters({
-                          ...filters,
-                          clothing: { ...filters.clothing, yellow: checked === true },
-                        })
-                      }
-                    />
-                    <label
-                      htmlFor="yellow"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white"
-                    >
-                      Yellow
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="outline"
-                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white mr-2"
-                onClick={resetFilters}
-              >
-                Reset Filters
-              </Button>
-              <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
-                Apply Filters
-              </Button>
-            </div>
+        {isLoading && (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
           </div>
         )}
 
-        {/* Results count */}
-        <div className="text-sm text-gray-400">
-          Found {results.length} {results.length === 1 ? "person" : "people"} matching your search
-        </div>
-      </div>
-
-      {/* Results Section */}
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-950">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {results.length > 0 ? (
-            results.map((person) => (
-              <Card key={person.id} className="bg-gray-900 border-gray-800 hover:border-blue-600 transition-colors">
+        {results.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {results.map((result, index) => (
+              <Card key={index} className="overflow-hidden">
                 <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
-                      <User className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-white font-medium mb-1">Person {person.id}</h3>
-                      <p className="text-gray-300 text-sm mb-3">{person.description}</p>
-
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        <Badge variant="outline" className="bg-gray-800 text-blue-400 border-blue-800 text-xs">
-                          {person.attributes.gender}
-                        </Badge>
-                        <Badge variant="outline" className="bg-gray-800 text-blue-400 border-blue-800 text-xs">
-                          {person.attributes.ageRange}
-                        </Badge>
-                        <Badge variant="outline" className="bg-gray-800 text-blue-400 border-blue-800 text-xs">
-                          {person.attributes.height}
+                  <div className="flex flex-col gap-2">
+                    {result.image_data && (
+                      <img
+                        src={`data:image/jpeg;base64,${result.image_data}`}
+                        alt={`Match ${index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    )}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="secondary">
+                          {result.similarity.toFixed(1)}% Match
                         </Badge>
                       </div>
-
-                      <div className="flex items-center text-xs text-gray-400 mb-1">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {person.location}
-                      </div>
-
-                      <div className="flex items-center text-xs text-gray-400 mb-1">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {person.time}
-                      </div>
-
-                      <div className="flex items-center text-xs text-gray-400">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {person.date}
+                      <div className="space-y-1">
+                        <p className="text-sm">
+                          <span className="font-semibold">Gender:</span> {result.description.gender || "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-semibold">Age:</span> {result.description.age_group || "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-semibold">Clothing:</span>{" "}
+                          {result.description.clothing_top
+                            ? `${result.description.clothing_top} (${result.description.clothing_top_color || "N/A"})`
+                            : "N/A"}
+                        </p>
+                        {result.description.clothing_bottom && (
+                          <p className="text-sm">
+                            <span className="font-semibold">Bottom:</span>{" "}
+                            {`${result.description.clothing_bottom} (${result.description.clothing_bottom_color || "N/A"})`}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))
-          ) : (
-            <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
-              <Search className="h-12 w-12 mb-4 opacity-20" />
-              <h3 className="text-lg font-medium mb-1">No results found</h3>
-              <p className="text-sm">Try adjusting your search or filters</p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : !isLoading && searchQuery && (
+          <div className="text-center py-8 text-gray-500">
+            No matches found. Try adjusting your search criteria.
+          </div>
+        )}
       </div>
     </div>
   )
