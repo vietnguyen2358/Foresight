@@ -1,157 +1,111 @@
 # db.py
 
-import base64
+import chromadb
 import uuid
-import numpy as np
-import os
 import json
+import os
 from dotenv import load_dotenv
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from pymongo.errors import OperationFailure
+import base64
 
-# Setup MongoDB access uri
+# Setup persistent ChromaDB client
 load_dotenv()
-password = (os.getenv("DB_PASS"))
-uri = f"mongodb+srv://localmatt:{password}@sfhacks.xbqsdad.mongodb.net/?appName=SFHacks"
 
-client = MongoClient(uri, server_api=ServerApi('1'))
+# Initialize ChromaDB client with persistent storage
+client = chromadb.PersistentClient(path="chroma_storage")
 
-# Send a ping to confirm a successful connection
-try:
-    client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    print(e)
-
-# Use the 'people' collection in MongoDB
-db = client['sfhacks']
-collection = db['people']
-
+# Get or create the collection
+collection = client.get_or_create_collection(
+    name="people",
+    metadata={"hnsw:space": "cosine"}
+)
 
 def reset_collection():
-    """Reset the MongoDB collection (for debugging/testing)."""
-    collection.drop()
-    return collection
-
-
-def to_serializable(obj):
-    if isinstance(obj, dict):
-        return {k: to_serializable(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [to_serializable(v) for v in obj]
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, (np.integer, np.floating)):
-        return obj.item()
-    else:
-        return obj
-
+    """Reset the ChromaDB collection (for debugging/testing)."""
+    client.delete_collection("people")
+    return client.get_or_create_collection(
+        name="people",
+        metadata={"hnsw:space": "cosine"}
+    )
 
 def add_person(embedding, description_json, metadata={}):
-    """Add a person to MongoDB."""
+    """Add a person to ChromaDB."""
     uid = str(uuid.uuid4())
-
-    if isinstance(embedding, np.ndarray):
-        embedding = embedding.tolist()
-
-    description_json = to_serializable(description_json)
-    metadata = to_serializable(metadata)
-
-    document = {
-        "_id": uid,
-        "embedding": embedding,
-    }
-
+    
     # Handle image storage
     if "image_path" not in metadata and "image" in metadata:
-        image_dir = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "uploads")
+        image_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
         os.makedirs(image_dir, exist_ok=True)
         image_path = os.path.join(image_dir, f"{uid}.jpg")
-
+        
         if isinstance(metadata["image"], bytes):
             with open(image_path, "wb") as f:
                 f.write(metadata["image"])
         else:
             metadata["image"].save(image_path)
-
+        
         metadata["image_path"] = image_path
 
-    # Prepare document for MongoDB
-    document = {
-        "_id": uid,
-        "embedding": embedding,
-        "documents": description_json,
-        "metadata": {
-            "gender": description_json.get("gender", ""),
-            "age_group": description_json.get("age_group", ""),
-            "track_id": metadata.get("track_id", -1),
-            "frame": metadata.get("frame", -1),
-            "image_path": metadata.get("image_path", "")
-        }
+    # Prepare metadata for ChromaDB
+    chroma_metadata = {
+        "gender": description_json.get("gender", ""),
+        "age_group": description_json.get("age_group", ""),
+        "track_id": metadata.get("track_id", -1),
+        "frame": metadata.get("frame", -1),
+        "image_path": metadata.get("image_path", "")
     }
-
-    collection.insert_one(document)
-
+    
+    # Add to ChromaDB
+    collection.add(
+        embeddings=[embedding],
+        documents=[json.dumps(description_json)],
+        metadatas=[chroma_metadata],
+        ids=[uid]
+    )
 
 def search_people(query_embedding, n=3):
-    # Ensure the embedding is a list of floats
-    query_embedding = [float(x) for x in query_embedding]
-
-    try:
-        pipeline = [
-            {
-                "$vectorSearch": {
-                    "index": "embedding_index",
-                    "queryVector": query_embedding,
-                    "path": "embedding",
-                    "numCandidates": 100,
-                    "limit": n,
-                    "similarity": "cosine"
-                }
-            }
-        ]
-
-        results = list(collection.aggregate(pipeline))
-
-        documents = []
-        metadatas = []
-        distances = []
-
-        for person in results:
-            description = person.get("documents", {})
-            metadata = person.get("metadata", {})
-            score = person.get("score", 0)
-            distance = 1 - score  # similarity → distance
-
-            # Load image data
-            image_path = metadata.get("image_path", "")
+    """Search for similar people in ChromaDB."""
+    # Query ChromaDB
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=n
+    )
+    
+    # Process results to match the format expected by the frontend
+    processed_results = []
+    for doc, metadata, distance in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
+        try:
+            # Convert distance to similarity score (0-100%)
+            similarity = max(0, min(100, (1 - distance) * 100))
+            
+            # Load and encode image
             image_data = None
+            image_path = metadata.get("image_path", "")
             if image_path and os.path.exists(image_path):
                 try:
                     with open(image_path, "rb") as img_file:
                         image_data = base64.b64encode(img_file.read()).decode("utf-8")
                 except Exception as e:
-                    print(f"⚠️ Failed to load image: {e}")
-
-            # Prepare fields
-            documents.append(json.dumps(description))
-            metadatas.append({
-                **metadata,
+                    print(f"Error loading image {image_path}: {e}")
+            
+            # Parse description
+            try:
+                description = json.loads(doc)
+            except json.JSONDecodeError:
+                print("Error parsing description JSON")
+                description = {}
+            
+            processed_results.append({
+                "description": description,
+                "similarity": similarity,
                 "image_data": image_data
             })
-            distances.append(distance)
-
-        return {
-            "documents": [documents],
-            "metadatas": [metadatas],
-            "distances": [distances]
-        }
-
-    except OperationFailure as e:
-        print(f"❌ MongoDB OperationFailure: {e}")
-        return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+        except Exception as e:
+            print(f"Error processing result: {e}")
+            continue
+    
+    # Return in the format expected by the frontend
+    return {
+        "query": "find someone",
+        "matches": processed_results,
+        "count": len(processed_results)
+    }
