@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { MapPin, Navigation, Camera } from "lucide-react"
+import { MapPin, Navigation, Camera, X } from "lucide-react"
+import { useCamera } from "@/lib/CameraContext"
+import L from 'leaflet'
 
 // Mock camera data with real lat/lng coordinates for San Francisco
 const cameras = [
@@ -74,11 +76,13 @@ export default function Map() {
   const [nearestCamera, setNearestCamera] = useState<any>(null)
   const [isLoadingLocation, setIsLoadingLocation] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const { selectedCamera, setSelectedCamera } = useCamera()
   const markersRef = useRef<any[]>([])
   const userMarkerRef = useRef<any>(null)
   const pulseCircleRef = useRef<any>(null)
   const pulseAnimationRef = useRef<any>(null)
   const nearestCameraLineRef = useRef<any>(null)
+  const mapClickHandlerRef = useRef<any>(null)
 
   // Initialize or reinitialize the map
   const initializeMap = async () => {
@@ -87,20 +91,13 @@ export default function Map() {
     try {
       // Clean up existing map if it exists
       if (mapRef.current) {
+        // Remove existing click handler if it exists
+        if (mapClickHandlerRef.current) {
+          mapRef.current.off('click', mapClickHandlerRef.current)
+        }
         mapRef.current.remove()
         mapRef.current = null
       }
-
-      // Import Leaflet dynamically
-      const L = await import("leaflet")
-
-      // Fix Leaflet's icon paths
-      delete (L.Icon.Default.prototype as any)._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-      })
 
       // Create map with saved state or default
       const map = L.map(mapContainerRef.current, {
@@ -116,6 +113,39 @@ export default function Map() {
         subdomains: "abcd",
         maxZoom: 19,
       }).addTo(map)
+
+      // Create a map click handler function
+      const handleMapClick = (e: any) => {
+        // Only process if a camera is selected
+        if (!selectedCamera) return;
+        
+        // Check if the click was on a marker
+        const clickedOnMarker = markersRef.current.some(marker => {
+          const markerLatLng = marker.getLatLng();
+          const clickLatLng = e.latlng;
+          
+          // Calculate distance between click and marker
+          const distance = Math.sqrt(
+            Math.pow(markerLatLng.lat - clickLatLng.lat, 2) + 
+            Math.pow(markerLatLng.lng - clickLatLng.lng, 2)
+          );
+          
+          // If distance is small, consider it a click on the marker
+          return distance < 0.0001; // Adjust this threshold as needed
+        });
+        
+        // If not clicked on a marker, deselect the camera
+        if (!clickedOnMarker) {
+          console.log("Map clicked outside markers, deselecting camera");
+          setSelectedCamera(null);
+        }
+      };
+
+      // Store the handler reference so we can remove it later
+      mapClickHandlerRef.current = handleMapClick;
+      
+      // Add the click handler to the map
+      map.on('click', handleMapClick);
 
       // Store map reference
       mapRef.current = map
@@ -140,36 +170,50 @@ export default function Map() {
   // Add camera markers to the map
   const addCameraMarkers = (map: any, L: any) => {
     // Clear existing markers
-    markersRef.current.forEach((marker) => marker.remove())
+    markersRef.current.forEach(marker => marker.remove())
     markersRef.current = []
 
-    // Create custom camera icon
-    const cameraIcon = L.divIcon({
-      html: `
-        <div class="p-1 rounded-full bg-blue-600 shadow-lg flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
-            <circle cx="12" cy="13" r="3"></circle>
-          </svg>
-        </div>
-      `,
-      className: "camera-marker",
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-    })
+    // Add markers for each camera
+    cameras.forEach(camera => {
+      const marker = L.marker([camera.lat, camera.lng], {
+        icon: L.divIcon({
+          className: 'custom-marker',
+          html: `
+            <div class="relative">
+              <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                  <circle cx="12" cy="13" r="3"></circle>
+                </svg>
+              </div>
+              ${camera.id === selectedCamera?.id ? `
+                <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                </div>
+              ` : ''}
+            </div>
+          `,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        }),
+      })
 
-    // Add camera markers
-    cameras.forEach((camera) => {
-      const marker = L.marker([camera.lat, camera.lng], { icon: cameraIcon })
-        .addTo(map)
-        .bindPopup(`
-          <div class="p-2">
-            <h3 class="font-bold">${camera.name}</h3>
-            <p class="text-sm">ID: ${camera.id}</p>
-            <p class="text-sm text-green-500">Status: ${camera.status}</p>
-          </div>
-        `)
+      // Add click handler
+      marker.on('click', (e: any) => {
+        e.originalEvent.stopPropagation()
+        setSelectedCamera(camera)
+        // Smooth zoom to camera location
+        map.flyTo([camera.lat, camera.lng], 18, {
+          animate: true,
+          duration: 1.5,
+          easeLinearity: 0.25
+        })
+      })
 
+      marker.addTo(map)
       markersRef.current.push(marker)
     })
   }
@@ -239,29 +283,19 @@ export default function Map() {
     }).addTo(map)
 
     // Add a pulsing effect
-    const pulseCircle = L.circleMarker([location.lat, location.lng], {
-      radius: 0,
-      fillColor: "#3b82f6",
-      color: "#3b82f6",
-      weight: 2,
-      opacity: 0.5,
-      fillOpacity: 0.3,
-    }).addTo(map)
-
-    // Animate the pulse
     const animatePulse = () => {
       let radius = 0
       const interval = setInterval(() => {
         radius += 1
-        pulseCircle.setRadius(radius)
-        pulseCircle.setStyle({
+        pulseCircleRef.current.setRadius(radius)
+        pulseCircleRef.current.setStyle({
           opacity: Math.max(0, 0.5 - radius / 30),
           fillOpacity: Math.max(0, 0.3 - radius / 30),
         })
 
         if (radius > 30) {
           clearInterval(interval)
-          pulseCircle.setRadius(0)
+          pulseCircleRef.current.setRadius(0)
           setTimeout(animatePulse, 500)
         }
       }, 50)
@@ -273,7 +307,6 @@ export default function Map() {
 
     // Save references
     userMarkerRef.current = userMarker
-    pulseCircleRef.current = pulseCircle
   }
 
   // Find nearest camera to user location
@@ -355,39 +388,190 @@ export default function Map() {
     return deg * (Math.PI / 180)
   }
 
+  // Reset map view to default when camera is deselected
+  useEffect(() => {
+    if (!selectedCamera && mapRef.current) {
+      mapRef.current.flyTo([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 13, {
+        animate: true,
+        duration: 1.5,
+      })
+    }
+  }, [selectedCamera])
+
+  // Add a direct click handler to the map container for better reliability
+  useEffect(() => {
+    const handleContainerClick = (e: MouseEvent) => {
+      // Only process if a camera is selected
+      if (!selectedCamera) return;
+      
+      // Check if the click was on a marker
+      const target = e.target as HTMLElement;
+      const isMarker = target.closest('.camera-marker');
+      
+      // If not clicked on a marker, deselect the camera
+      if (!isMarker) {
+        console.log("Container clicked outside markers, deselecting camera");
+        setSelectedCamera(null);
+      }
+    };
+    
+    const container = mapContainerRef.current;
+    if (container) {
+      container.addEventListener('click', handleContainerClick);
+      
+      return () => {
+        container.removeEventListener('click', handleContainerClick);
+      };
+    }
+  }, [selectedCamera, setSelectedCamera]);
+
+  // Add effect to handle camera selection changes
+  useEffect(() => {
+    console.log("Camera selection changed:", selectedCamera);
+    if (selectedCamera && mapRef.current) {
+      console.log("Camera selected, zooming to:", selectedCamera);
+      console.log("Map reference exists:", !!mapRef.current);
+      console.log("Map methods available:", {
+        flyTo: !!mapRef.current.flyTo,
+        getCenter: !!mapRef.current.getCenter,
+        getZoom: !!mapRef.current.getZoom
+      });
+      
+      // Force a small delay to ensure the map is ready
+      setTimeout(() => {
+        if (mapRef.current) {
+          console.log("Executing flyTo after delay");
+          // Smooth zoom to selected camera
+          mapRef.current.flyTo([selectedCamera.lat, selectedCamera.lng], 18, {
+            animate: true,
+            duration: 1.5,
+            easeLinearity: 0.25
+          });
+          
+          // Log current map state
+          console.log("Current map center:", mapRef.current.getCenter());
+          console.log("Current map zoom:", mapRef.current.getZoom());
+        }
+      }, 200);
+      
+      // Update marker styles
+      markersRef.current.forEach(marker => {
+        const markerLatLng = marker.getLatLng();
+        if (markerLatLng.lat === selectedCamera.lat && markerLatLng.lng === selectedCamera.lng) {
+          console.log("Updating marker style for selected camera");
+          marker.setIcon(L.divIcon({
+            className: 'custom-marker',
+            html: `
+              <div class="relative">
+                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                    <circle cx="12" cy="13" r="3"></circle>
+                  </svg>
+                </div>
+                <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                </div>
+              </div>
+            `,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+          }));
+        }
+      });
+    }
+  }, [selectedCamera]);
+
+  // Expose the zoomToCamera method to the window object for testing
+  useEffect(() => {
+    if (mapRef.current) {
+      // @ts-ignore
+      window.zoomToCamera = (camera: typeof cameras[0]) => {
+        console.log("Zooming to camera:", camera);
+        if (mapRef.current) {
+          // Smooth zoom to camera location
+          mapRef.current.flyTo({
+            center: [camera.lng, camera.lat],
+            zoom: 15,
+            duration: 2000
+          });
+          
+          // Update marker styles
+          markersRef.current.forEach(marker => {
+            const markerLatLng = marker.getLatLng();
+            if (markerLatLng.lat === camera.lat && markerLatLng.lng === camera.lng) {
+              marker.setIcon(L.divIcon({
+                className: 'custom-marker',
+                html: `
+                  <div class="relative">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                        <circle cx="12" cy="13" r="3"></circle>
+                      </svg>
+                    </div>
+                    <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                      <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                    </div>
+                  </div>
+                `,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+              }));
+              
+              // Add a popup to the marker
+              marker.bindPopup(`<strong>${camera.name}</strong><br>Camera ID: ${camera.id}`).openPopup();
+            }
+          });
+          
+          // Log success message
+          console.log(`Successfully zoomed to camera ${camera.name} (${camera.id})`);
+        } else {
+          console.error("Map reference not available");
+        }
+      };
+    }
+  }, [markersRef]);
+
   // Initialize map when component mounts
   useEffect(() => {
     // Add Leaflet CSS if it doesn't exist
-    let link = document.querySelector('link[href*="leaflet.css"]') as HTMLLinkElement | null
+    let link = document.querySelector('link[href*="leaflet.css"]') as HTMLLinkElement | null;
     if (!link) {
-      link = document.createElement("link") as HTMLLinkElement
-      link.href = "https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-      link.rel = "stylesheet"
-      document.head.appendChild(link)
+      link = document.createElement("link") as HTMLLinkElement;
+      link.href = "https://unpkg.com/leaflet@1.7.1/dist/leaflet.css";
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
     }
   
     // Initialize map with a longer delay to ensure DOM is ready
     const timer = setTimeout(() => {
       if (mapContainerRef.current) {
-        initializeMap()
+        initializeMap();
       }
-    }, 300)
+    }, 300);
   
     // Clean up on unmount
     return () => {
-      clearTimeout(timer)
+      clearTimeout(timer);
       if (mapRef.current) {
-        mapRef.current.remove()
+        mapRef.current.remove();
       }
       if (pulseAnimationRef.current) {
-        clearInterval(pulseAnimationRef.current)
+        clearInterval(pulseAnimationRef.current);
       }
       // Only remove the link if we created it
       if (link && link.parentNode && !document.querySelector('link[href*="leaflet.css"]:not(:first-of-type)')) {
-        link.parentNode.removeChild(link)
+        link.parentNode.removeChild(link);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   return (
     <div className="w-full h-full bg-gray-900 relative">
@@ -414,8 +598,44 @@ export default function Map() {
         </div>
       )}
 
+      {/* Selected camera info with close button */}
+      {selectedCamera && (
+        <div className="absolute top-4 left-4 bg-gray-900/90 border border-gray-800 text-white p-4 rounded-lg z-[1000] max-w-xs">
+          <div className="flex justify-between items-start">
+            <h3 className="font-bold flex items-center">
+              <Camera className="h-4 w-4 mr-2 text-blue-500" />
+              Camera {selectedCamera.id}
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedCamera(null)}
+              className="h-6 w-6 text-gray-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-sm mt-1">{selectedCamera.name}</p>
+          <p className="text-xs text-gray-400 mt-1">Status: {selectedCamera.status}</p>
+          <p className="text-sm text-red-500 mt-1 flex items-center">
+            <span className="relative flex h-2 w-2 mr-1">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            </span>
+            LIVE
+          </p>
+        </div>
+      )}
+
+      {/* Click anywhere to exit indicator */}
+      {selectedCamera && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900/90 border border-gray-800 text-white p-3 rounded-lg z-[1000] text-center">
+          <p className="text-sm text-gray-300">Click anywhere on the map to exit camera view</p>
+        </div>
+      )}
+
       {/* Nearest camera info */}
-      {nearestCamera && (
+      {nearestCamera && !selectedCamera && (
         <div className="absolute top-4 left-4 bg-gray-900/90 border border-gray-800 text-white p-4 rounded-lg z-[1000] max-w-xs">
           <h3 className="font-bold flex items-center">
             <Camera className="h-4 w-4 mr-2 text-blue-500" />

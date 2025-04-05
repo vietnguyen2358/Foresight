@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import MapWrapper from "@/components/MapWrapper"
 import ChatAgent from "@/components/ChatAgent"
 import SearchSection from "@/components/SearchSection"
+import RightSidebar from "@/components/RightSidebar"
 import { MapPin, Search, Maximize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -92,6 +93,13 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Right Sidebar - Only visible on dashboard */}
+      {!isFullscreen && (
+        <div className="w-80 bg-gray-950 border-l border-gray-800 h-[calc(100vh-4rem)] z-10">
+          <RightSidebar />
+        </div>
+      )}
     </div>
   )
 }

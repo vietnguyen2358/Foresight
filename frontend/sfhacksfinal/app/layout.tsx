@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { CameraProvider } from "@/lib/CameraContext"
 import Navbar from "@/components/navbar"
 
 
@@ -38,11 +39,19 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <div className="flex min-h-screen flex-col bg-black relative">
-            <Navbar />
-            <div className="h-16"></div>
-            <main className="flex-1 relative z-0">{children}</main>
-          </div>
+          <CameraProvider>
+            <div className="flex min-h-screen flex-col bg-black">
+              <Navbar />
+              <div className="flex-1 flex">
+                {/* Main Content */}
+                <div className="flex-1 bg-gray-950">
+                  <main className="h-full">
+                    {children}
+                  </main>
+                </div>
+              </div>
+            </div>
+          </CameraProvider>
         </ThemeProvider>
       </body>
     </html>

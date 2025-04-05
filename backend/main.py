@@ -16,7 +16,8 @@ import numpy as np
 import base64
 from app_init import app
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from ultralytics import YOLO
 
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
@@ -44,6 +45,9 @@ genai.configure(api_key=GEMINI_API_KEY)
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Load YOLO model
+yolo_model = YOLO("yolo11n.pt")
+
 # Define models for chat
 class ChatMessage(BaseModel):
     role: str
@@ -54,6 +58,15 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+
+class FrameResponse(BaseModel):
+    detections: List[dict]
+    description: str
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    person_crops: List[dict] = Field(default_factory=list)
+
+class FrameRequest(BaseModel):
+    frame_data: str
 
 def save_upload_file(upload_file: UploadFile) -> str:
     """Save uploaded file and return the path"""
@@ -341,6 +354,182 @@ async def handle_incoming_call(request: Request):
 async def shutdown_event():
     # Clean up OpenCV windows when the server shuts down
     cv2.destroyAllWindows()
+
+
+@app.post("/process_frame", response_model=FrameResponse)
+async def process_frame(request: FrameRequest):
+    try:
+        # Decode base64 image
+        frame_data = request.frame_data
+        if ',' in frame_data:
+            # If it's a data URL, extract the base64 part
+            frame_data = frame_data.split(',')[1]
+        
+        image_bytes = base64.b64decode(frame_data)
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            raise ValueError("Failed to decode image data")
+            
+        logger.info(f"Successfully decoded frame with shape: {frame.shape}")
+        
+        # Run YOLO detection
+        results = yolo_model(frame)[0]
+        logger.info(f"YOLO detection completed with {len(results.boxes)} objects detected")
+        
+        # Process detections
+        detections = []
+        person_crops = []
+        
+        # Debug: Check if there are any detections
+        if len(results.boxes) == 0:
+            logger.warning("No objects detected in the frame")
+            # Log the frame shape and type for debugging
+            logger.info(f"Frame shape: {frame.shape}, dtype: {frame.dtype}")
+            logger.info(f"Frame min/max values: {frame.min()}/{frame.max()}")
+            
+            # Try running detection with a lower confidence threshold
+            logger.info("Attempting detection with lower confidence threshold")
+            results = yolo_model(frame, conf=0.1)[0]
+            logger.info(f"Second attempt detected {len(results.boxes)} objects")
+        
+        # Filter for person detections only
+        person_boxes = []
+        for box in results.boxes:
+            cls = int(box.cls[0])
+            label = yolo_model.names[cls]
+            
+            # Only keep person detections
+            if label.lower() == "person":
+                person_boxes.append(box)
+        
+        logger.info(f"Found {len(person_boxes)} person detections out of {len(results.boxes)} total detections")
+        
+        # Process person detections
+        for box in person_boxes:
+            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+            conf = float(box.conf[0])
+            
+            # Create a unique ID for each detection
+            detection_id = f"person_{len(detections)}"
+            
+            # Convert coordinates to integers
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            
+            # Ensure coordinates are within image bounds
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(frame.shape[1], x2)
+            y2 = min(frame.shape[0], y2)
+            
+            # Debug: Log each detection with more details
+            logger.info(f"Processing person detection with confidence {conf:.2f} at coordinates [{x1}, {y1}, {x2}, {y2}]")
+            logger.info(f"Detection size: {x2-x1}x{y2-y1} pixels")
+            
+            # Add to detections list
+            detections.append({
+                "id": detection_id,
+                "type": "person",
+                "confidence": conf,
+                "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                "timestamp": datetime.now().isoformat(),
+                "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
+            })
+            
+            # Crop person if the crop is valid
+            if (x2 - x1) > 0 and (y2 - y1) > 0:
+                try:
+                    # More lenient size check - only filter out extremely small crops
+                    if (x2 - x1) < 5 or (y2 - y1) < 5:
+                        logger.warning(f"Person crop too small at coordinates [{x1}, {y1}, {x2}, {y2}]")
+                        continue
+                        
+                    person_crop = frame[y1:y2, x1:x2]
+                    
+                    # Check if the crop is valid
+                    if person_crop.size == 0:
+                        logger.warning(f"Invalid person crop with zero size at coordinates [{x1}, {y1}, {x2}, {y2}]")
+                        continue
+                    
+                    # Log crop details
+                    logger.info(f"Person crop shape: {person_crop.shape}, dtype: {person_crop.dtype}")
+                    logger.info(f"Person crop min/max values: {person_crop.min()}/{person_crop.max()}")
+                    
+                    # Convert to PIL Image for Gemini
+                    person_crop_rgb = cv2.cvtColor(person_crop, cv2.COLOR_BGR2RGB)
+                    person_pil = Image.fromarray(person_crop_rgb)
+                    
+                    # Generate description for this person
+                    try:
+                        person_description = describe_person(person_pil)
+                        logger.info(f"Generated description for person: {person_description}")
+                    except Exception as desc_error:
+                        logger.error(f"Error generating description: {str(desc_error)}")
+                        person_description = {"error": f"Description generation failed: {str(desc_error)}"}
+                    
+                    # Convert crop to base64 for frontend display
+                    _, buffer = cv2.imencode('.jpg', person_crop)
+                    crop_base64 = base64.b64encode(buffer).decode('utf-8')
+                    
+                    # Add to person crops list
+                    person_crops.append({
+                        "id": detection_id,
+                        "crop": crop_base64,
+                        "description": person_description
+                    })
+                    logger.info(f"Added person crop with ID {detection_id}")
+                except Exception as crop_error:
+                    logger.error(f"Error cropping person: {str(crop_error)}")
+                    # Continue processing other detections
+        
+        # Generate a general description of the scene
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(frame_rgb)
+        
+        try:
+            logger.info("Generating general scene description")
+            scene_description = describe_person(pil_image)
+            logger.info(f"Scene description: {scene_description}")
+        except Exception as scene_error:
+            logger.error(f"Error generating scene description: {str(scene_error)}")
+            scene_description = {"error": f"Scene description failed: {str(scene_error)}"}
+        
+        # Convert description dictionary to a formatted string
+        description_str = ""
+        if scene_description:
+            if isinstance(scene_description, dict):
+                # Format the dictionary into a readable string
+                description_parts = []
+                for key, value in scene_description.items():
+                    if value:  # Only include non-empty values
+                        # Convert key from snake_case to Title Case
+                        key_formatted = key.replace('_', ' ').title()
+                        description_parts.append(f"{key_formatted}: {value}")
+                description_str = ". ".join(description_parts)
+            else:
+                # If it's already a string, use it directly
+                description_str = str(scene_description)
+        
+        # Debug: Log the response being sent
+        logger.info(f"Sending response with {len(detections)} detections and {len(person_crops)} person crops")
+        
+        return FrameResponse(
+            detections=detections,
+            description=description_str,
+            timestamp=datetime.now().isoformat(),
+            person_crops=person_crops
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing frame: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
 if __name__ == "__main__":
