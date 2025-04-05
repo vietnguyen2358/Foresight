@@ -25,9 +25,9 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
               <div className="w-10 h-10 rounded-md bg-blue-600 flex items-center justify-center mr-2">
-                <span className="text-white font-bold text-xl">F&S</span>
-              </div>
-              <span className="text-white font-bold text-xl">Find & Seek</span>
+                <span className="text-white font-bold text-xl"> </span>
+                </div>
+              <span className="text-white font-bold text-xl">CHANGE LATER</span>
             </Link>
           </div>
 
