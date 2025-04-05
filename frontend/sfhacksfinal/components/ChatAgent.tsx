@@ -4,19 +4,20 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, User, Bot, Loader2 } from "lucide-react"
+import { Send, User, Bot, Loader2, Maximize2, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import { searchPerson, chat, type SearchResult, type ChatMessage } from "@/lib/api"
+import { searchPeople, chatWithAI, type Detection, type PersonDescription, API_BASE_URL, checkServerHealth } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
-import MatchSidebar from "./MatchSidebar"
+import { useCamera, type Camera } from "@/lib/CameraContext"
+import type { SearchResult } from "@/lib/api"
 
 type Message = {
   role: "user" | "assistant"
   content: string
-  searchResults?: SearchResult
 }
 
 export default function ChatAgent() {
+  const { selectedCamera, setSelectedCamera, cameras } = useCamera()
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -26,9 +27,6 @@ export default function ChatAgent() {
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isTyping, setIsTyping] = useState(false)
-  const [currentSearchResults, setCurrentSearchResults] = useState<SearchResult | null>(null)
-  const [showSidebar, setShowSidebar] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
@@ -36,7 +34,6 @@ export default function ChatAgent() {
     if (messagesEndRef.current) {
       const chatContainer = chatContainerRef.current
       if (chatContainer) {
-        // Use requestAnimationFrame to ensure the DOM has updated
         requestAnimationFrame(() => {
           chatContainer.scrollTo({
             top: chatContainer.scrollHeight,
@@ -47,133 +44,163 @@ export default function ChatAgent() {
     }
   }
 
-  // Scroll to bottom when messages change or typing indicator appears
   useEffect(() => {
     scrollToBottom()
-  }, [messages, isLoading, isTyping])
+  }, [messages, isLoading])
 
-  // Also scroll when the component mounts
   useEffect(() => {
     scrollToBottom()
   }, [])
 
-  // Handle image loading to ensure scrolling works with images
-  const handleImageLoad = () => {
-    scrollToBottom()
-  }
+  // Add a useEffect hook that depends on the selectedCamera state
+  useEffect(() => {
+    if (selectedCamera) {
+      console.log("Selected camera changed in ChatAgent:", selectedCamera);
+      
+      // Try to use the zoomToCamera method if available
+      setTimeout(() => {
+        // @ts-ignore
+        if (window.zoomToCamera) {
+          console.log("Using zoomToCamera method from ChatAgent");
+          // @ts-ignore
+          window.zoomToCamera(selectedCamera);
+        } else {
+          console.log("zoomToCamera method not available from ChatAgent");
+        }
+      }, 500);
+    }
+  }, [selectedCamera]);
 
   const formatSearchResults = (results: SearchResult): string => {
     if (!results.matches || results.matches.length === 0) {
-      return "I couldn't find any matches for your search. " + (results.suggestions?.join(" ") || "");
+      return "No matches found in the camera feeds."
     }
-
-    const matchCount = results.matches.length;
-    let response = `I found ${matchCount} potential match${matchCount > 1 ? 'es' : ''}:\n\n`;
-
-    results.matches.forEach((match, index) => {
-      const similarity = match.similarity.toFixed(1);
-      const description = match.description;
-      
-      response += `${index + 1}. Match (${similarity}% similarity):\n`;
-      response += `   - Gender: ${description.gender || 'N/A'}\n`;
-      response += `   - Age: ${description.age_group || 'N/A'}\n`;
-      response += `   - Clothing: ${description.clothing_top || 'N/A'} (${description.clothing_top_color || 'N/A'})\n`;
-      if (description.clothing_bottom) {
-        response += `   - Bottom: ${description.clothing_bottom} (${description.clothing_bottom_color || 'N/A'})\n`;
-      }
-      response += '\n';
-    });
-
-    return response;
-  };
-
-  const isExplicitSearchQuery = (text: string): boolean => {
-    const searchTriggers = [
-      'find', 'look for', 'search for', 'can you find', 'can you look for',
-      'can you search for', 'help me find', 'help me look for', 'help me search for',
-      'looking for', 'searching for', 'trying to find'
-    ];
     
-    const lowerText = text.toLowerCase();
-    return searchTriggers.some(trigger => lowerText.includes(trigger));
-  };
+    const firstMatch = results.matches[0];
+    const description = firstMatch.description;
+    let resultText = `I found a match (${firstMatch.similarity.toFixed(1)}% similar).\n`;
+    
+    if (description.appearance) resultText += `Appearance: ${description.appearance}\n`;
+    if (description.clothing) resultText += `Clothing: ${description.clothing}\n`;
+    if (description.accessories) resultText += `Accessories: ${description.accessories}\n`;
+    if (description.actions) resultText += `Actions: ${description.actions}\n`;
+    if (description.location) resultText += `Location: ${description.location}\n`;
+    if (description.timestamp) resultText += `Last seen: ${new Date(description.timestamp).toLocaleString()}\n`;
+    
+    return resultText;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim()) return
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
+    const userInput = input.trim();
+    setInput("");
+    setIsLoading(true);
+
+    const newUserMessage: Message = {
       role: "user",
-      content: input,
-    }
+      content: userInput
+    };
+    setMessages(prev => [...prev, newUserMessage]);
 
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
-    setIsLoading(true)
-    setIsTyping(true)
+    let response: Message;
 
     try {
-      let response: Message;
+      // Check if the server is healthy
+      const isHealthy = await checkServerHealth();
+      if (!isHealthy) {
+        throw new Error("Server is not healthy. Please try again later.");
+      }
       
-      if (isExplicitSearchQuery(input)) {
-        // Handle search query
-        const searchResults = await searchPerson(input);
-        setCurrentSearchResults(searchResults);
+      const searchKeywords = [
+        "find", "search", "look for", "locate", "where is", "who is",
+        "can you find", "can you locate", "help me find", "looking for",
+        "do you see", "have you seen", "spot", "identify", "track",
+        "person with", "someone with", "guy with", "girl with", "man with", "woman with"
+      ];
+      const isSearchQuery = searchKeywords.some(keyword => 
+        userInput.toLowerCase().includes(keyword)
+      );
+
+      if (isSearchQuery) {
+        console.log("Processing search query:", userInput);
+        const searchResults = await searchPeople(userInput);
+        console.log("Search results:", searchResults);
         
-        // Check if we have high similarity matches to show the sidebar
-        const hasHighSimilarityMatches = searchResults.matches?.some(match => match.similarity > 70);
-        setShowSidebar(hasHighSimilarityMatches);
-        
-        response = {
-          role: "assistant",
-          content: formatSearchResults(searchResults),
-          searchResults: searchResults
-        };
-      } else {
-        // Handle general conversation using Gemini AI
-        try {
-          // Convert messages to the format expected by the chat API
-          const chatMessages: ChatMessage[] = messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }));
+        if (searchResults.matches && searchResults.matches.length > 0) {
+          console.log("Found matches:", searchResults.matches.length);
+          const sortedMatches = [...searchResults.matches].sort((a, b) => b.similarity - a.similarity);
+          const firstMatch = sortedMatches[0];
+          console.log("First match:", firstMatch);
           
-          // Add the current user message
-          chatMessages.push({ role: 'user', content: input });
-          
-          // Get response from Gemini AI
-          const aiResponse = await chat(chatMessages);
-          
+          if (firstMatch && firstMatch.description.camera_id) {
+            console.log("First match has camera ID:", firstMatch.description.camera_id);
+            const camera = cameras.find((c: Camera) => c.id === firstMatch.description.camera_id);
+            console.log("Found camera:", camera);
+            
+            if (camera) {
+              console.log("Setting selected camera:", camera);
+              
+              // Set the selected camera first
+              setSelectedCamera(camera);
+              
+              // Force a re-render to ensure the camera is selected
+              setTimeout(() => {
+                // Try to use the zoomToCamera method if available
+                // @ts-ignore
+                if (window.zoomToCamera) {
+                  console.log("Using zoomToCamera method");
+                  // @ts-ignore
+                  window.zoomToCamera(camera);
+                } else {
+                  console.log("zoomToCamera method not available");
+                }
+              }, 1000);
+              
+              response = {
+                role: "assistant",
+                content: `I found a match on camera ${camera.name}. I've switched to that camera view.\n\n${formatSearchResults(searchResults)}`
+              };
+            } else {
+              console.log("Camera not found in cameras list");
+              response = {
+                role: "assistant",
+                content: formatSearchResults(searchResults)
+              };
+            }
+          } else {
+            console.log("First match does not have a camera ID");
+            response = {
+              role: "assistant",
+              content: formatSearchResults(searchResults)
+            };
+          }
+        } else {
+          console.log("No matches found");
           response = {
             role: "assistant",
-            content: aiResponse
-          };
-        } catch (chatError) {
-          console.error("Chat error:", chatError);
-          response = {
-            role: "assistant",
-            content: "I'm having trouble with the chat right now. You can still search for people by using phrases like 'find someone' or 'look for a person'."
+            content: "I couldn't find any matches in our camera feeds for your query. Try describing the person differently or check other cameras."
           };
         }
+      } else {
+        const aiResponse = await chatWithAI([...messages, newUserMessage]);
+        response = {
+          role: "assistant",
+          content: aiResponse.response
+        };
       }
-
-      // Simulate typing delay for more natural feel
-      setTimeout(() => {
-        setMessages((prev) => [...prev, response])
-        setIsLoading(false)
-        setIsTyping(false)
-      }, 500)
     } catch (error) {
-      console.error("Error processing request:", error)
-      const errorMessage: Message = {
+      console.error("Error in chat:", error);
+      response = {
         role: "assistant",
-        content: "I'm sorry, I encountered an error while processing your request. Please try again.",
-      }
-      setMessages((prev) => [...prev, errorMessage])
-      setIsLoading(false)
-      setIsTyping(false)
+        content: error instanceof Error ? error.message : "I'm sorry, I encountered an error. Please try again."
+      };
     }
-  }
+
+    setMessages(prev => [...prev, response]);
+    setIsLoading(false);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -192,48 +219,21 @@ export default function ChatAgent() {
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
+              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-4`}
             >
-              <Card
-                className={`p-3 max-w-[85%] ${
-                  message.role === "user"
-                    ? "ml-auto bg-blue-900/30 border-blue-800 text-white"
-                    : "mr-auto bg-gray-800 border-gray-700 text-gray-100"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <div className={`mt-1 p-1 rounded-full ${message.role === "user" ? "bg-blue-700" : "bg-gray-700"}`}>
-                    {message.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                  </div>
-                  <div className="whitespace-pre-wrap">
-                    <p className="text-sm">{message.content}</p>
-                    {message.searchResults?.matches && message.searchResults.matches.length > 0 && (
-                      <motion.div 
-                        className="mt-2 grid grid-cols-1 gap-2"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2, duration: 0.3 }}
-                      >
-                        {message.searchResults.matches.map((match, idx) => (
-                          match.image_data && (
-                            <motion.img
-                              key={idx}
-                              src={`data:image/jpeg;base64,${match.image_data}`}
-                              alt={`Match ${idx + 1}`}
-                              className="rounded-lg max-w-full h-auto"
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.1 * idx, duration: 0.3 }}
-                              onLoad={handleImageLoad}
-                            />
-                          )
-                        ))}
-                      </motion.div>
-                    )}
-                  </div>
+              <div className={`flex items-start space-x-2 max-w-[80%] ${message.role === "user" ? "flex-row-reverse space-x-reverse" : ""}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  message.role === "user" ? "bg-blue-600" : "bg-green-600"
+                }`}>
+                  {message.role === "user" ? <User className="w-5 h-5 text-white" /> : <Bot className="w-5 h-5 text-white" />}
                 </div>
-              </Card>
+                <div className={`rounded-lg p-3 ${
+                  message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-white"
+                }`}>
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -253,41 +253,6 @@ export default function ChatAgent() {
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
                   <span className="text-sm text-gray-300">Thinking...</span>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-        
-        {isTyping && !isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="p-3 max-w-[85%] mr-auto bg-gray-800 border-gray-700 text-gray-100">
-              <div className="flex items-start gap-2">
-                <div className="mt-1 p-1 rounded-full bg-gray-700">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <motion.span 
-                    className="text-sm text-gray-300"
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    Typing
-                  </motion.span>
-                  <motion.div 
-                    className="flex gap-1"
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <span className="text-sm text-gray-300">.</span>
-                    <span className="text-sm text-gray-300">.</span>
-                    <span className="text-sm text-gray-300">.</span>
-                  </motion.div>
                 </div>
               </div>
             </Card>
@@ -319,13 +284,6 @@ export default function ChatAgent() {
           </Button>
         </form>
       </div>
-
-      {/* Match Sidebar */}
-      <MatchSidebar 
-        searchResults={currentSearchResults}
-        isVisible={showSidebar}
-        onClose={() => setShowSidebar(false)}
-      />
     </div>
   )
 }

@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
-import { Phone, Camera, Activity, X, Search, Send } from "lucide-react"
+import { Phone, Camera, Activity, X, Search, Send, Loader2 } from "lucide-react"
 import { useCamera } from "@/lib/CameraContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import VideoPlayer from "./VideoPlayer"
 import { 
   uploadImage, 
   searchPeople, 
@@ -14,11 +15,13 @@ import {
   PersonDescription,
   ChatResponse,
   uploadImageStream,
-  API_BASE_URL
+  API_BASE_URL,
+  checkServerHealth
 } from "@/lib/api"
 
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
+  id?: string;
   yoloCrop?: string;
   gender?: string;
   age_group?: string;
@@ -26,6 +29,10 @@ interface ExtendedPersonDescription extends PersonDescription {
   clothing_bottom?: string;
   similarity?: number;
   camera_id?: string;
+  cropped_image?: string;
+  raw_data?: Record<string, any>;  // Add raw_data field for Gemini output
+  description?: string;  // Add description field for AI model output
+  timestamp?: string;    // Add timestamp field for when the description was generated
 }
 
 export default function RightSidebar() {
@@ -54,135 +61,336 @@ export default function RightSidebar() {
   const [error, setError] = useState<string | null>(null)
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
   const [cameraFeed, setCameraFeed] = useState<string | null>(null)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
+  const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
+  const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Simulate camera feed updates and YOLO processing
+  // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
-    if (!selectedCamera) return
-
-    // Set camera image based on selected camera
-    if (selectedCamera.id === "SF-MKT-001") {
-      setCameraImage("/images/image.jpg")
-    } else {
-      // For other cameras, use a random image
-      setCameraImage(`https://picsum.photos/seed/${selectedCamera.id}/800/450`)
-    }
-
-    // Clear any existing interval
-    if (frameIntervalRef.current) {
-      clearInterval(frameIntervalRef.current)
-    }
-
-    // Check if server is available
-    const checkServer = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/health`)
-        return response.ok
-      } catch (err) {
-        console.error('Server health check failed:', err)
-        return false
-      }
-    }
-
-    // Process new frames every 3 seconds
-    frameIntervalRef.current = setInterval(async () => {
-      // Check server health before processing
-      const isServerAvailable = await checkServer()
-      if (!isServerAvailable) {
-        console.error('Server is not available')
-        setError('Server is not responding. Please try again later.')
-        return
-      }
-
-      // Generate a new frame URL
-      const frameUrl = selectedCamera.id === "SF-MKT-001" 
-        ? "/images/image.jpg" 
-        : `https://picsum.photos/seed/${Date.now()}/800/450`
+    if (selectedCamera) {
+      console.log("Selected camera changed in RightSidebar:", selectedCamera);
       
-      setCameraImage(frameUrl)
+      // Clear any existing intervals
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+      if (frameExtractionIntervalRef.current) {
+        clearInterval(frameExtractionIntervalRef.current);
+      }
+      
+      // Set initial camera image
+      if (selectedCamera.id === "SF-MKT-001") {
+        // For Market Street camera, we'll use the video player
+        setCameraImage(null);
+        setCurrentImageUrl(null);
+        setIsVideoPlaying(true);
+      } else {
+        // For other cameras, use random images
+        const initialImageUrl = `https://picsum.photos/800/600?random=${Math.random()}`;
+        setCameraImage(initialImageUrl);
+        setCurrentImageUrl(initialImageUrl);
+        setIsVideoPlaying(false);
+      }
+      
+      // Start a new interval to process frames
+      frameIntervalRef.current = setInterval(async () => {
+        if (processingRef.current) {
+          console.log("Skipping frame processing - previous frame still being processed");
+          return;
+        }
+        
+        try {
+          processingRef.current = true;
+          setIsProcessing(true);
+          setError(null);
+          
+          // Check if the server is healthy
+          console.log("Checking server health...");
+          const isHealthy = await checkServerHealth();
+          if (!isHealthy) {
+            throw new Error("Server is not healthy - please check the backend server");
+          }
+          console.log("Server health check passed");
+          
+          // For Market Street camera, we need a frame from the video
+          // This will be handled by the VideoPlayer component
+          if (selectedCamera.id === "SF-MKT-001") {
+            if (!lastProcessedFrame) {
+              console.log("Waiting for video frame...");
+              processingRef.current = false;
+              setIsProcessing(false);
+              return;
+            }
+            
+            // Use the last processed frame
+            const frameUrl = lastProcessedFrame;
+            console.log("Processing frame for Market Street camera, frame length:", frameUrl.length);
+            
+            // Process the frame with YOLO
+            console.log("Sending frame to API for processing...");
+            const response = await fetch(`${API_BASE_URL}/process_frame`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                frame_data: frameUrl
+              }),
+            });
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error("API error response:", errorText);
+              throw new Error(`Failed to process frame: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("API response:", data);
+            console.log("Detections:", data.detections?.length || 0);
+            console.log("Descriptions:", data.descriptions?.length || 0);
+            
+            // Only update detections and descriptions if we have new data
+            if (data.detections && data.detections.length > 0) {
+              console.log("Updating detections:", data.detections);
+              setDetections(data.detections);
+            } else {
+              console.log("No detections found in this frame");
+              // Don't clear existing detections if we don't find new ones
+              // This prevents flickering of the UI
+            }
+            
+            if (data.descriptions && data.descriptions.length > 0) {
+              console.log("Updating descriptions:", data.descriptions);
+              setPersonDescriptions(data.descriptions);
+            } else {
+              console.log("No descriptions found in this frame");
+              // Don't clear existing descriptions if we don't find new ones
+              // This prevents flickering of the UI
+            }
+          } else {
+            // For other cameras, use random images
+            console.log("Using random images for non-Market Street camera");
+            const randomImage = `/images/image${Math.floor(Math.random() * 5) + 1}.jpg`;
+            console.log("Selected random image:", randomImage);
+            
+            // Process the random image with YOLO
+            console.log("Sending random image to API for processing...");
+            const response = await fetch(`${API_BASE_URL}/process_frame`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                frame_data: randomImage
+              }),
+            });
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error("API error response:", errorText);
+              throw new Error(`Failed to process random image: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("API response for random image:", data);
+            console.log("Detections:", data.detections?.length || 0);
+            console.log("Descriptions:", data.descriptions?.length || 0);
+            
+            // Only update detections and descriptions if we have new data
+            if (data.detections && data.detections.length > 0) {
+              console.log("Updating detections for random image:", data.detections);
+              setDetections(data.detections);
+            } else {
+              console.log("No detections found in random image");
+              // Don't clear existing detections if we don't find new ones
+            }
+            
+            if (data.descriptions && data.descriptions.length > 0) {
+              console.log("Updating descriptions for random image:", data.descriptions);
+              setPersonDescriptions(data.descriptions);
+            } else {
+              console.log("No descriptions found in random image");
+              // Don't clear existing descriptions if we don't find new ones
+            }
+          }
+          
+        } catch (error) {
+          console.error("Error processing frame:", error);
+          setError(error instanceof Error ? error.message : "Failed to process frame");
+          // Don't clear existing detections/descriptions on error
+          // This prevents UI flickering
+        } finally {
+          processingRef.current = false;
+          setIsProcessing(false);
+        }
+      }, 3000); // Process every 3 seconds
+      
+      // Cleanup function
+      return () => {
+        if (frameIntervalRef.current) {
+          clearInterval(frameIntervalRef.current);
+        }
+        if (frameExtractionIntervalRef.current) {
+          clearInterval(frameExtractionIntervalRef.current);
+        }
+      };
+    }
+  }, [selectedCamera, lastProcessedFrame]);
+
+  // Handle frame extraction from video
+  const handleFrameExtracted = (frameUrl: string) => {
+    console.log("Frame extracted from video, length:", frameUrl.length);
+    setLastProcessedFrame(frameUrl);
+    
+    // Process the frame with YOLO if not already processing
+    if (!isProcessing) {
+      processFrame(frameUrl);
+    } else {
+      console.log("Skipping frame processing - still processing previous frame");
+    }
+  };
+  
+  // Process a frame with YOLO
+  const processFrame = async (frameUrl: string) => {
+    if (isProcessing) return;
+    
+    try {
+      setIsProcessing(true);
+      setError(null);
+      
+      // Check if the server is healthy
+      console.log("Checking server health...");
+      const isHealthy = await checkServerHealth();
+      if (!isHealthy) {
+        throw new Error("Server is not healthy - please check the backend server");
+      }
+      console.log("Server health check passed");
       
       // Process the frame with YOLO
-      if (!processingRef.current) {
-        processingRef.current = true
-        processCameraFrame(frameUrl)
-          .catch(err => {
-            console.error('Error processing frame:', err)
-            setError('Failed to process camera frame. Please try again later.')
-          })
-          .finally(() => {
-            processingRef.current = false
-          })
+      console.log("Sending frame to API for processing...");
+      console.log("Frame URL length:", frameUrl.length);
+      
+      // Log the first 100 characters of the frame URL to help with debugging
+      console.log("Frame URL preview:", frameUrl.substring(0, 100) + "...");
+      
+      const response = await fetch(`${API_BASE_URL}/process_frame`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          frame_data: frameUrl
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API error response:", errorText);
+        throw new Error(`Failed to process frame: ${response.statusText} - ${errorText}`);
       }
-    }, 3000)
-
-    return () => {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current)
+      
+      const data = await response.json();
+      console.log("API response:", data);
+      
+      // Debug: Log detailed information about the response
+      console.log(`Response contains ${data.detections?.length || 0} detections`);
+      console.log(`Response contains ${data.person_crops?.length || 0} person crops`);
+      console.log(`Response description: ${data.description?.substring(0, 100)}...`);
+      
+      // Update detections and descriptions
+      if (data.detections && data.detections.length > 0) {
+        console.log("Updating detections:", data.detections);
+        setDetections(data.detections);
+      } else {
+        console.log("No detections found in the response");
       }
-    }
-  }, [selectedCamera])
-
-  // Process camera frame
-  const processCameraFrame = async (frameUrl: string) => {
-    try {
-      setIsProcessing(true)
-      setError(null)
       
-      console.log('Processing camera frame:', frameUrl)
-      
-      // Extract camera ID from the URL or use the selected camera ID
-      let cameraId = selectedCamera?.id || 'unknown'
-      
-      // If it's a random image, extract a seed from the URL
-      if (frameUrl.includes('picsum.photos/seed/')) {
-        const seedMatch = frameUrl.match(/seed\/([^/]+)/)
-        if (seedMatch && seedMatch[1]) {
-          cameraId = `CAM-${seedMatch[1].substring(0, 8)}`
+      // Process person crops if available
+      if (data.person_crops && data.person_crops.length > 0) {
+        console.log("Processing person crops:", data.person_crops.length);
+        
+        const newPersonDescriptions: ExtendedPersonDescription[] = data.person_crops.map((crop: any) => {
+          // Parse the description if it's a string
+          let parsedDescription = crop.description;
+          let structuredData: Record<string, any> = {};
+          
+          if (typeof crop.description === 'string') {
+            try {
+              // Try to parse as JSON
+              parsedDescription = JSON.parse(crop.description);
+            } catch (e) {
+              // If not JSON, use as is
+              console.log("Description is not JSON, using as string");
+            }
+          }
+          
+          // If it's an object, extract structured data
+          if (typeof parsedDescription === 'object' && parsedDescription !== null) {
+            structuredData = parsedDescription;
+          }
+          
+          return {
+            id: crop.id,
+            description: typeof parsedDescription === 'string' ? parsedDescription : JSON.stringify(parsedDescription),
+            timestamp: data.timestamp || new Date().toISOString(),
+            camera_id: selectedCamera?.id || "SF-MKT-001",
+            cropped_image: `data:image/jpeg;base64,${crop.crop}`,
+            raw_data: structuredData
+          };
+        });
+        
+        console.log("Setting person descriptions:", newPersonDescriptions);
+        setPersonDescriptions(newPersonDescriptions);
+      } else if (data.description) {
+        // Fallback to the general description if no person crops
+        console.log("No person crops found, using general description:", data.description);
+        
+        // Parse the description string into structured data if possible
+        let parsedDescription: ExtendedPersonDescription = {
+          id: `general_${Date.now()}`,
+          description: data.description,
+          timestamp: data.timestamp || new Date().toISOString(),
+          camera_id: selectedCamera?.id || "SF-MKT-001"
+        };
+        
+        // Try to extract structured data from the description
+        try {
+          // Check if the description is in a format like "Gender: male. Age Group: adult."
+          const descriptionParts = data.description.split('. ');
+          const structuredData: Record<string, string> = {};
+          
+          descriptionParts.forEach((part: string) => {
+            const [key, value] = part.split(': ');
+            if (key && value) {
+              // Convert key from "Title Case" to "snake_case"
+              const snakeKey = key.toLowerCase().replace(/\s+/g, '_');
+              structuredData[snakeKey] = value;
+            }
+          });
+          
+          // Add structured data to the description object
+          parsedDescription = {
+            ...parsedDescription,
+            ...structuredData,
+            raw_data: structuredData
+          };
+        } catch (parseError) {
+          console.error("Error parsing description:", parseError);
+          // If parsing fails, just use the raw description
         }
+        
+        setPersonDescriptions([parsedDescription]);
+      } else {
+        console.log("No descriptions found in the response");
+        // Keep existing descriptions if no new ones are available
       }
-      
-      console.log('Camera ID:', cameraId)
-      
-      // Try to fetch the image, with fallback to picsum.photos if local image fails
-      let response: Response;
-      try {
-        response = await fetch(frameUrl)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-        }
-      } catch (err) {
-        console.warn('Failed to fetch local image, using fallback:', err)
-        // Use picsum.photos as fallback
-        response = await fetch(`https://picsum.photos/seed/${Math.random()}/800/450`)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch fallback image: ${response.status} ${response.statusText}`)
-        }
-      }
-      
-      const blob = await response.blob()
-      
-      // Create a File object from the blob with camera-specific name
-      const file = new File([blob], `${cameraId}.jpg`, { type: "image/jpeg" })
-      
-      // Use the uploadImage function to process the frame with camera ID
-      const result = await uploadImage(file, false, cameraId)
-      console.log('Upload result for camera', cameraId, ':', result)
-      
-      if (!result || !result.descriptions) {
-        throw new Error('No descriptions returned from server')
-      }
-      
-      // Update state with new detections and descriptions
-      setDetections(result.detections || [])
-      setPersonDescriptions(result.descriptions as ExtendedPersonDescription[])
-      
-      console.log('Updated person descriptions for camera', cameraId, ':', result.descriptions)
-    } catch (err) {
-      console.error('Error processing camera frame:', err)
-      setError(err instanceof Error ? err.message : 'Failed to process camera frame')
+    } catch (error) {
+      console.error("Error processing frame:", error);
+      setError(error instanceof Error ? error.message : "Failed to process frame");
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
   // Handle detection click
   const handleDetectionClick = (detection: Detection) => {
@@ -208,12 +416,27 @@ export default function RightSidebar() {
     if (!searchQuery.trim()) return
     
     setIsLoading(true)
+    setError(null)
     try {
       // Use the actual API
       const result = await searchPeople(searchQuery)
-      setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
+      console.log('Search results:', result)
+      
+      if (result.matches && result.matches.length > 0) {
+        setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
+      } else {
+        setSearchResults([])
+        // Show suggestions if available
+        if (result.suggestions && result.suggestions.length > 0) {
+          setError(result.message || 'No matches found. Try these suggestions:')
+        } else {
+          setError(result.message || 'No matches found')
+        }
+      }
     } catch (error) {
       console.error("Search error:", error)
+      setError('Failed to search. Please try again.')
+      setSearchResults([])
     } finally {
       setIsLoading(false)
     }
@@ -294,6 +517,36 @@ export default function RightSidebar() {
     }
   };
 
+  // Debug image loading
+  useEffect(() => {
+    if (personDescriptions.length > 0) {
+      console.log("Person descriptions in RightSidebar:", personDescriptions);
+      personDescriptions.forEach((person, index) => {
+        if (person.cropped_image) {
+          console.log(`Person ${index} has cropped image data in RightSidebar`);
+        } else if (person.image) {
+          const imageUrl = `${API_BASE_URL}/${person.image}`;
+          console.log(`Person ${index} image URL in RightSidebar:`, imageUrl);
+          
+          // Test if image is accessible
+          fetch(imageUrl)
+            .then(response => {
+              if (!response.ok) {
+                console.error(`Image load error for person ${index} in RightSidebar:`, response.status, response.statusText);
+                setError(`Failed to load image: ${response.status} ${response.statusText}`);
+              } else {
+                console.log(`Image ${index} is accessible in RightSidebar`);
+              }
+            })
+            .catch(error => {
+              console.error(`Image fetch error for person ${index} in RightSidebar:`, error);
+              setError(`Error fetching image: ${error.message}`);
+            });
+        }
+      });
+    }
+  }, [personDescriptions]);
+
   return (
     <div className="w-80 bg-gray-900 border-l border-gray-800 h-screen overflow-y-auto">
       {/* Phone Call Transcription */}
@@ -323,32 +576,28 @@ export default function RightSidebar() {
 
       {/* Camera Feed Section */}
       <div className="p-4 border-b border-gray-800">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center space-x-2 mb-4">
+          <Camera className="h-5 w-5 text-blue-400" />
           <h2 className="text-lg font-semibold text-white">Camera Feed</h2>
-          {selectedCamera && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setSelectedCamera(null)}
-              className="text-gray-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+          {isProcessing && (
+            <div className="ml-auto flex items-center">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-400 mr-2" />
+              <span className="text-xs text-gray-400">Processing...</span>
+            </div>
           )}
         </div>
+
         {selectedCamera ? (
-          <div>
-            <p className="text-sm text-gray-400 mb-2">
-              {selectedCamera.name} ({selectedCamera.id})
-              <span className="ml-2 text-red-500 flex items-center">
-                <span className="relative flex h-3 w-3 mr-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                </span>
-                LIVE
-              </span>
-            </p>
-            {cameraImage ? (
+          <div className="space-y-4">
+            {selectedCamera.id === "SF-MKT-001" ? (
+              // Use VideoPlayer for Market Street camera
+              <VideoPlayer 
+                videoSrc="/images/market.mov" 
+                onFrameExtracted={handleFrameExtracted}
+                isProcessing={isProcessing}
+              />
+            ) : cameraImage ? (
+              // Use image for other cameras
               <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
                 <img 
                   src={cameraImage} 
@@ -361,13 +610,66 @@ export default function RightSidebar() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                   </span>
                   LIVE
-                </div>
-              </div>
+        </div>
+      </div>
             ) : (
               <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
                 <p className="text-gray-400">Loading camera feed...</p>
-              </div>
+        </div>
             )}
+
+            {/* Processing Frames Section */}
+        <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-white">Recent Detections</h3>
+                <span className="text-xs text-gray-400">{detections.length} people detected</span>
+              </div>
+              
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {detections.length > 0 ? (
+                  detections.map((detection) => (
+            <motion.div
+              key={detection.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+                      className={`bg-gray-800 rounded-lg p-3 ${detection.type === "Person" ? "cursor-pointer hover:bg-gray-700" : ""}`}
+                      onClick={() => detection.type === "Person" && handleDetectionClick(detection)}
+            >
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-white">{detection.type}</span>
+                <span className="text-xs text-gray-400">{detection.timestamp}</span>
+              </div>
+                      <div className="mt-1 flex items-center">
+                <div className="w-full bg-gray-700 rounded-full h-1.5">
+                  <div
+                            className="bg-blue-500 h-1.5 rounded-full" 
+                    style={{ width: `${detection.confidence * 100}%` }}
+                  ></div>
+                </div>
+                        <span className="text-xs text-gray-400 ml-2">{Math.round(detection.confidence * 100)}%</span>
+                      </div>
+                      <div className="text-xs text-blue-400 mt-1">
+                        Camera: {detection.camera_id || selectedCamera?.id || 'Unknown'}
+                      </div>
+                      {detection.image && (
+                        <div className="mt-2 rounded overflow-hidden">
+                          <img 
+                            src={detection.image} 
+                            alt={`${detection.type} detection`} 
+                            className="w-full h-20 object-cover"
+                          />
+                        </div>
+                      )}
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="bg-gray-800 rounded-lg p-3">
+                    <p className="text-sm text-gray-400">No detections yet. Processing frames...</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           <div>
@@ -376,103 +678,107 @@ export default function RightSidebar() {
         )}
       </div>
 
-      {/* Live Detections - Only show when a camera is selected */}
-      {selectedCamera && (
-        <div className="p-4 border-b border-gray-800">
-          <div className="flex items-center space-x-2 mb-4">
-            <Activity className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Live Detections</h2>
-          </div>
-          <div className="space-y-2">
-            {isProcessing ? (
-              <p>Processing frame...</p>
-            ) : error ? (
-              <p className="error">{error}</p>
-            ) : detections.length > 0 ? (
-              detections.map((detection) => (
-                <motion.div
-                  key={detection.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className={`bg-gray-800 rounded-lg p-3 ${detection.type === "Person" ? "cursor-pointer hover:bg-gray-700" : ""}`}
-                  onClick={() => detection.type === "Person" && handleDetectionClick(detection)}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-white">{detection.type}</span>
-                    <span className="text-xs text-gray-400">{detection.timestamp}</span>
-                  </div>
-                  <div className="mt-1 flex items-center">
-                    <div className="w-full bg-gray-700 rounded-full h-1.5">
-                      <div 
-                        className="bg-blue-500 h-1.5 rounded-full" 
-                        style={{ width: `${detection.confidence * 100}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-400 ml-2">{Math.round(detection.confidence * 100)}%</span>
-                  </div>
-                  <div className="text-xs text-blue-400 mt-1">
-                    Camera: {detection.camera_id || selectedCamera?.id || 'Unknown'}
-                  </div>
-                  {detection.image && (
-                    <div className="mt-2 rounded overflow-hidden">
-                      <img 
-                        src={detection.image} 
-                        alt={`${detection.type} detection`} 
-                        className="w-full h-20 object-cover"
-                      />
-                    </div>
-                  )}
-                </motion.div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-400">No detections yet. Processing frames...</p>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Person Descriptions - Only show when a camera is selected */}
-      {selectedCamera && personDescriptions.length > 0 && (
+      {selectedCamera && (
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center space-x-2 mb-4">
             <Search className="h-5 w-5 text-blue-400" />
             <h2 className="text-lg font-semibold text-white">Person Descriptions</h2>
+            <span className="text-xs text-gray-400 ml-auto">{personDescriptions.length} people detected</span>
           </div>
+          
           <div className="space-y-2">
-            {personDescriptions.map((person, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700"
-                onClick={() => handlePersonClick(person)}
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-white">Person {index + 1}</span>
-                  <span className="text-xs text-gray-400">{person.timestamp}</span>
-                </div>
-                <div className="mt-2 text-sm text-gray-300">
-                  <p><span className="text-gray-400">Appearance:</span> {person.appearance}</p>
-                  <p><span className="text-gray-400">Clothing:</span> {person.clothing}</p>
-                  <p><span className="text-gray-400">Accessories:</span> {person.accessories}</p>
-                  <p><span className="text-gray-400">Actions:</span> {person.actions}</p>
-                  <p><span className="text-gray-400">Location:</span> {person.location}</p>
-                  <p><span className="text-gray-400">Camera:</span> {person.camera_id || selectedCamera?.id || 'Unknown'}</p>
-                </div>
-                {/* Add image display */}
-                {person.image && (
-                  <div className="mt-3 rounded overflow-hidden">
-                    <img 
-                      src={`${API_BASE_URL}/${person.image}`}
-                      alt={`Person ${index + 1}`} 
-                      className="w-full h-32 object-cover"
-                    />
+            {personDescriptions.length > 0 ? (
+              personDescriptions.map((person, index) => (
+                <motion.div
+                  key={person.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700"
+                  onClick={() => handlePersonClick(person)}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-white">Person {index + 1}</span>
+                    <span className="text-xs text-gray-400">{person.timestamp}</span>
                   </div>
-                )}
-              </motion.div>
-            ))}
+                  
+                  {/* Display cropped image if available */}
+                  {person.cropped_image && (
+                    <div className="mt-2 relative h-32 w-full">
+                      <img
+                        src={person.cropped_image}
+                        alt={`Person ${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="mt-2 text-sm text-gray-300">
+                    {/* Display structured data if available */}
+                    {person.raw_data ? (
+                      <>
+                        {person.raw_data.gender && (
+                          <p><span className="text-gray-400">Gender:</span> {person.raw_data.gender}</p>
+                        )}
+                        {person.raw_data.age_group && (
+                          <p><span className="text-gray-400">Age:</span> {person.raw_data.age_group}</p>
+                        )}
+                        {person.raw_data.ethnicity && (
+                          <p><span className="text-gray-400">Ethnicity:</span> {person.raw_data.ethnicity}</p>
+                        )}
+                        {person.raw_data.skin_tone && (
+                          <p><span className="text-gray-400">Skin Tone:</span> {person.raw_data.skin_tone}</p>
+                        )}
+                        {person.raw_data.hair_style && (
+                          <p><span className="text-gray-400">Hair Style:</span> {person.raw_data.hair_style}</p>
+                        )}
+                        {person.raw_data.hair_color && (
+                          <p><span className="text-gray-400">Hair Color:</span> {person.raw_data.hair_color}</p>
+                        )}
+                        {person.raw_data.facial_features && (
+                          <p><span className="text-gray-400">Facial Features:</span> {person.raw_data.facial_features}</p>
+                        )}
+                        {person.raw_data.clothing_top && (
+                          <p><span className="text-gray-400">Top:</span> {person.raw_data.clothing_top}</p>
+                        )}
+                        {person.raw_data.clothing_top_color && (
+                          <p><span className="text-gray-400">Top Color:</span> {person.raw_data.clothing_top_color}</p>
+                        )}
+                        {person.raw_data.clothing_bottom && (
+                          <p><span className="text-gray-400">Bottom:</span> {person.raw_data.clothing_bottom}</p>
+                        )}
+                        {person.raw_data.clothing_bottom_color && (
+                          <p><span className="text-gray-400">Bottom Color:</span> {person.raw_data.clothing_bottom_color}</p>
+                        )}
+                        {person.raw_data.footwear && (
+                          <p><span className="text-gray-400">Footwear:</span> {person.raw_data.footwear}</p>
+                        )}
+                        {person.raw_data.accessories && (
+                          <p><span className="text-gray-400">Accessories:</span> {person.raw_data.accessories}</p>
+                        )}
+                        {person.raw_data.pose && (
+                          <p><span className="text-gray-400">Pose:</span> {person.raw_data.pose}</p>
+                        )}
+                        {person.raw_data.location_context && (
+                          <p><span className="text-gray-400">Location:</span> {person.raw_data.location_context}</p>
+                        )}
+                      </>
+                    ) : (
+                      // Fallback to the raw description if structured data is not available
+                      <p className="text-gray-300">{person.description}</p>
+                    )}
+                    <p className="text-xs text-blue-400 mt-2">
+                      Camera: {person.camera_id || selectedCamera?.id || 'Unknown'}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-sm text-gray-400">No person descriptions yet. Processing frames...</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -501,7 +807,24 @@ export default function RightSidebar() {
               <Search className="h-4 w-4" />
             </Button>
           </div>
-          {searchResults.length > 0 && (
+          
+          {isLoading ? (
+            <div className="text-center py-4">
+              <p className="text-gray-400">Searching...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 mb-4">
+              <p className="text-red-400">{error}</p>
+              {error.includes('suggestions') && (
+                <ul className="mt-2 text-sm text-gray-400 list-disc pl-4">
+                  <li>Try using more general terms</li>
+                  <li>Include fewer specific details</li>
+                  <li>Check for typos in your search</li>
+                  <li>Try searching for a different person</li>
+                </ul>
+              )}
+            </div>
+          ) : searchResults.length > 0 ? (
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-white">Results</h3>
               {searchResults.map((result, index) => (
@@ -524,82 +847,42 @@ export default function RightSidebar() {
                     <p><span className="text-blue-400">Actions:</span> {result.actions}</p>
                     <p><span className="text-blue-400">Location:</span> {result.location}</p>
                   </div>
-                  {/* YOLO crop preview for search results */}
-                  {result.yoloCrop && (
-                    <div className="mt-2">
-                      <p className="text-xs text-gray-400 mb-1">YOLO Detection:</p>
-                      <div className="relative w-full h-24 bg-gray-900 rounded overflow-hidden">
-                        <img 
-                          src={result.yoloCrop} 
-                          alt={`Match ${index + 1} YOLO detection`} 
-                          className="w-full h-full object-contain"
-                        />
-                        <div className="absolute inset-0 border-2 border-red-500 border-dashed"></div>
-                      </div>
+                  {/* Add image display */}
+                  {result.image && (
+                    <div className="mt-3 rounded overflow-hidden">
+                      <img 
+                        src={`${API_BASE_URL}/${result.image}`}
+                        alt={`Match ${index + 1}`} 
+                        className="w-full h-32 object-cover"
+                      />
                     </div>
                   )}
                 </motion.div>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Search Results */}
-      {searchResults.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-2">Search Results</h3>
-          <div className="space-y-2">
-            {searchResults.map((result, index) => (
-              <div
-                key={index}
-                className="p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => {
-                  setSelectedPerson(result);
-                  setShowJsonView(true);
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  {result.yoloCrop && (
-                    <img
-                      src={result.yoloCrop}
-                      alt="Person crop"
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  )}
-                  <div>
-                    <p className="font-medium">{result.gender} - {result.age_group}</p>
-                    <p className="text-sm text-gray-600">{result.clothing_top} with {result.clothing_bottom}</p>
-                    <p className="text-xs text-gray-500">Similarity: {result.similarity}%</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          ) : null}
         </div>
       )}
 
       {/* JSON View Modal */}
       {showJsonView && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-semibold">Details</h3>
+              <h3 className="text-xl font-semibold text-white">Details</h3>
               <button
-                onClick={() => setShowJsonView(false)}
-                className="text-gray-500 hover:text-gray-700"
+                onClick={closeJsonView}
+                className="text-gray-400 hover:text-white"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-6 w-6" />
               </button>
             </div>
             
             {selectedDetection && (
               <div className="mb-6">
-                <h4 className="font-medium mb-2">Detection</h4>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <pre className="text-sm overflow-x-auto">
+                <h4 className="font-medium mb-2 text-white">Detection</h4>
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <pre className="text-sm overflow-x-auto text-gray-300">
                     {JSON.stringify({
                       ...selectedDetection,
                       camera_id: selectedDetection.camera_id || selectedCamera?.id || 'Unknown'
@@ -611,12 +894,22 @@ export default function RightSidebar() {
             
             {selectedPerson && (
               <div>
-                <h4 className="font-medium mb-2">Person Description</h4>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <pre className="text-sm overflow-x-auto">
+                <h4 className="font-medium mb-2 text-white">Person Description</h4>
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <pre className="text-sm overflow-x-auto text-gray-300">
                     {JSON.stringify({
                       ...selectedPerson,
-                      camera_id: selectedPerson.camera_id || selectedCamera?.id || 'Unknown'
+                      camera_id: selectedPerson.camera_id || selectedCamera?.id || 'Unknown',
+                      // Include all available fields
+                      gender: selectedPerson.gender || 'Unknown',
+                      age_group: selectedPerson.age_group || 'Unknown',
+                      clothing_top: selectedPerson.clothing_top || 'Unknown',
+                      clothing_bottom: selectedPerson.clothing_bottom || 'Unknown',
+                      similarity: selectedPerson.similarity || 0,
+                      // Include the raw data from Gemini
+                      raw_data: selectedPerson.raw_data || {},
+                      // Include the cropped image if available
+                      cropped_image: selectedPerson.cropped_image || null
                     }, null, 2)}
                   </pre>
                 </div>
@@ -625,53 +918,6 @@ export default function RightSidebar() {
           </div>
         </div>
       )}
-
-      {/* Person Descriptions */}
-      {personDescriptions.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-2">Person Descriptions</h3>
-          <div className="space-y-2">
-            {personDescriptions.map((person, index) => (
-              <div
-                key={index}
-                className="p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => {
-                  setSelectedPerson(person);
-                  setShowJsonView(true);
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  {person.yoloCrop && (
-                    <img
-                      src={person.yoloCrop}
-                      alt="Person crop"
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  )}
-                  <div>
-                    <p className="font-medium">{person.appearance}</p>
-                    <p className="text-sm text-gray-600">{person.clothing}</p>
-                    <p className="text-xs text-gray-500">
-                      {person.hair && person.hair !== "unknown" && `Hair: ${person.hair} • `}
-                      {person.facial_features && person.facial_features !== "none" && `Facial: ${person.facial_features} • `}
-                      {person.footwear && person.footwear !== "unknown" && `Footwear: ${person.footwear}`}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {person.accessories && person.accessories !== "none" && `Accessories: ${person.accessories} • `}
-                      {person.bag && person.bag !== "none" && `Bag: ${person.bag} • `}
-                      {person.pose && person.pose !== "unknown" && `${person.pose} • `}
-                      {person.location && person.location !== "unknown" && person.location}
-                    </p>
-                    <p className="text-xs text-blue-400 mt-1">
-                      Camera: {person.camera_id || selectedCamera?.id || 'Unknown'} • {person.timestamp}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
-}
+} 
