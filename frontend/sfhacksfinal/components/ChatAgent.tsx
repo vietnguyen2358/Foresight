@@ -8,6 +8,7 @@ import { Send, User, Bot, Loader2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { searchPerson, chat, type SearchResult, type ChatMessage } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
+import MatchSidebar from "./MatchSidebar"
 
 type Message = {
   role: "user" | "assistant"
@@ -26,6 +27,8 @@ export default function ChatAgent() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
+  const [currentSearchResults, setCurrentSearchResults] = useState<SearchResult | null>(null)
+  const [showSidebar, setShowSidebar] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
@@ -115,6 +118,12 @@ export default function ChatAgent() {
       if (isExplicitSearchQuery(input)) {
         // Handle search query
         const searchResults = await searchPerson(input);
+        setCurrentSearchResults(searchResults);
+        
+        // Check if we have high similarity matches to show the sidebar
+        const hasHighSimilarityMatches = searchResults.matches?.some(match => match.similarity > 70);
+        setShowSidebar(hasHighSimilarityMatches);
+        
         response = {
           role: "assistant",
           content: formatSearchResults(searchResults),
@@ -310,6 +319,13 @@ export default function ChatAgent() {
           </Button>
         </form>
       </div>
+
+      {/* Match Sidebar */}
+      <MatchSidebar 
+        searchResults={currentSearchResults}
+        isVisible={showSidebar}
+        onClose={() => setShowSidebar(false)}
+      />
     </div>
   )
 }

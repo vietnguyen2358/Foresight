@@ -2,7 +2,7 @@
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export interface SearchResult {
+export type SearchResult = {
   query: string;
   matches: Array<{
     similarity: number;
@@ -13,32 +13,34 @@ export interface SearchResult {
       clothing_top_color?: string;
       clothing_bottom?: string;
       clothing_bottom_color?: string;
+      accessories?: string[];
     };
     image_data?: string;
   }>;
   message?: string;
   suggestions?: string[];
-}
+};
 
-export interface ChatMessage {
-  role: 'user' | 'assistant';
+export type ChatMessage = {
+  role: 'user' | 'assistant' | 'system';
   content: string;
-}
+};
 
 export async function searchPerson(query: string): Promise<SearchResult> {
-  const formData = new FormData();
-  formData.append('query', query);
-
-  const response = await fetch(`${API_BASE_URL}/search`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error('Search request failed');
+  try {
+    const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Search error:', error);
+    return {
+      query,
+      matches: [],
+      suggestions: ['Try a different search term', 'Be more specific about the person you\'re looking for'],
+    };
   }
-
-  return response.json();
 }
 
 export async function uploadImage(file: File): Promise<SearchResult> {
@@ -68,14 +70,13 @@ export async function chat(messages: ChatMessage[]): Promise<string> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Chat request failed');
+      throw new Error(`Chat failed: ${response.statusText}`);
     }
 
     const data = await response.json();
     return data.response;
   } catch (error) {
     console.error('Chat error:', error);
-    return "I'm sorry, I encountered an error while processing your request. Please try again.";
+    return 'I\'m having trouble processing your request right now. Please try again later.';
   }
 } 

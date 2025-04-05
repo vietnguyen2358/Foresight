@@ -1,297 +1,189 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, Clock, MapPin, User, Calendar, ChevronDown, ChevronUp } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import { Search, Loader2 } from "lucide-react"
+import { Card } from "@/components/ui/card"
 import { searchPerson, type SearchResult } from "@/lib/api"
-
-// Mock data for individuals
-const mockPeople = [
-  {
-    id: "P001",
-    description: "Male, mid-30s, wearing a red jacket and black jeans",
-    location: "Market Street & 5th",
-    time: "2:30 PM",
-    date: "Today",
-    camera: "SF-MKT-001",
-    attributes: {
-      gender: "Male",
-      ageRange: "30-40",
-      height: "Medium",
-      build: "Average",
-      hairColor: "Brown",
-      clothing: ["Red jacket", "Black jeans", "White sneakers"],
-    },
-  },
-  {
-    id: "P002",
-    description: "Female, early 20s, blue dress with white handbag",
-    location: "Embarcadero Plaza",
-    time: "11:45 AM",
-    date: "Today",
-    camera: "SF-EMB-002",
-    attributes: {
-      gender: "Female",
-      ageRange: "20-30",
-      height: "Short",
-      build: "Slim",
-      hairColor: "Blonde",
-      clothing: ["Blue dress", "White handbag", "Sandals"],
-    },
-  },
-  {
-    id: "P003",
-    description: "Male, teenager, green hoodie and backpack",
-    location: "Union Square",
-    time: "3:15 PM",
-    date: "Yesterday",
-    camera: "SF-UNS-003",
-    attributes: {
-      gender: "Male",
-      ageRange: "15-20",
-      height: "Tall",
-      build: "Slim",
-      hairColor: "Black",
-      clothing: ["Green hoodie", "Black backpack", "Jeans"],
-    },
-  },
-  {
-    id: "P004",
-    description: "Female, middle-aged, yellow coat and glasses",
-    location: "Ferry Building",
-    time: "9:20 AM",
-    date: "Today",
-    camera: "SF-FER-004",
-    attributes: {
-      gender: "Female",
-      ageRange: "40-50",
-      height: "Medium",
-      build: "Average",
-      hairColor: "Brown",
-      clothing: ["Yellow coat", "Black pants", "Glasses"],
-    },
-  },
-  {
-    id: "P005",
-    description: "Male, elderly, gray suit with cane",
-    location: "Chinatown Gate",
-    time: "1:05 PM",
-    date: "Yesterday",
-    camera: "SF-CHI-005",
-    attributes: {
-      gender: "Male",
-      ageRange: "60+",
-      height: "Short",
-      build: "Thin",
-      hairColor: "Gray",
-      clothing: ["Gray suit", "Blue tie", "Using a cane"],
-    },
-  },
-  {
-    id: "P006",
-    description: "Female, young adult, purple hair with leather jacket",
-    location: "Mission District",
-    time: "8:50 PM",
-    date: "Yesterday",
-    camera: "SF-MIS-006",
-    attributes: {
-      gender: "Female",
-      ageRange: "20-30",
-      height: "Medium",
-      build: "Average",
-      hairColor: "Purple (dyed)",
-      clothing: ["Black leather jacket", "Ripped jeans", "Boots"],
-    },
-  },
-  {
-    id: "P007",
-    description: "Male, young adult, white t-shirt and baseball cap",
-    location: "Haight Street",
-    time: "4:30 PM",
-    date: "Today",
-    camera: "SF-HAI-007",
-    attributes: {
-      gender: "Male",
-      ageRange: "20-30",
-      height: "Tall",
-      build: "Athletic",
-      hairColor: "Brown",
-      clothing: ["White t-shirt", "Blue baseball cap", "Khaki shorts"],
-    },
-  },
-  {
-    id: "P008",
-    description: "Female, middle-aged, business suit with briefcase",
-    location: "Nob Hill",
-    time: "8:15 AM",
-    date: "Today",
-    camera: "SF-NOB-008",
-    attributes: {
-      gender: "Female",
-      ageRange: "40-50",
-      height: "Medium",
-      build: "Slim",
-      hairColor: "Black",
-      clothing: ["Navy business suit", "Red blouse", "Carrying briefcase"],
-    },
-  },
-]
+import { motion, AnimatePresence } from "framer-motion"
+import MatchSidebar from "./MatchSidebar"
 
 export default function SearchSection() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({
-    gender: "",
-    ageRange: "",
-    timeOfDay: "",
-    date: "",
-    location: "",
-    clothing: {
-      red: false,
-      blue: false,
-      green: false,
-      black: false,
-      white: false,
-      yellow: false,
-    },
-  })
-
-  const [results, setResults] = useState<SearchResult["matches"]>([])
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<SearchResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [showSidebar, setShowSidebar] = useState(false)
+  const resultsEndRef = useRef<HTMLDivElement>(null)
 
-  // Handle search
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
+  const scrollToBottom = () => {
+    resultsEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [results])
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!query.trim()) return
+
+    setIsLoading(true)
     try {
-      const searchResults = await searchPerson(searchQuery);
-      setResults(searchResults.matches || []);
-    } catch (err) {
-      console.error("Search error:", err);
-      setError("Failed to perform search. Please try again.");
-      setResults([]);
+      const searchResults = await searchPerson(query)
+      setResults(searchResults)
+      
+      // Check if we have high similarity matches to show the sidebar
+      const hasHighSimilarityMatches = searchResults.matches?.some(match => match.similarity > 70);
+      setShowSidebar(hasHighSimilarityMatches);
+    } catch (error) {
+      console.error("Search error:", error)
+      setResults({
+        query: query,
+        matches: [],
+        suggestions: ["Try a different search term", "Be more specific about the person you're looking for"]
+      })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
-  // Reset filters
-  const resetFilters = () => {
-    setFilters({
-      gender: "",
-      ageRange: "",
-      timeOfDay: "",
-      date: "",
-      location: "",
-      clothing: {
-        red: false,
-        blue: false,
-        green: false,
-        black: false,
-        white: false,
-        yellow: false,
-      },
-    })
-    setSearchQuery("")
-    setResults([])
-  }
-
-  // Get unique locations for filter dropdown
-  const locations = [...new Set(mockPeople.map((person) => person.location))]
-
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
-      <div className="space-y-4">
-        <div className="flex gap-2">
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Describe who you're looking for..."
-            className="flex-1"
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
-          <Button onClick={handleSearch} disabled={isLoading}>
-            <Search className="h-4 w-4 mr-2" />
-            Search
-          </Button>
-          <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-            {showFilters ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-          </Button>
-        </div>
-
-        {error && (
-          <div className="text-red-500 text-sm">{error}</div>
-        )}
-
-        {isLoading && (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          </div>
-        )}
-
-        {results.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {results.map((result, index) => (
-              <Card key={index} className="overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-2">
-                    {result.image_data && (
-                      <img
-                        src={`data:image/jpeg;base64,${result.image_data}`}
-                        alt={`Match ${index + 1}`}
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                    )}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary">
-                          {result.similarity.toFixed(1)}% Match
-                        </Badge>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm">
-                          <span className="font-semibold">Gender:</span> {result.description.gender || "N/A"}
-                        </p>
-                        <p className="text-sm">
-                          <span className="font-semibold">Age:</span> {result.description.age_group || "N/A"}
-                        </p>
-                        <p className="text-sm">
-                          <span className="font-semibold">Clothing:</span>{" "}
-                          {result.description.clothing_top
-                            ? `${result.description.clothing_top} (${result.description.clothing_top_color || "N/A"})`
-                            : "N/A"}
-                        </p>
-                        {result.description.clothing_bottom && (
-                          <p className="text-sm">
-                            <span className="font-semibold">Bottom:</span>{" "}
-                            {`${result.description.clothing_bottom} (${result.description.clothing_bottom_color || "N/A"})`}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : !isLoading && searchQuery && (
-          <div className="text-center py-8 text-gray-500">
-            No matches found. Try adjusting your search criteria.
-          </div>
-        )}
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-gray-800">
+        <h2 className="text-lg font-semibold text-white">Search for People</h2>
+        <p className="text-sm text-gray-400">Describe the person you're looking for</p>
       </div>
+
+      <div className="p-4">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g., man wearing red shirt and blue jeans"
+            disabled={isLoading}
+            className="flex-1 bg-gray-900 border-gray-800 text-white focus-visible:ring-blue-600"
+          />
+          <Button 
+            type="submit" 
+            disabled={isLoading || !query.trim()} 
+            className="bg-blue-600 hover:bg-blue-700 transition-colors"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+          </Button>
+        </form>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900">
+        {isLoading && (
+          <div className="flex justify-center items-center h-32">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          </div>
+        )}
+
+        {!isLoading && results && (
+          <AnimatePresence>
+            {results.matches && results.matches.length > 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                <h3 className="text-lg font-medium text-white">
+                  Found {results.matches.length} potential match{results.matches.length > 1 ? "es" : ""}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {results.matches.map((match, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1 * index, duration: 0.3 }}
+                    >
+                      <Card className="bg-gray-800 border-gray-700 overflow-hidden">
+                        {match.image_data && (
+                          <div className="relative h-48 w-full">
+                            <img
+                              src={`data:image/jpeg;base64,${match.image_data}`}
+                              alt={`Match ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                              {match.similarity.toFixed(1)}% Match
+                            </div>
+                          </div>
+                        )}
+                        <div className="p-4">
+                          <h4 className="font-medium text-white mb-2">Match #{index + 1}</h4>
+                          <div className="text-sm text-gray-300 space-y-1">
+                            <p><span className="font-medium">Gender:</span> {match.description.gender || "N/A"}</p>
+                            <p><span className="font-medium">Age:</span> {match.description.age_group || "N/A"}</p>
+                            <p>
+                              <span className="font-medium">Clothing:</span>{" "}
+                              {match.description.clothing_top || "N/A"} ({match.description.clothing_top_color || "N/A"})
+                            </p>
+                            {match.description.clothing_bottom && (
+                              <p>
+                                <span className="font-medium">Bottom:</span>{" "}
+                                {match.description.clothing_bottom} ({match.description.clothing_bottom_color || "N/A"})
+                              </p>
+                            )}
+                            {match.description.accessories && match.description.accessories.length > 0 && (
+                              <p>
+                                <span className="font-medium">Accessories:</span>{" "}
+                                {match.description.accessories.join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-center py-8"
+              >
+                <h3 className="text-lg font-medium text-white mb-2">No matches found</h3>
+                <p className="text-gray-400">
+                  Try a different search term or be more specific about the person you're looking for.
+                </p>
+                {results.suggestions && results.suggestions.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-white mb-2">Suggestions:</h4>
+                    <ul className="text-sm text-gray-400 space-y-1">
+                      {results.suggestions.map((suggestion, index) => (
+                        <li key={index}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+
+        <div ref={resultsEndRef} />
+      </div>
+
+      {/* Match Sidebar */}
+      <MatchSidebar 
+        searchResults={results}
+        isVisible={showSidebar}
+        onClose={() => setShowSidebar(false)}
+      />
     </div>
   )
 }
