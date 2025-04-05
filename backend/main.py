@@ -11,9 +11,6 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import google.generativeai as genai
-import io
-import time
-import json
 import cv2
 import numpy as np
 import base64

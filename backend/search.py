@@ -8,7 +8,6 @@ import os
 from dotenv import load_dotenv
 import base64
 from PIL import Image
-import io
 
 # Load environment variables
 load_dotenv()

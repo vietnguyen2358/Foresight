@@ -8,7 +8,6 @@ from fastapi import WebSocket
 import base64
 import io
 from app_init import app
-from datetime import datetime
 from pydub import AudioSegment
 
 # Load environment variables

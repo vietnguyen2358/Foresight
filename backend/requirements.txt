@@ -31,5 +31,6 @@ loguru==0.7.2
 twilio==9.5.1
 websockets==11.0.3
 
-# Groq
+# Groq Whisper Transcription
 groq==0.22.0
+pydub==0.25.1
