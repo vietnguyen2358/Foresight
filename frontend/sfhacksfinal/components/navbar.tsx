@@ -36,11 +36,10 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-gray-950/85 backdrop-blur-md border-gray-800/70 shadow-lg"
-          : "bg-gray-950/70 backdrop-blur-sm border-gray-800/50"
-      } border-b`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
+        ? "bg-gray-950/85 backdrop-blur-md border-gray-800/70 shadow-lg"
+        : "bg-gray-950/70 backdrop-blur-sm border-gray-800/50"
+        } border-b`}
     >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
@@ -58,19 +57,15 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    isActive(item.href)
-                      ? "bg-blue-700/90 text-white"
-                      : "text-gray-300 hover:bg-gray-800/70 hover:text-white"
-                  }`}
+                  className={`px-6 py-2 rounded-md text-sm font-medium ${isActive(item.href)
+                    ? "bg-blue-700/90 text-white"
+                    : "text-gray-300 hover:bg-gray-800/70 hover:text-white"
+                    }`}
                 >
                   {item.name}
                 </Link>
               ))}
             </div>
-            <Button asChild className="ml-4 bg-blue-600/90 hover:bg-blue-700">
-              <Link href="/dashboard">Emergency Call</Link>
-            </Button>
           </div>
 
           {/* Mobile menu button */}
@@ -93,19 +88,15 @@ export default function Navbar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`px-3 py-2 rounded-md text-base font-medium ${
-                  isActive(item.href)
-                    ? "bg-blue-700/90 text-white"
-                    : "text-gray-300 hover:bg-gray-800/70 hover:text-white"
-                }`}
+                className={`px-3 py-2 rounded-md text-base font-medium ${isActive(item.href)
+                  ? "bg-blue-700/90 text-white"
+                  : "text-gray-300 hover:bg-gray-800/70 hover:text-white"
+                  }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.name}
               </Link>
             ))}
-            <Button asChild className="mt-4 bg-blue-600/90 hover:bg-blue-700">
-              <Link href="/dashboard">Emergency Call</Link>
-            </Button>
           </div>
         </div>
       )}
