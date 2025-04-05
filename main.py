@@ -132,7 +132,14 @@ async def search_person(query: str = Form(...)):
             return {
                 "query": query,
                 "matches": [],
-                "message": "No matches found"
+                "message": "No matches found",
+                "suggestions": [
+                    "Try using more general terms",
+                    "Include fewer specific details",
+                    "Check for typos in your search",
+                    "Try searching for a different person",
+                    "Visit /search_guidelines for tips on writing effective queries"
+                ]
             }
         
         # Process each match to include image data and similarity percentage
@@ -252,6 +259,31 @@ async def search_person(query: str = Form(...)):
         cv2.destroyAllWindows()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/search_guidelines")
+async def search_guidelines():
+    """Provide guidelines for writing effective search queries."""
+    return {
+        "guidelines": [
+            "Be specific about physical characteristics (e.g., 'tall Asian man with black hair')",
+            "Include clothing details (e.g., 'wearing a red striped shirt and blue jeans')",
+            "Mention accessories (e.g., 'carrying a black backpack')",
+            "Describe footwear (e.g., 'wearing white sneakers')",
+            "Include hair style and color (e.g., 'short blonde hair')",
+            "Mention facial features (e.g., 'wearing glasses', 'with a beard')",
+            "Describe skin tone if relevant (e.g., 'light-skinned', 'dark-skinned')",
+            "Include pose or activity (e.g., 'standing', 'walking')",
+            "Mention location context if relevant (e.g., 'indoors', 'outdoors')",
+            "Combine multiple attributes for better results (e.g., 'young woman with long brown hair wearing a floral dress and carrying a brown leather bag')"
+        ],
+        "example_queries": [
+            "Asian man with short black hair wearing a blue plaid shirt and khaki pants",
+            "Young woman with long blonde hair wearing a red dress and white sneakers",
+            "Elderly man with gray hair and glasses wearing a brown jacket and carrying a black backpack",
+            "Teenage boy with curly brown hair wearing a striped hoodie and blue jeans",
+            "Middle-aged woman with shoulder-length brown hair wearing a floral blouse and black skirt"
+        ]
+    }
 
 @app.on_event("shutdown")
 async def shutdown_event():

@@ -25,13 +25,29 @@ embedder = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=GEMIN
 QUERY_PROMPT_TEMPLATE = """
 You are helping an AI vision system identify people.
 
-Convert the following sentence into structured JSON with:
-- gender
-- age_group
-- clothing_top
-- clothing_color
-- clothing_bottom
-- accessories
+Convert the following sentence into structured JSON with these attributes:
+- gender (male, female, other)
+- age_group (child, teen, adult, senior)
+- ethnicity (if mentioned)
+- skin_tone (light, medium, dark, etc.)
+- hair_style (short, long, curly, straight, bald, etc.)
+- hair_color (black, brown, blonde, red, gray, etc.)
+- facial_features (beard, mustache, glasses, etc.)
+- clothing_top (shirt, hoodie, t-shirt, jacket, etc.)
+- clothing_top_color (primary color of top)
+- clothing_top_pattern (solid, striped, plaid, floral, etc.)
+- clothing_bottom (jeans, pants, skirt, shorts, etc.)
+- clothing_bottom_color (primary color of bottom)
+- clothing_bottom_pattern (solid, striped, plaid, etc.)
+- footwear (sneakers, boots, sandals, etc.)
+- footwear_color (primary color of shoes)
+- accessories (bag, hat, jewelry, etc.)
+- bag_type (backpack, handbag, shoulder bag, etc.)
+- bag_color (primary color of bag)
+- pose (standing, sitting, walking, etc.)
+- location_context (indoor, outdoor, etc.)
+
+Extract as much detail as possible from the description. If an attribute is not mentioned, omit it from the JSON.
 
 Sentence: "{}"
 
