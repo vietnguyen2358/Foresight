@@ -1,7 +1,8 @@
 # main.py
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from typing import List
 from PIL import Image
 import uvicorn
@@ -19,9 +20,12 @@ import numpy as np
 import base64
 
 from tracker import process_image, process_video
-from embedder import embed_image, embed_text, describe_person, embed_description
+from backend.embedder import embed_image, embed_text, describe_person, embed_description
 from db import add_person, search_people
-from search import find_similar_people
+from backend.search import find_similar_people
+
+from fastapi.websockets import WebSocketDisconnect
+from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 
 # Load environment variables
 load_dotenv()
@@ -284,6 +288,22 @@ async def search_guidelines():
             "Middle-aged woman with shoulder-length brown hair wearing a floral blouse and black skirt"
         ]
     }
+
+
+@app.api_route("/incoming_call", methods=["GET", "POST"])
+async def handle_incoming_call(request: Request):
+    """Handle incoming call and return TwiML response to connect to Media Stream."""
+    response = VoiceResponse()
+    # <Say> punctuation to improve text-to-speech flow
+    response.say("Please wait while we connect your call.")
+    response.pause(length=1)
+    response.say("O.K. you can start talking!")
+    host = request.url.hostname
+    connect = Connect()
+    connect.stream(url=f'wss://{host}/media-stream')
+    response.append(connect)
+    return HTMLResponse(content=str(response), media_type="application/xml")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
