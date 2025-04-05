@@ -124,11 +124,11 @@ export default function Map() {
       addCameraMarkers(map, L)
 
       // Try to get user location if we don't have it yet
-      if (!userLocation) {
-        getUserLocation(map, L)
-      } else {
-        addUserLocationMarker(map, L, userLocation)
-      }
+      // if (!userLocation) {
+      //   getUserLocation(map, L)
+      // } else {
+      //   addUserLocationMarker(map, L, userLocation)
+      // }
 
       return map
     } catch (error) {
