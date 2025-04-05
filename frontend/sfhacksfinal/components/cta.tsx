@@ -173,7 +173,7 @@ export default function CTA() {
             <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
               <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg relative group">
                 <Link href="/search">
-                  Start Using [CHANGE THIS LAETER]
+                  Start Using WatchDog
                   {/* Arrow animation */}
                   <motion.span
                     className="inline-block ml-2"
