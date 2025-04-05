@@ -1,7 +1,6 @@
 # main.py
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import File, UploadFile, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from typing import List
 from PIL import Image
@@ -18,14 +17,16 @@ import json
 import cv2
 import numpy as np
 import base64
+from app_init import app
 
 from tracker import process_image, process_video
-from backend.embedder import embed_image, embed_text, describe_person, embed_description
+from embedder import embed_image, embed_text, describe_person, embed_description
 from db import add_person, search_people
-from backend.search import find_similar_people
+from search import find_similar_people
 
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
+from Twilio.call import process_stream
 
 # Load environment variables
 load_dotenv()
@@ -39,15 +40,6 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found in environment variables")
 genai.configure(api_key=GEMINI_API_KEY)
-
-# Init app
-app = FastAPI(title="Person Detection and Search API")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
 
 # Setup directories
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
@@ -300,7 +292,7 @@ async def handle_incoming_call(request: Request):
     response.say("O.K. you can start talking!")
     host = request.url.hostname
     connect = Connect()
-    connect.stream(url=f'wss://{host}/media-stream')
+    connect.stream(url=f'wss://{host}/process_stream')
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
