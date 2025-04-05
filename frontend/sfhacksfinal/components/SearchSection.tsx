@@ -24,14 +24,6 @@ export default function SearchSection() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const resultsEndRef = useRef<HTMLDivElement>(null)
 
-  const scrollToBottom = () => {
-    resultsEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [results])
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!query.trim()) return

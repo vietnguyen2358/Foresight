@@ -42,10 +42,11 @@ export default function RootLayout({
           <CameraProvider>
             <div className="flex min-h-screen flex-col bg-black">
               <Navbar />
+              <div className="h-16"></div>
               <div className="flex-1 flex">
                 {/* Main Content */}
                 <div className="flex-1 bg-gray-950">
-                  <main className="h-full">
+                  <main className=" h-full">
                     {children}
                   </main>
                 </div>
