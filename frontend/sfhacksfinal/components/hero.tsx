@@ -101,12 +101,12 @@ export default function Hero() {
                 transition={{ duration: 0.5, delay: 0.7 }}
               >
                 {" "}
-                for Urban Environments
+                for First Responders
               </motion.span>
             </motion.h1>
 
             <motion.p className="text-xl text-gray-300 mb-8 max-w-2xl" variants={itemVariants}>
-              Leveraging computer vision and natural language understanding to help locate missing individuals in cities
+              Leveraging computer vision and natural language understanding to help first responders locate missing individuals in cities
               through intelligent video analysis.
             </motion.p>
 

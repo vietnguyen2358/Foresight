@@ -39,9 +39,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <div className="flex min-h-screen flex-col bg-black relative">
-            {/* Navbar is outside the main content flow */}
             <Navbar />
-            {/* Add a spacer div that matches the navbar height */}
             <div className="h-16"></div>
             <main className="flex-1 relative z-0">{children}</main>
           </div>

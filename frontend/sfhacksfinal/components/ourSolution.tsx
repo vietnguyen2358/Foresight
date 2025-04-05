@@ -91,10 +91,10 @@ export default function HowItWorks() {
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">How It Works</h2>
-          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            Our technology transforms raw video data into actionable intelligence for search and rescue operations.
-          </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Solution</h2>
+          <div className="text-xl text-gray-400 max-w-3xl mx-auto">
+            Our technology transforms raw video data into <span className="text-blue-500">actionable intelligence</span> to help first responder locate missing individuals much quicker than through then normal means.
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
