@@ -282,6 +282,18 @@ export default function Map() {
       fillOpacity: 0.8,
     }).addTo(map)
 
+    // Create a pulsing circle
+    const pulseCircle = L.circle([location.lat, location.lng], {
+      radius: 0,
+      color: "#3b82f6",
+      weight: 1,
+      opacity: 0.5,
+      fillOpacity: 0.3,
+    }).addTo(map)
+    
+    // Save reference to the pulse circle
+    pulseCircleRef.current = pulseCircle
+
     // Add a pulsing effect
     const animatePulse = () => {
       let radius = 0

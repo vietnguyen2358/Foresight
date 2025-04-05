@@ -2,7 +2,6 @@
 
 import json
 import google.generativeai as genai
-from chromadb.utils import embedding_functions
 from db import search_people
 import os
 from dotenv import load_dotenv
@@ -16,9 +15,6 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash-lite")
-
-# Embedder
-embedder = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=GEMINI_API_KEY)
 
 # Prompt for Gemini
 QUERY_PROMPT_TEMPLATE = """
@@ -66,7 +62,7 @@ def query_to_structured_json(description: str):
         return None
 
 
-def find_similar_people(user_description: str, top_k=3):
+def find_similar_people(user_description: str, top_k=1):
     """Find similar people based on text description."""
     try:
         # Convert query to structured JSON
@@ -75,52 +71,26 @@ def find_similar_people(user_description: str, top_k=3):
             print("⚠️ Could not parse query into structured JSON")
             return []
 
-        # Get embedding for query
-        query_string = json.dumps(json_query)
-        query_vector = embedder([query_string])[0]
-
-        # Search database
-        results = search_people(query_vector, n=top_k)
+        # Search database directly with the description
+        matches = search_people(user_description, n=top_k)
         
-        # Check if we got any results
-        if not results or not results["documents"] or len(results["documents"][0]) == 0:
-            print("⚠️ No matches found in database")
-            return []
-
         # Process matches
-        matches = []
-        for doc, metadata, distance in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
+        processed_matches = []
+        for match in matches:
             try:
-                # Convert distance to similarity score (0-100%)
-                similarity = max(0, min(100, (1 - distance) * 100))
-                
-                # Get image data if available
-                image_data = None
-                if "image_path" in metadata and os.path.exists(metadata["image_path"]):
-                    try:
-                        with open(metadata["image_path"], "rb") as img_file:
-                            image_data = base64.b64encode(img_file.read()).decode('utf-8')
-                    except Exception as e:
-                        print(f"⚠️ Error loading image {metadata['image_path']}: {e}")
-                
-                # Parse description
-                try:
-                    description = json.loads(doc)
-                except json.JSONDecodeError:
-                    print("⚠️ Error parsing description JSON")
-                    description = {}
-                
-                matches.append({
-                    "description": description,
-                    "metadata": metadata,
-                    "similarity": similarity,
-                    "image_data": image_data
+                processed_matches.append({
+                    "description": match["description"],
+                    "metadata": match.get("metadata", {}),
+                    "similarity": match.get("similarity", 0)
                 })
             except Exception as e:
                 print(f"⚠️ Error processing match: {e}")
                 continue
 
-        return matches
+        # Sort by similarity and return the best match
+        processed_matches.sort(key=lambda x: x["similarity"], reverse=True)
+        return processed_matches[:1]  # Return only the highest match
+        
     except Exception as e:
         print(f"⚠️ Error in find_similar_people: {e}")
         return []

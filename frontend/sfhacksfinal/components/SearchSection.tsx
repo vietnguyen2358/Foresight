@@ -7,6 +7,7 @@ import { Search, Loader2, Maximize2, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { searchPeople, type Detection, type PersonDescription } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
+import { useCamera } from "@/lib/CameraContext"
 
 export default function SearchSection() {
   const [query, setQuery] = useState("")
@@ -16,13 +17,16 @@ export default function SearchSection() {
       description: PersonDescription;
       similarity: number;
       image_data?: string;
+      camera_id?: string;
     }>;
     message?: string;
     suggestions?: string[];
+    camera_id?: string;
   } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const resultsEndRef = useRef<HTMLDivElement>(null)
+  const { setSelectedCamera, cameras } = useCamera()
 
   const scrollToBottom = () => {
     resultsEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -40,6 +44,20 @@ export default function SearchSection() {
     try {
       const searchResults = await searchPeople(query)
       setResults(searchResults)
+
+      // If we have a match with a camera ID, select that camera
+      if (searchResults.matches?.[0]?.camera_id) {
+        const cameraId = searchResults.matches[0].camera_id
+        const camera = cameras.find(c => c.id === cameraId)
+        if (camera) {
+          setSelectedCamera(camera)
+          // Optionally scroll to the camera view
+          const cameraElement = document.getElementById(`camera-${cameraId}`)
+          if (cameraElement) {
+            cameraElement.scrollIntoView({ behavior: 'smooth' })
+          }
+        }
+      }
     } catch (error) {
       console.error("Search error:", error)
       setResults({
@@ -69,7 +87,7 @@ export default function SearchSection() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gray-900">
       <div className="p-4 border-b border-gray-800">
         <h2 className="text-lg font-semibold text-white">Search for People</h2>
         <p className="text-sm text-gray-400">Describe the person you're looking for</p>
@@ -99,53 +117,34 @@ export default function SearchSection() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900">
-        {isLoading && (
-          <div className="flex justify-center items-center h-32">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          </div>
-        )}
-
-        {!isLoading && results && (
+        {results && (
           <div className="space-y-4">
-            {results.matches && results.matches.length > 0 ? (
+            {results.matches.length > 0 ? (
               results.matches.map((match, index) => (
-                <Card key={index} className="p-4 bg-gray-800 border-gray-700">
-                  <div className="flex gap-4">
+                <Card key={index} className="bg-gray-800 border-gray-700 p-4">
+                  <div className="space-y-4">
                     {match.image_data && (
-                      <div className="relative w-32 h-32">
+                      <div className="relative">
                         <img
                           src={`data:image/jpeg;base64,${match.image_data}`}
                           alt={`Match ${index + 1}`}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-auto rounded-lg"
                         />
-                        <div
-                          className="absolute border-2 border-blue-500 rounded-lg"
-                          style={generateBoundingBox()}
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-semibold text-white">
-                          Match {index + 1} ({match.similarity.toFixed(1)}% similarity)
-                        </h3>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setSelectedImage(match.image_data || null)}
-                          className="text-gray-400 hover:text-white"
+                          onClick={() => setSelectedImage(match.image_data)}
+                          className="absolute top-2 right-2 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700/50"
                         >
                           <Maximize2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="mt-2 space-y-1 text-sm text-gray-300">
-                        <p><span className="font-medium">Appearance:</span> {match.description.appearance || 'N/A'}</p>
-                        <p><span className="font-medium">Clothing:</span> {match.description.clothing || 'N/A'}</p>
-                        <p><span className="font-medium">Accessories:</span> {match.description.accessories || 'N/A'}</p>
-                        <p><span className="font-medium">Actions:</span> {match.description.actions || 'N/A'}</p>
-                        <p><span className="font-medium">Location:</span> {match.description.location || 'N/A'}</p>
+                    )}
+                    {match.camera_id && (
+                      <div className="bg-blue-900/50 text-blue-100 px-3 py-2 rounded-md text-sm">
+                        Found on Camera {match.camera_id}
                       </div>
-                    </div>
+                    )}
                   </div>
                 </Card>
               ))
@@ -192,18 +191,13 @@ export default function SearchSection() {
                 alt="Full size match"
                 className="w-full h-auto rounded-lg"
               />
-              {/* Bounding box overlay */}
-              <div 
-                className="absolute border-2 border-red-500 bg-red-500 bg-opacity-20"
-                style={generateBoundingBox()}
-              />
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-2 right-2 bg-gray-900 bg-opacity-70 hover:bg-opacity-100"
                 onClick={() => setSelectedImage(null)}
+                className="absolute top-2 right-2 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700/50"
               >
-                <X className="h-4 w-4 text-white" />
+                <X className="h-4 w-4" />
               </Button>
             </motion.div>
           </motion.div>

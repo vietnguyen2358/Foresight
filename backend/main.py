@@ -18,6 +18,9 @@ from app_init import app
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
+import json
+import asyncio
+from contextlib import asynccontextmanager
 
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
@@ -47,6 +50,37 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Load YOLO model
 yolo_model = YOLO("yolo11n.pt")
+
+# Define lifespan context manager for proper startup and shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize resources
+    logger.info("Starting up the application...")
+    yield
+    # Shutdown: Clean up resources
+    logger.info("Shutting down the application...")
+    try:
+        # Clean up OpenCV windows
+        cv2.destroyAllWindows()
+        # Cancel any pending tasks
+        for task in asyncio.all_tasks():
+            if not task.done() and task != asyncio.current_task():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+# Update the app to use the lifespan context manager
+app = FastAPI(title="Person Detection and Search API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 # Define models for chat
 class ChatMessage(BaseModel):
@@ -87,27 +121,83 @@ async def chat(request: ChatRequest):
     try:
         logger.info("Processing chat request")
         
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
-        # Start a new chat
-        chat = model.start_chat(history=[])
-        
-        # Process each message in the conversation history
-        for msg in request.messages:
-            if msg.role == "user":
-                # Send user message to Gemini
-                response = chat.send_message(msg.content)
-                # Store the response in history
-                chat.history.append({"role": "assistant", "parts": [response.text]})
-        
         # Get the last user message
-        last_message = request.messages[-1].content
+        last_message = request.messages[-1].content.lower()
         
-        # Generate response
-        response = chat.send_message(last_message)
+        # Check if it's a database-related query
+        db_keywords = [
+            "find", "search", "look for", "show", "who", "wearing", "person", "people",
+            "database", "stored", "saved", "detected", "seen", "camera", "video"
+        ]
         
-        return ChatResponse(response=response.text)
+        # Check if it's asking about the database state
+        if "database" in last_message or "stored" in last_message or "saved" in last_message:
+            try:
+                # Check if database file exists
+                db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "people_db.json")
+                if not os.path.exists(db_path):
+                    return ChatResponse(response="The database is empty. No people have been detected and stored yet.")
+                
+                # Read database to get count
+                with open(db_path, 'r') as f:
+                    db_data = json.load(f)
+                    count = len(db_data.get("people", []))
+                    return ChatResponse(response=f"The database currently contains {count} people. You can search for them using descriptions like 'find someone wearing a blue shirt' or 'who was wearing glasses?'")
+            except Exception as e:
+                logger.error(f"Error checking database state: {str(e)}")
+                return ChatResponse(response="I had trouble checking the database state. Please try again.")
+        
+        # Check if it's a search query
+        is_db_query = any(keyword in last_message for keyword in db_keywords)
+        
+        if is_db_query:
+            # Search the database using the query
+            matches = find_similar_people(last_message)
+            
+            if not matches:
+                response_text = (
+                    "I couldn't find anyone matching that description in the database. "
+                    "Try being more general in your description or check if the person has been added to the database. "
+                    "You can ask me about what's in the database by saying 'what's in the database?'"
+                )
+            else:
+                # Format the response with match details
+                response_parts = [f"I found {len(matches)} matches in the database:"]
+                for idx, match in enumerate(matches, 1):
+                    description = match["description"]
+                    similarity = match.get("similarity", 0)
+                    
+                    # Format description details
+                    details = []
+                    if description.get("gender"):
+                        details.append(description["gender"])
+                    if description.get("age_group"):
+                        details.append(description["age_group"])
+                    if description.get("clothing_top"):
+                        details.append(f"wearing {description['clothing_top']}")
+                    if description.get("clothing_bottom"):
+                        details.append(f"with {description['clothing_bottom']}")
+                    
+                    match_text = f"\n{idx}. Match ({similarity:.1f}% similar): {' '.join(details)}"
+                    response_parts.append(match_text)
+                
+                response_text = "\n".join(response_parts)
+        else:
+            # For non-database queries, use Gemini
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            chat = model.start_chat(history=[])
+            
+            # Process conversation history
+            for msg in request.messages:
+                if msg.role == "user":
+                    response = chat.send_message(msg.content)
+                    chat.history.append({"role": "assistant", "parts": [response.text]})
+            
+            # Generate response for the last message
+            response = chat.send_message(last_message)
+            response_text = response.text
+        
+        return ChatResponse(response=response_text)
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -181,131 +271,136 @@ async def search_person(query: str = Form(...)):
             return {
                 "query": query,
                 "matches": [],
-                "message": "No matches found",
+                "message": "No matches found in the database",
                 "suggestions": [
                     "Try using more general terms",
                     "Include fewer specific details",
                     "Check for typos in your search",
-                    "Try searching for a different person",
-                    "Visit /search_guidelines for tips on writing effective queries"
+                    "Try searching for a different person"
                 ]
             }
         
-        # Process each match to include image data and similarity percentage
-        processed_matches = []
-        for idx, match in enumerate(matches):
-            try:
-                # Create a visualization of the match
-                description = match["description"]
-                metadata = match["metadata"]
-                similarity = match.get("similarity", 0)
-                
-                # Create a blank image if no image data is available
-                if match.get("image_data"):
-                    # Convert base64 image to OpenCV format
-                    img_data = base64.b64decode(match["image_data"])
-                    nparr = np.frombuffer(img_data, np.uint8)
-                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                else:
-                    # Create a blank image with text
-                    img = np.zeros((600, 800, 3), dtype=np.uint8)
-                    img.fill(255)  # White background
-                
-                # Add match information to the image
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.7
-                thickness = 2
-                color = (0, 128, 0)  # Dark green
-                
-                # Add similarity score
-                similarity_text = f"Match: {similarity:.1f}%"
-                cv2.putText(img, similarity_text, (10, 30), font, font_scale, color, thickness)
-                
-                # Add description details
-                y_offset = 70
-                line_height = 25
-                
-                # Basic information
-                basic_details = [
-                    f"Gender: {description.get('gender', 'N/A')}",
-                    f"Age: {description.get('age_group', 'N/A')}",
-                    f"Ethnicity: {description.get('ethnicity', 'N/A')}",
-                    f"Skin Tone: {description.get('skin_tone', 'N/A')}"
-                ]
-                
-                # Hair details
-                hair_details = [
-                    f"Hair Style: {description.get('hair_style', 'N/A')}",
-                    f"Hair Color: {description.get('hair_color', 'N/A')}",
-                    f"Facial Features: {description.get('facial_features', 'N/A')}"
-                ]
-                
-                # Clothing details
-                clothing_details = [
-                    f"Top: {description.get('clothing_top', 'N/A')}",
-                    f"Top Color: {description.get('clothing_top_color', 'N/A')}",
-                    f"Top Pattern: {description.get('clothing_top_pattern', 'N/A')}",
-                    f"Bottom: {description.get('clothing_bottom', 'N/A')}",
-                    f"Bottom Color: {description.get('clothing_bottom_color', 'N/A')}",
-                    f"Bottom Pattern: {description.get('clothing_bottom_pattern', 'N/A')}"
-                ]
-                
-                # Footwear and accessories
-                accessories_details = [
-                    f"Footwear: {description.get('footwear', 'N/A')}",
-                    f"Footwear Color: {description.get('footwear_color', 'N/A')}",
-                    f"Accessories: {description.get('accessories', 'N/A')}",
-                    f"Bag Type: {description.get('bag_type', 'N/A')}",
-                    f"Bag Color: {description.get('bag_color', 'N/A')}"
-                ]
-                
-                # Context
-                context_details = [
-                    f"Pose: {description.get('pose', 'N/A')}",
-                    f"Location: {description.get('location_context', 'N/A')}"
-                ]
-                
-                # Draw all details
-                all_details = basic_details + hair_details + clothing_details + accessories_details + context_details
-                
-                for line in all_details:
-                    cv2.putText(img, line, (10, y_offset), font, font_scale, (0, 0, 0), thickness)
-                    y_offset += line_height
-                
-                # Show the image in a window
-                window_name = f"Match {idx + 1} - {similarity:.1f}% Similar"
-                cv2.imshow(window_name, img)
-                cv2.moveWindow(window_name, idx * 850, 0)  # Position windows side by side
-                
-                # Convert back to base64 for sending to client
-                _, buffer = cv2.imencode('.jpg', img)
-                img_base64 = base64.b64encode(buffer).decode('utf-8')
-                
-                # Add to processed matches
-                processed_match = {
-                    "description": description,
-                    "similarity": similarity,
-                    "similarity_percentage": f"{similarity:.1f}%",
-                    "processed_image": img_base64
-                }
-                processed_matches.append(processed_match)
-                
-            except Exception as e:
-                logger.error(f"Error processing match: {str(e)}")
-                continue
+        # Get the best match (even if similarity is low)
+        best_match = matches[0]
+        similarity = best_match.get("similarity", 0)
         
-        # Wait for a key press (1ms) to keep windows open
-        cv2.waitKey(1)
-        
-        return {
-            "query": query,
-            "matches": processed_matches,
-            "count": len(processed_matches)
-        }
+        # Process the best match to include image data
+        try:
+            # Create a visualization of the match
+            description = best_match["description"]
+            metadata = best_match.get("metadata", {})
+            
+            # Create a visualization image
+            img = np.zeros((600, 800, 3), dtype=np.uint8)
+            img.fill(255)  # White background
+            
+            # Add match information to the image
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.7
+            thickness = 2
+            color = (0, 128, 0)  # Dark green
+            
+            # Add similarity score with appropriate message
+            if similarity < 30:
+                similarity_text = f"Best Match (Low Confidence): {similarity:.1f}%"
+                color = (0, 0, 255)  # Red for low confidence
+            elif similarity < 50:
+                similarity_text = f"Best Match (Moderate Confidence): {similarity:.1f}%"
+                color = (0, 165, 255)  # Orange for moderate confidence
+            else:
+                similarity_text = f"Best Match (High Confidence): {similarity:.1f}%"
+                color = (0, 128, 0)  # Green for high confidence
+            
+            cv2.putText(img, similarity_text, (10, 30), font, font_scale, color, thickness)
+            
+            # Add description details
+            y_offset = 70
+            line_height = 25
+            
+            # Basic information
+            basic_details = [
+                f"Gender: {description.get('gender', 'N/A')}",
+                f"Age: {description.get('age_group', 'N/A')}",
+                f"Ethnicity: {description.get('ethnicity', 'N/A')}",
+                f"Skin Tone: {description.get('skin_tone', 'N/A')}"
+            ]
+            
+            # Hair details
+            hair_details = [
+                f"Hair Style: {description.get('hair_style', 'N/A')}",
+                f"Hair Color: {description.get('hair_color', 'N/A')}",
+                f"Facial Features: {description.get('facial_features', 'N/A')}"
+            ]
+            
+            # Clothing details
+            clothing_details = [
+                f"Top: {description.get('clothing_top', 'N/A')}",
+                f"Top Color: {description.get('clothing_top_color', 'N/A')}",
+                f"Top Pattern: {description.get('clothing_top_pattern', 'N/A')}",
+                f"Bottom: {description.get('clothing_bottom', 'N/A')}",
+                f"Bottom Color: {description.get('clothing_bottom_color', 'N/A')}",
+                f"Bottom Pattern: {description.get('clothing_bottom_pattern', 'N/A')}"
+            ]
+            
+            # Footwear and accessories
+            accessories_details = [
+                f"Footwear: {description.get('footwear', 'N/A')}",
+                f"Footwear Color: {description.get('footwear_color', 'N/A')}",
+                f"Accessories: {description.get('accessories', 'N/A')}",
+                f"Bag Type: {description.get('bag_type', 'N/A')}",
+                f"Bag Color: {description.get('bag_color', 'N/A')}"
+            ]
+            
+            # Context
+            context_details = [
+                f"Pose: {description.get('pose', 'N/A')}",
+                f"Location: {description.get('location_context', 'N/A')}"
+            ]
+            
+            # Draw all details
+            all_details = basic_details + hair_details + clothing_details + accessories_details + context_details
+            
+            for line in all_details:
+                cv2.putText(img, line, (10, y_offset), font, font_scale, (0, 0, 0), thickness)
+                y_offset += line_height
+            
+            # Convert to base64 for sending to client
+            _, buffer = cv2.imencode('.jpg', img)
+            img_base64 = base64.b64encode(buffer).decode('utf-8')
+            
+            # Create processed match
+            processed_match = {
+                "description": description,
+                "metadata": metadata,
+                "similarity": similarity,
+                "similarity_percentage": f"{similarity:.1f}%",
+                "image_data": img_base64,
+                "camera_id": metadata.get("camera_id", "Unknown")  # Include camera ID from metadata
+            }
+            
+            # Add confidence level message
+            confidence_message = ""
+            if similarity < 30:
+                confidence_message = "This is the closest match found, but confidence is low. The person might be different from your search."
+            elif similarity < 50:
+                confidence_message = "This is the closest match found with moderate confidence. Some details might not match exactly."
+            else:
+                confidence_message = "This is a high-confidence match to your search."
+            
+            return {
+                "query": query,
+                "matches": [processed_match],
+                "count": 1,
+                "confidence_message": confidence_message,
+                "camera_id": metadata.get("camera_id", "Unknown")  # Include camera ID at top level too
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing match: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+            
     except Exception as e:
         logger.error(f"Error in search endpoint: {str(e)}")
-        # Clean up OpenCV windows in case of error
-        cv2.destroyAllWindows()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -352,8 +447,14 @@ async def handle_incoming_call(request: Request):
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    # Clean up OpenCV windows when the server shuts down
-    cv2.destroyAllWindows()
+    # This function is now handled by the lifespan context manager
+    # Keeping it for backward compatibility
+    logger.info("Shutdown event triggered")
+    try:
+        # Clean up OpenCV windows when the server shuts down
+        cv2.destroyAllWindows()
+    except Exception as e:
+        logger.error(f"Error in shutdown_event: {e}")
 
 
 @app.post("/process_frame", response_model=FrameResponse)
@@ -427,16 +528,6 @@ async def process_frame(request: FrameRequest):
             logger.info(f"Processing person detection with confidence {conf:.2f} at coordinates [{x1}, {y1}, {x2}, {y2}]")
             logger.info(f"Detection size: {x2-x1}x{y2-y1} pixels")
             
-            # Add to detections list
-            detections.append({
-                "id": detection_id,
-                "type": "person",
-                "confidence": conf,
-                "bbox": [float(x1), float(y1), float(x2), float(y2)],
-                "timestamp": datetime.now().isoformat(),
-                "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
-            })
-            
             # Crop person if the crop is valid
             if (x2 - x1) > 0 and (y2 - y1) > 0:
                 try:
@@ -464,9 +555,43 @@ async def process_frame(request: FrameRequest):
                     try:
                         person_description = describe_person(person_pil)
                         logger.info(f"Generated description for person: {person_description}")
+                        
+                        # Save the person to the database
+                        add_person(
+                            description_json=person_description,
+                            metadata={
+                                "detection_id": detection_id,
+                                "confidence": conf,
+                                "timestamp": datetime.now().isoformat(),
+                                "camera_id": "SF-MKT-001",
+                                "bbox": [float(x1), float(y1), float(x2), float(y2)]
+                            }
+                        )
+                        logger.info(f"Added person to database with ID {detection_id}")
+                        
+                        # Add to detections list with description
+                        detections.append({
+                            "id": detection_id,
+                            "type": "person",
+                            "confidence": conf,
+                            "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                            "timestamp": datetime.now().isoformat(),
+                            "camera_id": "SF-MKT-001",  # You can make this dynamic based on the request
+                            "description": person_description  # Add the description to the detection
+                        })
                     except Exception as desc_error:
-                        logger.error(f"Error generating description: {str(desc_error)}")
+                        logger.error(f"Error generating description or saving to database: {str(desc_error)}")
                         person_description = {"error": f"Description generation failed: {str(desc_error)}"}
+                        
+                        # Add to detections list without description
+                        detections.append({
+                            "id": detection_id,
+                            "type": "person",
+                            "confidence": conf,
+                            "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                            "timestamp": datetime.now().isoformat(),
+                            "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
+                        })
                     
                     # Convert crop to base64 for frontend display
                     _, buffer = cv2.imencode('.jpg', person_crop)

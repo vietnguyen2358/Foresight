@@ -25,19 +25,49 @@ export interface Detection {
   id: string;
   type: string;
   confidence: number;
+  bbox?: number[];
+  camera_id?: string;
   timestamp: string;
   image?: string;
-  camera_id?: string;
+  description?: string | Record<string, string>;
 }
 
 export interface PersonDescription {
-  appearance?: string;
-  clothing?: string;
+  // Basic information
+  gender?: string;
+  age_group?: string;
+  ethnicity?: string;
+  skin_tone?: string;
+
+  // Hair details
+  hair_style?: string;
+  hair_color?: string;
+  facial_features?: string;
+
+  // Clothing details
+  clothing_top?: string;
+  clothing_top_color?: string;
+  clothing_top_pattern?: string;
+  clothing_bottom?: string;
+  clothing_bottom_color?: string;
+  clothing_bottom_pattern?: string;
+
+  // Footwear and accessories
+  footwear?: string;
+  footwear_color?: string;
   accessories?: string;
+  bag_type?: string;
+  bag_color?: string;
+
+  // Context
+  pose?: string;
+  location_context?: string;
   actions?: string;
   location?: string;
   timestamp?: string;
   camera_id?: string;
+
+  // Image data
   image?: string;
   cropped_image?: string;
   boundingBox?: {
@@ -52,10 +82,16 @@ export interface SearchResult {
   query: string;
   matches: Array<{
     description: PersonDescription;
+    metadata?: any;
     similarity: number;
+    similarity_percentage?: string;
+    image_data?: string;
+    camera_id?: string;
   }>;
   message?: string;
   suggestions?: string[];
+  count?: number;
+  camera_id?: string;
 }
 
 export interface ChatResponse {

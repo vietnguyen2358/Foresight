@@ -54,7 +54,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
           
           frameIntervalRef.current = setInterval(() => {
             if (!isProcessing) {
-              console.log('Extracting frame for AI detection...');
+              console.log('Extracting frame from video...');
               extractFrame();
             } else {
               console.log('Skipping frame extraction - still processing previous frame');
@@ -62,17 +62,16 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
           }, FRAME_INTERVAL);
         })
         .catch(err => {
-          console.error('Play error:', err);
-          setError(`Video playback not supported - using image feed instead`);
+          console.error('Error playing video:', err);
+          setError(`Error playing video - using image feed instead`);
           setUseFallback(true);
-          
-          // Start extracting frames from the fallback image
           startFallbackFrameExtraction();
         });
     };
     
     video.addEventListener('loadeddata', handleLoadedData);
     
+    // Clean up
     return () => {
       video.removeEventListener('error', handleError);
       video.removeEventListener('loadeddata', handleLoadedData);
@@ -101,149 +100,134 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
 
   // Start fallback frame extraction using static image
   const startFallbackFrameExtraction = () => {
+    console.log('Starting fallback frame extraction...');
+    
+    // Clear any existing interval
     if (frameIntervalRef.current) {
       clearInterval(frameIntervalRef.current);
     }
-
-    // Create an image element for the fallback
-    const img = new Image();
-    img.crossOrigin = "anonymous"; // Enable CORS for the image
     
-    // Try multiple fallback images in case one fails
-    const fallbackImages = [
-      '/images/image.jpg',
-      '/images/image1.jpg',
-      '/images/image2.jpg',
-      '/images/image3.jpg',
-      '/images/image4.jpg',
-      '/images/image5.jpg'
-    ];
+    // Extract first frame immediately
+    tryNextImage();
     
-    let currentImageIndex = 0;
-    
-    const tryNextImage = () => {
-      if (currentImageIndex < fallbackImages.length) {
-        console.log(`Trying fallback image ${currentImageIndex + 1}: ${fallbackImages[currentImageIndex]}`);
-        img.src = fallbackImages[currentImageIndex];
-        currentImageIndex++;
+    // Set up interval for frame extraction
+    frameIntervalRef.current = setInterval(() => {
+      if (!isProcessing) {
+        tryNextImage();
       } else {
-        console.error('All fallback images failed to load');
-        setError('Failed to load any fallback images');
+        console.log('Skipping fallback frame extraction - still processing previous frame');
       }
-    };
+    }, FRAME_INTERVAL);
+  };
+  
+  // Try to load the next image in sequence
+  const tryNextImage = () => {
+    // Get the camera ID from the video source
+    const cameraId = videoSrc.includes('camera') 
+      ? videoSrc.match(/camera(\d+)\.mov/)?.[1] 
+      : 'mkt';
     
+    // Use a sequence of images for the specific camera
+    const imageIndex = Math.floor(Math.random() * 4) + 1;
+    const imageUrl = `/images/camera${cameraId}_${imageIndex}.jpg`;
+    
+    console.log(`Loading fallback image: ${imageUrl}`);
+    
+    // Create a new image to test if it exists
+    const img = new Image();
     img.onload = () => {
+      console.log(`Fallback image loaded: ${imageUrl}`);
+      
+      // Extract frame from the image
       const canvas = canvasRef.current;
       if (!canvas) return;
-
-      // Set canvas dimensions to match image's native resolution
-      canvas.width = img.width;
-      canvas.height = img.height;
-
-      // Draw image to canvas with high quality
+      
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       
-      // Use high-quality image rendering
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
+      // Set canvas dimensions to match the image
+      canvas.width = img.width;
+      canvas.height = img.height;
       
-      // Draw the image at full resolution
+      // Draw the image on the canvas
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // Extract first frame immediately with maximum quality
-      console.log('Extracting initial frame from fallback image...');
-      const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
       
-      // Check if the frame URL is valid
-      if (!frameUrl || frameUrl.length < 100) {
-        console.error("Invalid frame URL generated from fallback image");
-        setError("Failed to extract frame from fallback image - invalid data");
-        tryNextImage();
-        return;
-      }
+      // Convert canvas to data URL
+      const frameUrl = canvas.toDataURL('image/jpeg', 0.8);
       
-      // Check if the frame contains actual content (not just a blank frame)
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      let hasContent = false;
-      
-      // Check if the frame has any non-transparent pixels
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 0) { // Alpha channel
-          hasContent = true;
-          break;
-        }
-      }
-      
-      if (!hasContent) {
-        console.warn("Fallback image appears to be blank or transparent");
-        setError("Fallback image is blank - trying next image");
-        tryNextImage();
-        return;
-      }
-      
-      // Log detailed information about the extracted frame
-      console.log(`Fallback frame extracted from ${img.src}`);
-      console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
-      console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
-      console.log(`Frame format: PNG (lossless)`);
-      
-      console.log("Sending fallback frame to parent component for processing");
+      // Pass the frame URL to the parent component
       onFrameExtracted(frameUrl);
-
-      // Set up interval for continuous frame extraction
-      frameIntervalRef.current = setInterval(() => {
-        if (!isProcessing) {
-          console.log('Extracting frame from fallback image for AI detection...');
-          const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
+    };
+    
+    img.onerror = () => {
+      console.error(`Failed to load fallback image: ${imageUrl}`);
+      // Try a different image
+      const fallbackImageUrl = `/images/camera${cameraId}_fallback.jpg`;
+      console.log(`Trying fallback image: ${fallbackImageUrl}`);
+      
+      const fallbackImg = new Image();
+      fallbackImg.onload = () => {
+        console.log(`Fallback image loaded: ${fallbackImageUrl}`);
+        
+        // Extract frame from the fallback image
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        // Set canvas dimensions to match the image
+        canvas.width = fallbackImg.width;
+        canvas.height = fallbackImg.height;
+        
+        // Draw the image on the canvas
+        ctx.drawImage(fallbackImg, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to data URL
+        const frameUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Pass the frame URL to the parent component
+        onFrameExtracted(frameUrl);
+      };
+      
+      fallbackImg.onerror = () => {
+        console.error(`Failed to load fallback image: ${fallbackImageUrl}`);
+        // Use a default image as a last resort
+        const defaultImageUrl = '/images/default_camera.jpg';
+        console.log(`Using default image: ${defaultImageUrl}`);
+        
+        const defaultImg = new Image();
+        defaultImg.onload = () => {
+          console.log(`Default image loaded: ${defaultImageUrl}`);
           
-          // Check if the frame URL is valid
-          if (!frameUrl || frameUrl.length < 100) {
-            console.error("Invalid frame URL generated from fallback image");
-            return;
-          }
+          // Extract frame from the default image
+          const canvas = canvasRef.current;
+          if (!canvas) return;
           
-          // Check if the frame contains actual content
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
-          let hasContent = false;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
           
-          // Check if the frame has any non-transparent pixels
-          for (let i = 0; i < data.length; i += 4) {
-            if (data[i + 3] > 0) { // Alpha channel
-              hasContent = true;
-              break;
-            }
-          }
+          // Set canvas dimensions to match the image
+          canvas.width = defaultImg.width;
+          canvas.height = defaultImg.height;
           
-          if (!hasContent) {
-            console.warn("Fallback image appears to be blank or transparent");
-            return;
-          }
+          // Draw the image on the canvas
+          ctx.drawImage(defaultImg, 0, 0, canvas.width, canvas.height);
           
-          // Log detailed information about the extracted frame
-          console.log(`Fallback frame extracted from ${img.src}`);
-          console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
-          console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
-          console.log(`Frame format: PNG (lossless)`);
+          // Convert canvas to data URL
+          const frameUrl = canvas.toDataURL('image/jpeg', 0.8);
           
-          console.log("Sending fallback frame to parent component for processing");
+          // Pass the frame URL to the parent component
           onFrameExtracted(frameUrl);
-        } else {
-          console.log('Skipping frame extraction - still processing previous frame');
-        }
-      }, FRAME_INTERVAL);
+        };
+        
+        defaultImg.src = defaultImageUrl;
+      };
+      
+      fallbackImg.src = fallbackImageUrl;
     };
     
-    img.onerror = (err) => {
-      console.error('Error loading fallback image:', err);
-      setError(`Failed to load fallback image: ${img.src}`);
-      tryNextImage();
-    };
-    
-    // Start with the first fallback image
-    tryNextImage();
+    img.src = imageUrl;
   };
 
   // Extract frame from video
@@ -298,11 +282,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         }
       }
       
-      if (!hasContent) {
-        console.warn("Frame appears to be blank or transparent");
-        setError("Extracted frame is blank - waiting for next frame");
-        return;
-      }
+      
       
       // Pass the frame URL to the parent component
       console.log("Sending frame to parent component for processing");
@@ -360,19 +340,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         {useFallback ? 'LIVE (Image Feed)' : 'LIVE'}
       </div>
       
-      {/* Frame extraction indicator */}
-      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-        Frame every 5s
-      </div>
       
-      {/* Manual extract button */}
-      <button 
-        onClick={handleManualExtract}
-        className="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
-        disabled={isProcessing}
-      >
-        {isProcessing ? 'Processing...' : 'Extract Frame'}
-      </button>
     </div>
   );
 } 

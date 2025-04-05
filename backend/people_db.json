@@ -1,0 +1,628 @@
+{
+  "people": [
+    {
+      "id": "fc22fd9d-bdfd-4e2d-ad2f-ad385b8400e9",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "unknown",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.827250599861145,
+        "timestamp": "2025-04-05T16:04:47.395689",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          444.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:04:47.395755"
+    },
+    {
+      "id": "767a85a8-dd13-4e21-ac8e-bc8f0db7e9dc",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.3125093877315521,
+        "timestamp": "2025-04-05T16:04:48.818470",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          498.0,
+          213.0,
+          517.0,
+          239.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:04:48.818588"
+    },
+    {
+      "id": "609dbf0c-7a20-4ec9-a536-91b6c11e4c10",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3028565049171448,
+        "timestamp": "2025-04-05T16:04:49.883571",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          522.0,
+          217.0,
+          550.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:04:49.883632"
+    },
+    {
+      "id": "6fe315a9-3418-422e-ba9c-3c9f66681979",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.3010760247707367,
+        "timestamp": "2025-04-05T16:04:51.072813",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          393.0,
+          227.0,
+          427.0,
+          282.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:04:51.072880"
+    },
+    {
+      "id": "3c9dd104-d276-482e-a7d3-dc6e10cc7ad6",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "clothing_top": "shirt",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.4441016614437103,
+        "timestamp": "2025-04-05T16:05:04.074952",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          20.0,
+          328.0,
+          32.0,
+          355.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:04.075182"
+    },
+    {
+      "id": "8fbe4df2-5596-4b41-bd90-d5b6de80c97a",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "shirt",
+        "clothing_bottom": "pants",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.3891545534133911,
+        "timestamp": "2025-04-05T16:05:05.116166",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          20.0,
+          328.0,
+          38.0,
+          354.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:05.116228"
+    },
+    {
+      "id": "6f7b66fc-f937-4089-b663-0ffc1024d113",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.36796751618385315,
+        "timestamp": "2025-04-05T16:05:06.425945",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          28.0,
+          328.0,
+          40.0,
+          354.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:06.426015"
+    },
+    {
+      "id": "c8d20b08-ecb7-4e39-9bb0-d212c39f7500",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "curly",
+        "hair_color": "black",
+        "facial_features": "beard",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8197153806686401,
+        "timestamp": "2025-04-05T16:05:40.644676",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          444.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:40.644789"
+    },
+    {
+      "id": "3b0b946c-21d8-4d64-9a74-7acc9df07129",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "green",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.40095055103302,
+        "timestamp": "2025-04-05T16:05:41.468270",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          522.0,
+          216.0,
+          550.0,
+          248.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:41.468315"
+    },
+    {
+      "id": "5391ab89-fe95-4a12-92d1-9a231921b218",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3981463611125946,
+        "timestamp": "2025-04-05T16:05:42.371572",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          497.0,
+          213.0,
+          518.0,
+          241.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:42.371615"
+    },
+    {
+      "id": "bede23bb-9490-44b8-bdac-bc7f2b584b1e",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.2912150025367737,
+        "timestamp": "2025-04-05T16:05:44.238364",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          471.0,
+          195.0,
+          489.0,
+          231.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:44.238408"
+    },
+    {
+      "id": "5bf04329-3c75-4aa2-9e0b-de24126c79fa",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "shirt",
+        "clothing_top_color": "gray",
+        "clothing_bottom": "pants",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.28159648180007935,
+        "timestamp": "2025-04-05T16:05:45.144453",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          503.0,
+          193.0,
+          516.0,
+          217.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:45.144510"
+    },
+    {
+      "id": "e1286e55-9abe-4a25-9d5c-7a85254d0a9b",
+      "description": {
+        "age_group": "adult",
+        "hair_color": "brown",
+        "clothing_top": "jacket",
+        "clothing_top_color": "yellow",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_6",
+        "confidence": 0.26377683877944946,
+        "timestamp": "2025-04-05T16:05:45.926835",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          393.0,
+          227.0,
+          429.0,
+          265.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:45.926896"
+    },
+    {
+      "id": "13e3e01a-be41-41ae-b500-390d81be8ebf",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.41447287797927856,
+        "timestamp": "2025-04-05T16:05:49.745825",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          21.0,
+          327.0,
+          32.0,
+          354.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:49.745884"
+    },
+    {
+      "id": "df57dfa6-b12d-4378-a367-ec7dcdac7d0d",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_color": "brown",
+        "clothing_top_color": "black",
+        "clothing_bottom_color": "black"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.38228437304496765,
+        "timestamp": "2025-04-05T16:05:50.897430",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          32.0,
+          328.0,
+          40.0,
+          353.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:50.897484"
+    },
+    {
+      "id": "d2a618a9-dd50-4683-86b2-0fdc6a04b9a5",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "white",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "brown",
+        "clothing_bottom_pattern": "solid",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8179170489311218,
+        "timestamp": "2025-04-05T16:05:54.873551",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          485.0,
+          328.0,
+          538.0,
+          416.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:54.873646"
+    },
+    {
+      "id": "6621af08-e191-41ff-9e7e-243e5fa3959f",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "beige",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "beige",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.7592208981513977,
+        "timestamp": "2025-04-05T16:05:56.165892",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          294.0,
+          314.0,
+          323.0,
+          392.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:05:56.165998"
+    },
+    {
+      "id": "22e06860-d683-4a96-bd87-df0306c7391c",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "hoodie",
+        "clothing_top_color": "white",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "clothing_bottom_pattern": "solid",
+        "footwear_color": "black",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8440864682197571,
+        "timestamp": "2025-04-05T16:06:15.469144",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          616.0,
+          277.0,
+          659.0,
+          410.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:06:15.469349"
+    },
+    {
+      "id": "8ce3d9ce-11bf-4277-ac58-64789751915a",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "curly",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "red",
+        "clothing_bottom_pattern": "solid",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.802046000957489,
+        "timestamp": "2025-04-05T16:06:16.984943",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          704.0,
+          271.0,
+          742.0,
+          395.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:06:16.985029"
+    },
+    {
+      "id": "477fb228-2096-41e2-891b-a5ac31bb72ec",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "jacket",
+        "clothing_top_color": "blue",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "shorts",
+        "clothing_bottom_color": "white",
+        "footwear": "sneakers",
+        "footwear_color": "white",
+        "accessories": "hat",
+        "bag_type": "shoulder bag",
+        "bag_color": "orange",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.7495133280754089,
+        "timestamp": "2025-04-05T16:06:18.727164",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          499.0,
+          279.0,
+          535.0,
+          383.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:06:18.727267"
+    },
+    {
+      "id": "dedd07e5-7b38-4dd3-8767-94381bf62ec7",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "long",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "clothing_bottom_pattern": "solid",
+        "accessories": "hat",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.7291911840438843,
+        "timestamp": "2025-04-05T16:06:20.132220",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          548.0,
+          282.0,
+          579.0,
+          366.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:06:20.132300"
+    },
+    {
+      "id": "a4460837-f8ef-4c54-acf6-7a7fb4221e9b",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "hair_style": "long",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "maroon",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.6601723432540894,
+        "timestamp": "2025-04-05T16:06:21.432007",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          670.0,
+          275.0,
+          706.0,
+          384.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:06:21.432086"
+    },
+    {
+      "id": "33b31512-e332-402d-958b-548dda88716c",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_color": "black",
+        "clothing_top": "hoodie",
+        "clothing_top_color": "red",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "red",
+        "clothing_bottom_pattern": "solid",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.6486027836799622,
+        "timestamp": "2025-04-05T16:06:22.818550",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          646.0,
+          271.0,
+          679.0,
+          389.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:06:22.818623"
+    }
+  ]
+}
