@@ -1,2 +1,6 @@
 .env
 __pycache__
+
+# VS Code
+.DS_Store
+venv

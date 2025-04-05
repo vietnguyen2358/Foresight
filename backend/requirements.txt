@@ -1,0 +1,35 @@
+# Core API
+fastapi==0.109.2
+uvicorn==0.27.1
+python-multipart==0.0.9
+python-dotenv==1.0.1
+
+# Vision + Object Detection
+ultralytics==8.3.101
+Pillow==10.2.0
+opencv-python==4.9.0.80
+supervision==0.18.0
+
+# Google Gemini & CLIP
+google-generativeai==0.3.2
+transformers==4.38.2
+torch==2.0.1
+torchvision==0.15.2
+numpy==1.26.4
+
+# ChromaDB (Vector Database)
+chromadb==0.4.22
+uuid==1.30
+
+# Plotting (for dev/debug)
+matplotlib==3.8.3
+
+# Logging and monitoring
+loguru==0.7.2
+
+# Twilio Calls
+twilio==9.5.1
+websockets==11.0.3
+
+# Groq
+groq==0.22.0
