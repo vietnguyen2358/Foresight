@@ -152,7 +152,7 @@ async def search_person(query: str = Form(...)):
                     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 else:
                     # Create a blank image with text
-                    img = np.zeros((400, 600, 3), dtype=np.uint8)
+                    img = np.zeros((600, 800, 3), dtype=np.uint8)
                     img.fill(255)  # White background
                 
                 # Add match information to the image
@@ -167,24 +167,59 @@ async def search_person(query: str = Form(...)):
                 
                 # Add description details
                 y_offset = 70
-                line_height = 30
-                details = [
+                line_height = 25
+                
+                # Basic information
+                basic_details = [
                     f"Gender: {description.get('gender', 'N/A')}",
                     f"Age: {description.get('age_group', 'N/A')}",
-                    f"Top: {description.get('clothing_top', 'N/A')}",
-                    f"Color: {description.get('clothing_color', 'N/A')}",
-                    f"Bottom: {description.get('clothing_bottom', 'N/A')}",
-                    f"Accessories: {description.get('accessories', 'N/A')}"
+                    f"Ethnicity: {description.get('ethnicity', 'N/A')}",
+                    f"Skin Tone: {description.get('skin_tone', 'N/A')}"
                 ]
                 
-                for line in details:
+                # Hair details
+                hair_details = [
+                    f"Hair Style: {description.get('hair_style', 'N/A')}",
+                    f"Hair Color: {description.get('hair_color', 'N/A')}",
+                    f"Facial Features: {description.get('facial_features', 'N/A')}"
+                ]
+                
+                # Clothing details
+                clothing_details = [
+                    f"Top: {description.get('clothing_top', 'N/A')}",
+                    f"Top Color: {description.get('clothing_top_color', 'N/A')}",
+                    f"Top Pattern: {description.get('clothing_top_pattern', 'N/A')}",
+                    f"Bottom: {description.get('clothing_bottom', 'N/A')}",
+                    f"Bottom Color: {description.get('clothing_bottom_color', 'N/A')}",
+                    f"Bottom Pattern: {description.get('clothing_bottom_pattern', 'N/A')}"
+                ]
+                
+                # Footwear and accessories
+                accessories_details = [
+                    f"Footwear: {description.get('footwear', 'N/A')}",
+                    f"Footwear Color: {description.get('footwear_color', 'N/A')}",
+                    f"Accessories: {description.get('accessories', 'N/A')}",
+                    f"Bag Type: {description.get('bag_type', 'N/A')}",
+                    f"Bag Color: {description.get('bag_color', 'N/A')}"
+                ]
+                
+                # Context
+                context_details = [
+                    f"Pose: {description.get('pose', 'N/A')}",
+                    f"Location: {description.get('location_context', 'N/A')}"
+                ]
+                
+                # Draw all details
+                all_details = basic_details + hair_details + clothing_details + accessories_details + context_details
+                
+                for line in all_details:
                     cv2.putText(img, line, (10, y_offset), font, font_scale, (0, 0, 0), thickness)
                     y_offset += line_height
                 
                 # Show the image in a window
                 window_name = f"Match {idx + 1} - {similarity:.1f}% Similar"
                 cv2.imshow(window_name, img)
-                cv2.moveWindow(window_name, idx * 650, 0)  # Position windows side by side
+                cv2.moveWindow(window_name, idx * 850, 0)  # Position windows side by side
                 
                 # Convert back to base64 for sending to client
                 _, buffer = cv2.imencode('.jpg', img)

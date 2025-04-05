@@ -24,12 +24,26 @@ STRUCTURED_JSON_PROMPT = """
 Describe this person in structured JSON format with the following keys:
 - gender (male, female, other)
 - age_group (child, teen, adult, senior)
-- clothing_top (shirt, hoodie, etc.)
-- clothing_color (top color)
-- clothing_bottom (jeans, pants, skirt, etc.)
-- accessories (bag, hat, etc.)
+- ethnicity (if visible/apparent)
+- skin_tone (light, medium, dark, etc.)
+- hair_style (short, long, curly, straight, bald, etc.)
+- hair_color (black, brown, blonde, red, gray, etc.)
+- facial_features (beard, mustache, glasses, etc.)
+- clothing_top (shirt, hoodie, t-shirt, jacket, etc.)
+- clothing_top_color (primary color of top)
+- clothing_top_pattern (solid, striped, plaid, floral, etc.)
+- clothing_bottom (jeans, pants, skirt, shorts, etc.)
+- clothing_bottom_color (primary color of bottom)
+- clothing_bottom_pattern (solid, striped, plaid, etc.)
+- footwear (sneakers, boots, sandals, etc.)
+- footwear_color (primary color of shoes)
+- accessories (bag, hat, jewelry, etc.)
+- bag_type (backpack, handbag, shoulder bag, etc.)
+- bag_color (primary color of bag)
+- pose (standing, sitting, walking, etc.)
+- location_context (indoor, outdoor, etc.)
 
-Respond with ONLY a valid JSON object, nothing else.
+Respond with ONLY a valid JSON object, nothing else. Include only the attributes you can confidently identify.
 """
 
 
