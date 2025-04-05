@@ -1,8 +1,8 @@
 # main.py
 
-from fastapi import File, UploadFile, Form, HTTPException, Request
+from fastapi import File, UploadFile, Form, HTTPException, Request, FastAPI
 from fastapi.responses import HTMLResponse
-from typing import List
+from typing import List, Optional
 from PIL import Image
 import uvicorn
 import shutil
@@ -15,6 +15,8 @@ import cv2
 import numpy as np
 import base64
 from app_init import app
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
@@ -42,6 +44,17 @@ genai.configure(api_key=GEMINI_API_KEY)
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Define models for chat
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+class ChatResponse(BaseModel):
+    response: str
+
 def save_upload_file(upload_file: UploadFile) -> str:
     """Save uploaded file and return the path"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -55,6 +68,36 @@ def save_upload_file(upload_file: UploadFile) -> str:
     except Exception as e:
         logger.error(f"Error saving file: {str(e)}")
         raise HTTPException(status_code=500, detail="Could not save uploaded file")
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    try:
+        logger.info("Processing chat request")
+        
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # Start a new chat
+        chat = model.start_chat(history=[])
+        
+        # Process each message in the conversation history
+        for msg in request.messages:
+            if msg.role == "user":
+                # Send user message to Gemini
+                response = chat.send_message(msg.content)
+                # Store the response in history
+                chat.history.append({"role": "assistant", "parts": [response.text]})
+        
+        # Get the last user message
+        last_message = request.messages[-1].content
+        
+        # Generate response
+        response = chat.send_message(last_message)
+        
+        return ChatResponse(response=response.text)
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False)):
