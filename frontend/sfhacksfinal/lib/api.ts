@@ -28,17 +28,24 @@ export type ChatMessage = {
 
 export async function searchPerson(query: string): Promise<SearchResult> {
   try {
-    const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+    const formData = new FormData();
+    formData.append('query', query);
+    
+    const response = await fetch(`${API_BASE_URL}/search`, {
+      method: 'POST',
+      body: formData,
+    });
+    
     if (!response.ok) {
       throw new Error(`Search failed: ${response.statusText}`);
     }
     return await response.json();
   } catch (error) {
-    console.error('Search error:', error);
+    console.error("Search error:", error);
     return {
       query,
       matches: [],
-      suggestions: ['Try a different search term', 'Be more specific about the person you\'re looking for'],
+      suggestions: ["Try a different search term", "Be more specific about the person you're looking for"]
     };
   }
 }
@@ -62,21 +69,21 @@ export async function uploadImage(file: File): Promise<SearchResult> {
 export async function chat(messages: ChatMessage[]): Promise<string> {
   try {
     const response = await fetch(`${API_BASE_URL}/chat`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ messages }),
     });
-
+    
     if (!response.ok) {
       throw new Error(`Chat failed: ${response.statusText}`);
     }
-
+    
     const data = await response.json();
     return data.response;
   } catch (error) {
-    console.error('Chat error:', error);
-    return 'I\'m having trouble processing your request right now. Please try again later.';
+    console.error("Chat error:", error);
+    return "I'm having trouble processing your request right now. Please try again later.";
   }
 } 
