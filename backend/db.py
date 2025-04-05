@@ -70,5 +70,42 @@ def search_people(query_embedding, n=3):
         n_results=n
     )
     
-    # Return the raw results for compatibility with search.py
-    return results
+    # Process results to match the format expected by the frontend
+    processed_results = []
+    for doc, metadata, distance in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
+        try:
+            # Convert distance to similarity score (0-100%)
+            similarity = max(0, min(100, (1 - distance) * 100))
+            
+            # Load and encode image
+            image_data = None
+            image_path = metadata.get("image_path", "")
+            if image_path and os.path.exists(image_path):
+                try:
+                    with open(image_path, "rb") as img_file:
+                        image_data = base64.b64encode(img_file.read()).decode("utf-8")
+                except Exception as e:
+                    print(f"Error loading image {image_path}: {e}")
+            
+            # Parse description
+            try:
+                description = json.loads(doc)
+            except json.JSONDecodeError:
+                print("Error parsing description JSON")
+                description = {}
+            
+            processed_results.append({
+                "description": description,
+                "similarity": similarity,
+                "image_data": image_data
+            })
+        except Exception as e:
+            print(f"Error processing result: {e}")
+            continue
+    
+    # Return in the format expected by the frontend
+    return {
+        "query": "find someone",
+        "matches": processed_results,
+        "count": len(processed_results)
+    }
