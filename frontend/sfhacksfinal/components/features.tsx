@@ -1,4 +1,7 @@
+"use client"
+
 import { Camera, Search, Database, Map } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function Features() {
   const features = [
@@ -40,14 +43,22 @@ export default function Features() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
-            <div
+            <motion.div
               key={index}
               className="bg-gray-900 rounded-lg p-8 border border-gray-800 hover:border-blue-600 transition-colors duration-300"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{
+                duration: 0.5,
+                delay: index * 0.1,
+                ease: "easeOut",
+              }}
             >
               <div className="mb-6 flex justify-center">{feature.icon}</div>
               <h3 className="text-xl font-semibold text-white mb-4 text-center">{feature.title}</h3>
               <p className="text-gray-400 text-center">{feature.description}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
