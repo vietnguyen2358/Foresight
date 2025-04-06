@@ -411,36 +411,36 @@ export default function RightSidebar() {
     setSelectedPerson(null)
   }
 
-  // Handle search
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return
+  // // Handle search
+  // const handleSearch = async () => {
+  //   if (!searchQuery.trim()) return
     
-    setIsLoading(true)
-    setError(null)
-    try {
-      // Use the actual API
-      const result = await searchPeople(searchQuery)
-      console.log('Search results:', result)
+  //   setIsLoading(true)
+  //   setError(null)
+  //   try {
+  //     // Use the actual API
+  //     const result = await searchPeople(searchQuery)
+  //     console.log('Search results:', result)
       
-      if (result.matches && result.matches.length > 0) {
-        setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
-      } else {
-        setSearchResults([])
-        // Show suggestions if available
-        if (result.suggestions && result.suggestions.length > 0) {
-          setError(result.message || 'No matches found. Try these suggestions:')
-        } else {
-          setError(result.message || 'No matches found')
-        }
-      }
-    } catch (error) {
-      console.error("Search error:", error)
-      setError('Failed to search. Please try again.')
-      setSearchResults([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  //     if (result.matches && result.matches.length > 0) {
+  //       setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
+  //     } else {
+  //       setSearchResults([])
+  //       // Show suggestions if available
+  //       if (result.suggestions && result.suggestions.length > 0) {
+  //         setError(result.message || 'No matches found. Try these suggestions:')
+  //       } else {
+  //         setError(result.message || 'No matches found')
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Search error:", error)
+  //     setError('Failed to search. Please try again.')
+  //     setSearchResults([])
+  //   } finally {
+  //     setIsLoading(false)
+  //   }
+  // }
 
   // Handle chat
   const handleChat = async () => {
@@ -783,86 +783,6 @@ export default function RightSidebar() {
         </div>
       )}
 
-      {/* Search Section - Only show when a camera is selected */}
-      {selectedCamera && (
-        <div className="p-4 border-b border-gray-800">
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Search</h2>
-          </div>
-          <div className="flex space-x-2 mb-4">
-            <Input
-              placeholder="Search for people..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white"
-            />
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleSearch}
-              disabled={!searchQuery.trim() || isLoading}
-              className="text-gray-400 hover:text-white"
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {isLoading ? (
-            <div className="text-center py-4">
-              <p className="text-gray-400">Searching...</p>
-            </div>
-          ) : error ? (
-            <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 mb-4">
-              <p className="text-red-400">{error}</p>
-              {error.includes('suggestions') && (
-                <ul className="mt-2 text-sm text-gray-400 list-disc pl-4">
-                  <li>Try using more general terms</li>
-                  <li>Include fewer specific details</li>
-                  <li>Check for typos in your search</li>
-                  <li>Try searching for a different person</li>
-                </ul>
-              )}
-            </div>
-          ) : searchResults.length > 0 ? (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-white">Results</h3>
-              {searchResults.map((result, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700"
-                  onClick={() => handlePersonClick(result)}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-white">Match {index + 1}</span>
-                    <span className="text-xs text-gray-400">{result.timestamp}</span>
-                  </div>
-                  <div className="text-xs text-gray-300 space-y-1">
-                    <p><span className="text-blue-400">Appearance:</span> {result.appearance}</p>
-                    <p><span className="text-blue-400">Clothing:</span> {result.clothing}</p>
-                    <p><span className="text-blue-400">Accessories:</span> {result.accessories}</p>
-                    <p><span className="text-blue-400">Actions:</span> {result.actions}</p>
-                    <p><span className="text-blue-400">Location:</span> {result.location}</p>
-                  </div>
-                  {/* Add image display */}
-                  {result.image && (
-                    <div className="mt-3 rounded overflow-hidden">
-                      <img 
-                        src={`${API_BASE_URL}/${result.image}`}
-                        alt={`Match ${index + 1}`} 
-                        className="w-full h-32 object-cover"
-                      />
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      )}
 
       {/* JSON View Modal */}
       {showJsonView && (

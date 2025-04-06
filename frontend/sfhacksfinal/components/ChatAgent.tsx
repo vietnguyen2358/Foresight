@@ -22,7 +22,7 @@ export default function ChatAgent() {
     {
       role: "assistant",
       content:
-        "Hi! I'm your AI assistant. I can help you search for people and chat with you. What would you like to know?",
+        "Hi! I'm Steven the AI assistant. I can help you search for people and chat with you. What would you like to know?",
     },
   ])
   const [input, setInput] = useState("")
@@ -205,8 +205,8 @@ export default function ChatAgent() {
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-gray-800">
-        <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
-        <p className="text-sm text-gray-400">Ask questions or search for people</p>
+        <h2 className="text-lg font-semibold text-white">Steven AI Assistant</h2>
+        <p className="text-sm text-gray-400">Steven helps locate missing individuals. Describe who you're looking for to Steven</p>
       </div>
 
       <div 
