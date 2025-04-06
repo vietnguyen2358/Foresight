@@ -18,6 +18,12 @@ import {
   API_BASE_URL,
   checkServerHealth
 } from "@/lib/api"
+import { 
+  connectWebSocket, 
+  disconnectWebSocket, 
+  addWebSocketEventListener, 
+  isWebSocketConnected 
+} from "@/lib/websocket"
 
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
@@ -42,13 +48,13 @@ export default function RightSidebar() {
     { id: 2, speaker: "Caller", text: "There's a suspicious person near the park.", timestamp: "10:30:20" },
     { id: 3, speaker: "Operator", text: "Can you describe what they look like?", timestamp: "10:30:25" },
   ])
-
+  const [currentTranscription, setCurrentTranscription] = useState<string>("")
   const [detections, setDetections] = useState<Detection[]>([])
   const [personDescriptions, setPersonDescriptions] = useState<ExtendedPersonDescription[]>([])
   const [cameraImage, setCameraImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<ExtendedPersonDescription[]>([])
+  const [searchResults, setSearchResults] = useState<any[]>([])
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([])
   const [chatInput, setChatInput] = useState("")
   const [selectedDetection, setSelectedDetection] = useState<Detection | null>(null)
@@ -64,6 +70,45 @@ export default function RightSidebar() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
   const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    // Connect to WebSocket when component mounts
+    connectWebSocket();
+    
+    // Add event listener for media events (transcription and search results)
+    const removeMediaListener = addWebSocketEventListener('media', (data) => {
+      console.log('Received media event:', data);
+      
+      // Update transcription
+      if (data.text) {
+        setCurrentTranscription(data.text);
+        
+        // Add to transcription history
+        const timestamp = new Date().toLocaleTimeString();
+        setTranscription(prev => [
+          ...prev, 
+          { 
+            id: prev.length + 1, 
+            speaker: "Caller", 
+            text: data.text, 
+            timestamp 
+          }
+        ]);
+      }
+      
+      // Update search results
+      if (data.search_results) {
+        setSearchResults(data.search_results.matches || []);
+      }
+    });
+    
+    // Clean up on unmount
+    return () => {
+      removeMediaListener();
+      disconnectWebSocket();
+    };
+  }, []);
 
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {

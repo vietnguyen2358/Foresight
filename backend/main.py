@@ -343,9 +343,18 @@ async def handle_incoming_call(request: Request):
     response.say("Please wait while we connect your call.")
     response.pause(length=1)
     response.say("O.K. you can start talking!")
+    
+    # Get the host and determine the protocol
     host = request.url.hostname
+    scheme = request.url.scheme
+    ws_protocol = "wss" if scheme == "https" else "ws"
+    
+    # Construct the WebSocket URL
+    ws_url = f"{ws_protocol}://{host}/process_stream"
+    logging.info(f"Connecting to WebSocket at {ws_url}")
+    
     connect = Connect()
-    connect.stream(url=f'wss://{host}/process_stream')
+    connect.stream(url=ws_url)
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 

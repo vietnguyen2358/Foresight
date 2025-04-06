@@ -10,6 +10,7 @@ import { searchPeople, chatWithAI, type Detection, type PersonDescription, API_B
 import { motion, AnimatePresence } from "framer-motion"
 import { useCamera, type Camera } from "@/lib/CameraContext"
 import type { SearchResult } from "@/lib/api"
+import { connectWebSocket, addWebSocketEventListener, isWebSocketConnected } from "@/lib/websocket"
 
 type Message = {
   role: "user" | "assistant"
@@ -29,6 +30,7 @@ export default function ChatAgent() {
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const [isWebSocketReady, setIsWebSocketReady] = useState(false)
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -70,6 +72,66 @@ export default function ChatAgent() {
       }, 500);
     }
   }, [selectedCamera]);
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    // Connect to WebSocket when component mounts
+    connectWebSocket();
+    
+    // Add event listener for media events (transcription and search results)
+    const removeMediaListener = addWebSocketEventListener('media', (data) => {
+      console.log('Received media event in ChatAgent:', data);
+      
+      // Update transcription
+      if (data.text) {
+        // Add transcription as a user message
+        const newUserMessage: Message = {
+          role: "user",
+          content: data.text
+        };
+        setMessages(prev => [...prev, newUserMessage]);
+        
+        // If we have search results, add them as an assistant message
+        if (data.search_results && data.search_results.matches && data.search_results.matches.length > 0) {
+          const searchResults = data.search_results;
+          const firstMatch = searchResults.matches[0];
+          
+          let responseContent = "";
+          
+          if (firstMatch && firstMatch.description && firstMatch.description.camera_id) {
+            const camera = cameras.find((c: Camera) => c.id === firstMatch.description.camera_id);
+            
+            if (camera) {
+              setSelectedCamera(camera);
+              responseContent = `I found a match on camera ${camera.name}. I've switched to that camera view.\n\n${formatSearchResults(searchResults)}`;
+            } else {
+              responseContent = formatSearchResults(searchResults);
+            }
+          } else {
+            responseContent = formatSearchResults(searchResults);
+          }
+          
+          const assistantMessage: Message = {
+            role: "assistant",
+            content: responseContent
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+        }
+      }
+    });
+    
+    // Check WebSocket connection status periodically
+    const intervalId = setInterval(() => {
+      setIsWebSocketReady(isWebSocketConnected());
+    }, 5000);
+    
+    // Clean up on unmount
+    return () => {
+      removeMediaListener();
+      clearInterval(intervalId);
+    };
+  }, [cameras, setSelectedCamera]);
 
   const formatSearchResults = (results: SearchResult): string => {
     if (!results.matches || results.matches.length === 0) {
