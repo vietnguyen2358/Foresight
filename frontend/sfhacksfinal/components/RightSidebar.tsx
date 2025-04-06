@@ -16,9 +16,9 @@ import {
   ChatResponse,
   uploadImageStream,
   API_BASE_URL,
-  checkServerHealth,
-  type SearchResult
+  checkServerHealth
 } from "@/lib/api"
+import { Detection as ApiDetectionType } from '../lib/api'
 
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
@@ -36,13 +36,22 @@ interface ExtendedPersonDescription extends PersonDescription {
   timestamp?: string;    // Add timestamp field for when the description was generated
 }
 
-// Map of camera IDs to their video sources
-const cameraFeeds = {
-  "SF-MKT-001": "/videos/sf_street_001.mov",
-  "SF-PARK-001": "/videos/sf_park_001.mov",
-  "SF-BLDG-001": "/videos/sf_building_001.mov",
-  "SF-CAM-001": "/videos/IMG_8252.mov"
-};
+// Define our local Detection interface
+interface Detection {
+  type: string;
+  confidence: number;
+  bbox: number[];
+  timestamp: string;
+  camera_id: string;
+  image?: string;
+  id?: string;
+}
+
+interface SearchResult {
+  similarity: number;
+  description: any;
+  metadata: any;
+}
 
 export default function RightSidebar() {
   const { selectedCamera, setSelectedCamera } = useCamera()
@@ -73,8 +82,15 @@ export default function RightSidebar() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
   const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const [sceneDescription, setSceneDescription] = useState<string | null>(null)
-  const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null)
+  const [filteredDetections, setFilteredDetections] = useState<Detection[]>([])
+
+  const cameras = [
+    { id: "SF-MKT-001", name: "Market Street Camera", videoSrc: "/videos/market.mp4" },
+    { id: "SF-PARK-001", name: "Park Camera", videoSrc: "/videos/sf_park_001.mov" },
+    { id: "SF-STREET-001", name: "Street Camera", videoSrc: "/videos/sf_street_001.mov" },
+    { id: "SF-BUILDING-001", name: "Building Camera", videoSrc: "/videos/sf_building_001.mov" },
+    { id: "SF-EXTRA-001", name: "Extra Camera", videoSrc: "/videos/IMG_8252.mov" }
+  ];
 
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
@@ -249,60 +265,155 @@ export default function RightSidebar() {
   }, [selectedCamera, lastProcessedFrame]);
 
   // Handle frame extraction from video
-  const handleFrameExtracted = async (frameData: string) => {
-    if (isProcessing || !selectedCamera) return;
+  const handleFrameExtracted = (frameUrl: string) => {
+    console.log("Frame extracted from video, length:", frameUrl.length);
+    setLastProcessedFrame(frameUrl);
     
-    setIsProcessing(true);
-    setError(null);
+    // Process the frame with YOLO if not already processing
+    if (!isProcessing) {
+      processFrame(frameUrl);
+    } else {
+      console.log("Skipping frame processing - still processing previous frame");
+    }
+  };
+  
+  // Process a frame with YOLO
+  const processFrame = async (frameUrl: string) => {
+    if (isProcessing) return;
     
     try {
-      // Check server health first
-      const healthResponse = await fetch('http://localhost:8000/health');
-      if (!healthResponse.ok) {
-        throw new Error('Server is not healthy. Please try again later.');
-      }
+      setIsProcessing(true);
+      setError(null);
       
-      // Process the frame with the selected camera ID
-      const response = await fetch('http://localhost:8000/process_frame', {
-        method: 'POST',
+      // Check if the server is healthy
+      console.log("Checking server health...");
+      const isHealthy = await checkServerHealth();
+      if (!isHealthy) {
+        throw new Error("Server is not healthy - please check the backend server");
+      }
+      console.log("Server health check passed");
+      
+      // Process the frame with YOLO
+      console.log("Sending frame to API for processing...");
+      console.log("Frame URL length:", frameUrl.length);
+      
+      // Log the first 100 characters of the frame URL to help with debugging
+      console.log("Frame URL preview:", frameUrl.substring(0, 100) + "...");
+      
+      const response = await fetch(`${API_BASE_URL}/process_frame`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          frame_data: frameData,
-          camera_id: selectedCamera.id // Pass the camera ID to the backend
+          frame_data: frameUrl
         }),
       });
       
       if (!response.ok) {
-        throw new Error(`Error processing frame: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("API error response:", errorText);
+        throw new Error(`Failed to process frame: ${response.statusText} - ${errorText}`);
       }
       
       const data = await response.json();
+      console.log("API response:", data);
       
-      // Update detections with camera-specific data
-      setDetections(data.detections.map((detection: any) => ({
-        ...detection,
-        camera_id: selectedCamera.id // Ensure each detection has the correct camera ID
-      })));
+      // Debug: Log detailed information about the response
+      console.log(`Response contains ${data.detections?.length || 0} detections`);
+      console.log(`Response contains ${data.person_crops?.length || 0} person crops`);
+      console.log(`Response description: ${data.description?.substring(0, 100)}...`);
       
-      // Update person descriptions
-      if (data.person_crops && data.person_crops.length > 0) {
-        setPersonDescriptions(data.person_crops.map((crop: any) => ({
-          ...crop,
-          camera_id: selectedCamera.id // Ensure each person description has the correct camera ID
-        })));
+      // Update detections and descriptions
+      if (data.detections && data.detections.length > 0) {
+        console.log("Updating detections:", data.detections);
+        setDetections(data.detections);
+      } else {
+        console.log("No detections found in the response");
       }
       
-      // Update scene description
-      setSceneDescription(data.description);
-      
-      // Update timestamp
-      setLastUpdateTime(new Date().toISOString());
-      
-    } catch (err) {
-      console.error('Error processing frame:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      // Process person crops if available
+      if (data.person_crops && data.person_crops.length > 0) {
+        console.log("Processing person crops:", data.person_crops.length);
+        
+        const newPersonDescriptions: ExtendedPersonDescription[] = data.person_crops.map((crop: any) => {
+          // Parse the description if it's a string
+          let parsedDescription = crop.description;
+          let structuredData: Record<string, any> = {};
+          
+          if (typeof crop.description === 'string') {
+            try {
+              // Try to parse as JSON
+              parsedDescription = JSON.parse(crop.description);
+            } catch (e) {
+              // If not JSON, use as is
+              console.log("Description is not JSON, using as string");
+            }
+          }
+          
+          // If it's an object, extract structured data
+          if (typeof parsedDescription === 'object' && parsedDescription !== null) {
+            structuredData = parsedDescription;
+          }
+          
+          return {
+            id: crop.id,
+            description: typeof parsedDescription === 'string' ? parsedDescription : JSON.stringify(parsedDescription),
+            timestamp: data.timestamp || new Date().toISOString(),
+            camera_id: selectedCamera?.id || "SF-MKT-001",
+            cropped_image: `data:image/jpeg;base64,${crop.crop}`,
+            raw_data: structuredData
+          };
+        });
+        
+        console.log("Setting person descriptions:", newPersonDescriptions);
+        setPersonDescriptions(newPersonDescriptions);
+      } else if (data.description) {
+        // Fallback to the general description if no person crops
+        console.log("No person crops found, using general description:", data.description);
+        
+        // Parse the description string into structured data if possible
+        let parsedDescription: ExtendedPersonDescription = {
+          id: `general_${Date.now()}`,
+          description: data.description,
+          timestamp: data.timestamp || new Date().toISOString(),
+          camera_id: selectedCamera?.id || "SF-MKT-001"
+        };
+        
+        // Try to extract structured data from the description
+        try {
+          // Check if the description is in a format like "Gender: male. Age Group: adult."
+          const descriptionParts = data.description.split('. ');
+          const structuredData: Record<string, string> = {};
+          
+          descriptionParts.forEach((part: string) => {
+            const [key, value] = part.split(': ');
+            if (key && value) {
+              // Convert key from "Title Case" to "snake_case"
+              const snakeKey = key.toLowerCase().replace(/\s+/g, '_');
+              structuredData[snakeKey] = value;
+            }
+          });
+          
+          // Add structured data to the description object
+          parsedDescription = {
+            ...parsedDescription,
+            ...structuredData,
+            raw_data: structuredData
+          };
+        } catch (parseError) {
+          console.error("Error parsing description:", parseError);
+          // If parsing fails, just use the raw description
+        }
+        
+        setPersonDescriptions([parsedDescription]);
+      } else {
+        console.log("No descriptions found in the response");
+        // Keep existing descriptions if no new ones are available
+      }
+    } catch (error) {
+      console.error("Error processing frame:", error);
+      setError(error instanceof Error ? error.message : "Failed to process frame");
     } finally {
       setIsProcessing(false);
     }
@@ -329,30 +440,39 @@ export default function RightSidebar() {
 
   // Handle search
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return
+    if (!searchQuery.trim()) return;
     
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      // Use the actual API
-      const result = await searchPeople(searchQuery)
-      console.log('Search results:', result)
+      const response = await fetch(`${API_BASE_URL}/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: searchQuery }),
+      });
       
-      if (result.matches && result.matches.length > 0) {
-        setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.matches && Array.isArray(data.matches)) {
+        setSearchResults(data.matches);
       } else {
-        setSearchResults([])
-        // Show error message for no matches
-        setError('No matches found. Try a different search term.')
+        console.error('Invalid search results format:', data);
+        setSearchResults([]);
       }
     } catch (error) {
-      console.error("Search error:", error)
-      setError('Failed to search. Please try again.')
-      setSearchResults([])
+      console.error('Search error:', error);
+      setSearchResults([]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Handle chat
   const handleChat = async () => {
@@ -459,15 +579,39 @@ export default function RightSidebar() {
     }
   }, [personDescriptions]);
 
-  // Filter detections to only show those from the selected camera
-  const filteredDetections = detections.filter(detection => 
-    selectedCamera && detection.camera_id === selectedCamera.id
-  );
-  
-  // Filter person descriptions to only show those from the selected camera
-  const filteredPersonDescriptions = personDescriptions.filter(desc => 
-    selectedCamera && desc.camera_id === selectedCamera.id
-  );
+  // Update the useEffect to filter detections by selected camera
+  useEffect(() => {
+    if (selectedCamera) {
+      // Filter detections to only show those from the selected camera
+      const filteredDetections = detections.filter(
+        detection => detection.camera_id === selectedCamera
+      );
+      setFilteredDetections(filteredDetections);
+    } else {
+      setFilteredDetections(detections);
+    }
+  }, [selectedCamera, detections]);
+
+  // Update the handleFrameProcessed function to use the correct types
+  const handleFrameProcessed = (data: any) => {
+    if (data.detections) {
+      // Add camera_id to each detection
+      const detectionsWithCamera = data.detections.map((detection: ApiDetectionType) => {
+        // Create a new Detection object with all required properties
+        return {
+          type: detection.type || 'person',
+          confidence: detection.confidence || 0,
+          bbox: detection.bbox || [],
+          timestamp: detection.timestamp || new Date().toISOString(),
+          camera_id: selectedCamera || 'unknown',
+          image: detection.image,
+          id: detection.id
+        } as Detection;
+      });
+      
+      setDetections(prev => [...prev, ...detectionsWithCamera]);
+    }
+  };
 
   return (
     <div className="w-80 bg-gray-900 border-l border-gray-800 h-screen overflow-y-auto">
@@ -514,10 +658,9 @@ export default function RightSidebar() {
             {selectedCamera.id === "SF-MKT-001" ? (
               // Use VideoPlayer for Market Street camera
               <VideoPlayer 
-                videoSrc={cameraFeeds[selectedCamera.id]} 
+                videoSrc="/videos/market.mp4" 
                 onFrameExtracted={handleFrameExtracted}
                 isProcessing={isProcessing}
-                cameraId={selectedCamera.id}
               />
             ) : cameraImage ? (
               // Use image for other cameras
@@ -545,12 +688,12 @@ export default function RightSidebar() {
         <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-white">Recent Detections</h3>
-                <span className="text-xs text-gray-400">{filteredDetections.length} people detected</span>
+                <span className="text-xs text-gray-400">{detections.length} people detected</span>
               </div>
               
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {filteredDetections.length > 0 ? (
-                  filteredDetections.map((detection, index) => (
+                {detections.length > 0 ? (
+                  detections.map((detection, index) => (
             <motion.div
               key={detection.id || `detection-${index}-${detection.timestamp}`}
               initial={{ opacity: 0, y: 20 }}
@@ -607,12 +750,12 @@ export default function RightSidebar() {
           <div className="flex items-center space-x-2 mb-4">
             <Search className="h-5 w-5 text-blue-400" />
             <h2 className="text-lg font-semibold text-white">Person Descriptions</h2>
-            <span className="text-xs text-gray-400 ml-auto">{filteredPersonDescriptions.length} people detected</span>
+            <span className="text-xs text-gray-400 ml-auto">{personDescriptions.length} people detected</span>
           </div>
           
           <div className="space-y-2">
-            {filteredPersonDescriptions.length > 0 ? (
-              filteredPersonDescriptions.map((person, index) => (
+            {personDescriptions.length > 0 ? (
+              personDescriptions.map((person, index) => (
                 <motion.div
                   key={person.id || index}
                   initial={{ opacity: 0, y: 20 }}
@@ -784,24 +927,6 @@ export default function RightSidebar() {
               ))}
             </div>
           ) : null}
-        </div>
-      )}
-
-      {/* Scene Description */}
-      {sceneDescription && (
-        <div className="p-4 border-b border-gray-800">
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Scene Description</h2>
-          </div>
-          <div className="p-2 bg-white rounded-md shadow-sm">
-            <p>{sceneDescription}</p>
-            {lastUpdateTime && (
-              <div className="text-xs text-gray-500 mt-1">
-                Updated: {new Date(lastUpdateTime).toLocaleTimeString()}
-              </div>
-            )}
-          </div>
         </div>
       )}
 
