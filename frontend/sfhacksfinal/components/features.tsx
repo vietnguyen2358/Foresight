@@ -71,17 +71,40 @@ export default function ProblemStats() {
     <div className="bg-gray-950 py-24 relative overflow-hidden">
       {/* Background elements */}
       <motion.div
-        className="absolute top-0 left-0 w-full h-20  to-transparent"
+        className="absolute top-0 left-0 w-full h-20 to-transparent"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.5 }}
       />
 
       <div className="container mx-auto px-4 relative z-10">
+        {/* Changed the order of elements for mobile - text first, then image */}
         <div className="flex flex-col lg:flex-row items-center gap-12">
-          {/* Left side - Image */}
+          {/* Text section - now first in mobile view */}
           <motion.div
-            className="lg:w-1/2"
+            className="w-full lg:w-1/2 order-1 lg:order-2"
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
+            <motion.h2 className="text-3xl md:text-4xl font-bold mb-6" variants={itemVariants}>
+              <span className="text-white">Over </span>
+              <span className="text-blue-500">800,000</span>
+              <span className="text-white"> Children Go Missing</span>
+              <span className="text-white"> Annually in the U.S</span>
+            </motion.h2>
+
+            <motion.p className="text-xl text-gray-300 mb-8" variants={itemVariants}>
+              The first 24 hours are vital in locating a missing child, as the likelihood of a safe recovery drops
+              sharply after this period. Our technology is built to enhance search efforts and response time when every
+              second counts
+            </motion.p>
+          </motion.div>
+
+          {/* Image section - now second in mobile view */}
+          <motion.div
+            className="w-full lg:w-1/2 order-2 lg:order-1 mt-8 lg:mt-0"
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -100,9 +123,9 @@ export default function ProblemStats() {
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <div className="text-2xl font-bold text-white">
-                      <AnimatedCounter value={600000} suffix="+" />
+                      <AnimatedCounter value={8000000} suffix="+" />
                     </div>
-                    <div className="text-xs text-gray-300">Annual Missing</div>
+                    <div className="text-xs text-gray-300">Annual Missing Children Worldwide</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-white">
@@ -119,30 +142,6 @@ export default function ProblemStats() {
                 </div>
               </div>
             </div>
-          </motion.div>
-
-          {/* Right side - Statistics and text */}
-          <motion.div
-            className="lg:w-1/2"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <motion.h2 className="text-3xl md:text-4xl font-bold mb-6" variants={itemVariants}>
-              <span className="text-white">Over </span>
-              <span className="text-blue-500">600,000</span>
-              <span className="text-white"> People Go Missing</span>
-              <span className="text-white"> Annually</span>
-            </motion.h2>
-
-            <motion.p className="text-xl text-gray-300 mb-8" variants={itemVariants}>
-              While many cases are resolved quickly, approximately 20,000 cases remain open each year, with around 4,400
-              unidentified bodies recovered annually.
-            </motion.p>
-
-            
-
           </motion.div>
         </div>
       </div>

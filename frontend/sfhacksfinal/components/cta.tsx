@@ -158,12 +158,11 @@ export default function CTA() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <motion.h2 className="text-3xl md:text-4xl font-bold text-white mb-6" variants={itemVariants}>
-            Ready to transform search and rescue operations?
+          Every minute counts in finding a missing child
           </motion.h2>
 
           <motion.p className="text-xl text-gray-300 mb-8" variants={itemVariants}>
-            Join us in our mission to leverage AI for finding missing individuals faster and more efficiently in urban
-            environments.
+          Join our mission to revolutionize how we locate missing children during the critical first 24 hours. Together, we can bring more children home safely.
           </motion.p>
 
           <motion.div
@@ -173,7 +172,7 @@ export default function CTA() {
             <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
               <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg relative group">
                 <Link href="/dashboard">
-                  Start Using WatchDog
+                  Start Using Foresight
                   {/* Arrow animation */}
                   <motion.span
                     className="inline-block ml-2"

@@ -10,7 +10,7 @@ import Navbar from "@/components/navbar"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Watchdog | AI-Powered Search and Rescue",
+  title: "Foresight | AI-Powered Search and Rescue",
   description:
     "Real-time, city-scale search and rescue tool leveraging AI-powered video analysis to help locate missing individuals in urban environments.",
   icons: {

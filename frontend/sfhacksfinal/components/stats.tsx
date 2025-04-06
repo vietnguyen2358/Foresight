@@ -5,7 +5,7 @@ import { motion, useInView, useAnimation } from "framer-motion"
 
 export default function Stats() {
   const stats = [
-    { value: "95%", label: "Accuracy in person detection" },
+    { value: "95%", label: "Accuracy in child detection" },
     { value: "3-5x", label: "Faster than manual search methods" },
     { value: "24/7", label: "Real-time monitoring capabilities" },
   ]

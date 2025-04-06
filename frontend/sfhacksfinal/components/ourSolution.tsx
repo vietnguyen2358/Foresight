@@ -8,28 +8,29 @@ export default function HowItWorks() {
   const steps = [
     {
       number: "01",
-      title: "Video Ingestion",
-      description: "CCTV footage is securely ingested into our system from authorized sources across the city.",
+      title: "Alert Activation",
+      description:
+        "When a child is reported missing, our system immediately begins processing data from authorized sources.",
     },
     {
       number: "02",
-      title: "AI Processing",
-      description: "Our computer vision models detect people in each frame and extract visual features.",
+      title: "AI Visual Analysis",
+      description: "Our specialized algorithms scan video feeds to identify children matching the description.",
     },
     {
       number: "03",
-      title: "Natural Language Generation",
-      description: "AI models convert visual data into searchable text descriptions of each detected individual.",
+      title: "Pattern Recognition",
+      description: "The system analyzes movement patterns and predicts possible locations based on behavioral models.",
     },
     {
       number: "04",
-      title: "Database Storage",
-      description: "Descriptions, timestamps, and locations are indexed in our secure database for rapid searching.",
+      title: "Real-Time Alerts",
+      description: "When potential matches are found, authorities receive immediate notifications with location data.",
     },
     {
       number: "05",
-      title: "Search & Retrieval",
-      description: "First responders can query the database using natural language to find potential matches.",
+      title: "Coordinated Response",
+      description: "Search teams can access our platform to coordinate efforts and respond to sightings efficiently.",
     },
   ]
 
@@ -82,7 +83,7 @@ export default function HowItWorks() {
   }
 
   return (
-    <div className="py-24 bg-black overflow-hidden" ref={containerRef}>
+    <div className="py-24 bg-black overflow-hidden" ref={containerRef} id="howitworks">
       <div className="container mx-auto px-4">
         <motion.div
           className="text-center mb-16"
@@ -91,10 +92,11 @@ export default function HowItWorks() {
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Solution</h2>
-          <div className="text-xl text-gray-400 max-w-3xl mx-auto">
-            Our technology transforms raw video data into <span className="text-blue-500">actionable intelligence</span> to help first responder locate missing individuals much quicker than through then normal means.
-          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Child Rescue Solution</h2>
+          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+            Our technology transforms raw video data into <span className="text-blue-500">actionable intelligence</span>{" "}
+            to help locate missing children within the critical 24-hour window.
+          </p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">

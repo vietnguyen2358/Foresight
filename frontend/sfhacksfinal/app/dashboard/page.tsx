@@ -14,8 +14,6 @@ export default function Dashboard() {
    useEffect(() => {
     window.scrollTo(0, 0)
   }, []) 
-
-
   useEffect(() => {
     if (activeTab === "map") {
       const timer = setTimeout(() => {
@@ -24,7 +22,6 @@ export default function Dashboard() {
       return () => clearTimeout(timer)
     }
   }, [activeTab])
-
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-black">
 
