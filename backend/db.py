@@ -1,41 +1,73 @@
 # db.py
 
-import chromadb
-import uuid
 import json
+import uuid
 import os
 from dotenv import load_dotenv
 import base64
+from datetime import datetime
+import numpy as np
+from typing import List, Dict, Any
+import logging
 
-# Setup persistent ChromaDB client
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
 load_dotenv()
 
-# Initialize ChromaDB client with persistent storage
-client = chromadb.PersistentClient(path="chroma_storage")
+# Setup JSON storage
+DB_FILE = "people_database.json"
+UPLOADS_DIR = "uploads"
 
-# Get or create the collection
-collection = client.get_or_create_collection(
-    name="people",
-    metadata={"hnsw:space": "cosine"}
-)
+# Ensure uploads directory exists
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-def reset_collection():
-    """Reset the ChromaDB collection (for debugging/testing)."""
-    client.delete_collection("people")
-    return client.get_or_create_collection(
-        name="people",
-        metadata={"hnsw:space": "cosine"}
-    )
+def load_database() -> Dict[str, Any]:
+    """Load the database from JSON file."""
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, 'r') as f:
+            return json.load(f)
+    return {"people": []}
 
-def add_person(embedding, description_json, metadata={}):
-    """Add a person to ChromaDB."""
-    uid = str(uuid.uuid4())
+def save_database(data: Dict[str, Any]):
+    """Save the database to JSON file."""
+    try:
+        with open(DB_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+        logger.info(f"Database saved successfully with {len(data.get('people', []))} people")
+    except Exception as e:
+        logger.error(f"Error saving database: {str(e)}")
+        raise
+
+def reset_database():
+    """Reset the database (for debugging/testing)."""
+    save_database({"people": []})
+    print("Database reset successfully")
+
+def initialize_database():
+    """Initialize the database if it doesn't exist."""
+    if not os.path.exists(DB_FILE):
+        save_database({"people": []})
+        print("Database initialized successfully")
+    else:
+        print("Database already exists, not resetting")
+
+# Initialize database on module import
+initialize_database()
+
+def add_person(description_json: Dict[str, Any], metadata: Dict[str, Any] = None):
+    """Add a person to the database."""
+    if metadata is None:
+        metadata = {}
+    
+    # Generate unique ID for the person
+    person_id = str(uuid.uuid4())
     
     # Handle image storage
     if "image_path" not in metadata and "image" in metadata:
-        image_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
-        os.makedirs(image_dir, exist_ok=True)
-        image_path = os.path.join(image_dir, f"{uid}.jpg")
+        image_path = os.path.join(UPLOADS_DIR, f"{person_id}.jpg")
         
         if isinstance(metadata["image"], bytes):
             with open(image_path, "wb") as f:
@@ -44,42 +76,65 @@ def add_person(embedding, description_json, metadata={}):
             metadata["image"].save(image_path)
         
         metadata["image_path"] = image_path
-
-    # Prepare metadata for ChromaDB
-    chroma_metadata = {
-        "gender": description_json.get("gender", ""),
-        "age_group": description_json.get("age_group", ""),
-        "track_id": metadata.get("track_id", -1),
-        "frame": metadata.get("frame", -1),
-        "image_path": metadata.get("image_path", "")
+    
+    # Create person entry
+    person = {
+        "id": person_id,
+        "description": description_json,
+        "metadata": {
+            "gender": description_json.get("gender", ""),
+            "age_group": description_json.get("age_group", ""),
+            "track_id": metadata.get("track_id", -1),
+            "frame": metadata.get("frame", -1),
+            "image_path": metadata.get("image_path", ""),
+            "camera_id": metadata.get("camera_id", ""),
+            "timestamp": datetime.now().isoformat()
+        }
     }
     
-    # Add to ChromaDB
-    collection.add(
-        embeddings=[embedding],
-        documents=[json.dumps(description_json)],
-        metadatas=[chroma_metadata],
-        ids=[uid]
-    )
-
-def search_people(query_embedding, n=3):
-    """Search for similar people in ChromaDB."""
-    # Query ChromaDB
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n
-    )
+    # Load current database
+    db = load_database()
     
-    # Process results to match the format expected by the frontend
+    # Add to database
+    db["people"].append(person)
+    
+    # Save updated database
+    save_database(db)
+    
+    return person_id
+
+def cosine_similarity(a: List[float], b: List[float]) -> float:
+    """Calculate cosine similarity between two vectors."""
+    a = np.array(a)
+    b = np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def search_people(query_embedding: List[float], n: int = 3) -> Dict[str, Any]:
+    """Search for similar people in the database."""
+    db = load_database()
+    
+    # Calculate similarities
+    similarities = []
+    for person in db["people"]:
+        similarity = cosine_similarity(query_embedding, person["embedding"])
+        similarities.append((person, similarity))
+    
+    # Sort by similarity (descending)
+    similarities.sort(key=lambda x: x[1], reverse=True)
+    
+    # Take top n results
+    top_results = similarities[:n]
+    
+    # Process results
     processed_results = []
-    for doc, metadata, distance in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
+    for person, similarity in top_results:
         try:
-            # Convert distance to similarity score (0-100%)
-            similarity = max(0, min(100, (1 - distance) * 100))
+            # Convert similarity to percentage (0-100%)
+            similarity_score = max(0, min(100, similarity * 100))
             
             # Load and encode image
             image_data = None
-            image_path = metadata.get("image_path", "")
+            image_path = person["metadata"].get("image_path", "")
             if image_path and os.path.exists(image_path):
                 try:
                     with open(image_path, "rb") as img_file:
@@ -87,23 +142,16 @@ def search_people(query_embedding, n=3):
                 except Exception as e:
                     print(f"Error loading image {image_path}: {e}")
             
-            # Parse description
-            try:
-                description = json.loads(doc)
-            except json.JSONDecodeError:
-                print("Error parsing description JSON")
-                description = {}
-            
             processed_results.append({
-                "description": description,
-                "similarity": similarity,
+                "description": person["description"],
+                "metadata": person["metadata"],
+                "similarity": similarity_score,
                 "image_data": image_data
             })
         except Exception as e:
             print(f"Error processing result: {e}")
             continue
     
-    # Return in the format expected by the frontend
     return {
         "query": "find someone",
         "matches": processed_results,

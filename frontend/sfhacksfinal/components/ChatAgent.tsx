@@ -71,25 +71,6 @@ export default function ChatAgent() {
     }
   }, [selectedCamera]);
 
-  const formatSearchResults = (results: SearchResult): string => {
-    if (!results.matches || results.matches.length === 0) {
-      return "No matches found in the camera feeds."
-    }
-    
-    const firstMatch = results.matches[0];
-    const description = firstMatch.description;
-    let resultText = `I found a match (${firstMatch.similarity.toFixed(1)}% similar).\n`;
-    
-    if (description.appearance) resultText += `Appearance: ${description.appearance}\n`;
-    if (description.clothing) resultText += `Clothing: ${description.clothing}\n`;
-    if (description.accessories) resultText += `Accessories: ${description.accessories}\n`;
-    if (description.actions) resultText += `Actions: ${description.actions}\n`;
-    if (description.location) resultText += `Location: ${description.location}\n`;
-    if (description.timestamp) resultText += `Last seen: ${new Date(description.timestamp).toLocaleString()}\n`;
-    
-    return resultText;
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -113,78 +94,92 @@ export default function ChatAgent() {
         throw new Error("Server is not healthy. Please try again later.");
       }
       
-      const searchKeywords = [
-        "find", "search", "look for", "locate", "where is", "who is",
-        "can you find", "can you locate", "help me find", "looking for",
-        "do you see", "have you seen", "spot", "identify", "track",
-        "person with", "someone with", "guy with", "girl with", "man with", "woman with"
-      ];
-      const isSearchQuery = searchKeywords.some(keyword => 
-        userInput.toLowerCase().includes(keyword)
-      );
-
-      if (isSearchQuery) {
-        console.log("Processing search query:", userInput);
-        const searchResults = await searchPeople(userInput);
-        console.log("Search results:", searchResults);
+      // Use the chat endpoint for all queries
+      console.log("Sending chat request to AI:", [...messages, newUserMessage]);
+      const aiResponse = await chatWithAI([...messages, newUserMessage]);
+      console.log("AI response:", aiResponse);
+      
+      // Check if this is a search result response
+      if (aiResponse.response.includes("I found") && 
+          (aiResponse.response.includes("match") || aiResponse.response.includes("matches"))) {
         
-        if (searchResults.matches && searchResults.matches.length > 0) {
-          console.log("Found matches:", searchResults.matches.length);
-          const sortedMatches = [...searchResults.matches].sort((a, b) => b.similarity - a.similarity);
-          const firstMatch = sortedMatches[0];
-          console.log("First match:", firstMatch);
+        // Extract camera ID if present
+        const cameraMatch = aiResponse.response.match(/camera ([A-Z0-9-]+)/i);
+        if (cameraMatch && cameraMatch[1]) {
+          const cameraId = cameraMatch[1];
+          const camera = cameras.find((c: Camera) => c.id === cameraId);
           
-          if (firstMatch && firstMatch.description.camera_id) {
-            console.log("First match has camera ID:", firstMatch.description.camera_id);
-            const camera = cameras.find((c: Camera) => c.id === firstMatch.description.camera_id);
-            console.log("Found camera:", camera);
+          if (camera) {
+            console.log("Setting selected camera:", camera);
+            setSelectedCamera(camera);
+          }
+        }
+        
+        // Make a direct search request to get the full match data
+        try {
+          console.log("Making direct search request for detailed match data");
+          const searchResponse = await fetch(`${API_BASE_URL}/search`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ description: userInput }),
+          });
+          
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            console.log("Search data:", searchData);
             
-            if (camera) {
-              console.log("Setting selected camera:", camera);
+            if (searchData.matches && searchData.matches.length > 0) {
+              // Format the search results with detailed information
+              let detailedResponse = aiResponse.response;
               
-              // Set the selected camera first
-              setSelectedCamera(camera);
+              // Add a section with detailed match information
+              detailedResponse += "\n\n**Detailed Match Information:**\n";
               
-              // Force a re-render to ensure the camera is selected
-              setTimeout(() => {
-                // Try to use the zoomToCamera method if available
-                // @ts-ignore
-                if (window.zoomToCamera) {
-                  console.log("Using zoomToCamera method");
-                  // @ts-ignore
-                  window.zoomToCamera(camera);
-                } else {
-                  console.log("zoomToCamera method not available");
+              searchData.matches.forEach((match: any, index: number) => {
+                detailedResponse += `\n**Match ${index + 1} (${match.similarity.toFixed(1)}% similar):**\n`;
+                
+                // Add description details
+                if (match.description) {
+                  detailedResponse += "```json\n";
+                  detailedResponse += JSON.stringify(match.description, null, 2);
+                  detailedResponse += "\n```\n";
                 }
-              }, 1000);
+                
+                // Add metadata
+                if (match.metadata) {
+                  detailedResponse += "**Metadata:**\n";
+                  detailedResponse += "```json\n";
+                  detailedResponse += JSON.stringify(match.metadata, null, 2);
+                  detailedResponse += "\n```\n";
+                }
+              });
               
               response = {
                 role: "assistant",
-                content: `I found a match on camera ${camera.name}. I've switched to that camera view.\n\n${formatSearchResults(searchResults)}`
+                content: detailedResponse
               };
             } else {
-              console.log("Camera not found in cameras list");
               response = {
                 role: "assistant",
-                content: formatSearchResults(searchResults)
+                content: aiResponse.response
               };
             }
           } else {
-            console.log("First match does not have a camera ID");
             response = {
               role: "assistant",
-              content: formatSearchResults(searchResults)
+              content: aiResponse.response
             };
           }
-        } else {
-          console.log("No matches found");
+        } catch (searchError) {
+          console.error("Error fetching detailed search data:", searchError);
           response = {
             role: "assistant",
-            content: "I couldn't find any matches in our camera feeds for your query. Try describing the person differently or check other cameras."
+            content: aiResponse.response
           };
         }
       } else {
-        const aiResponse = await chatWithAI([...messages, newUserMessage]);
         response = {
           role: "assistant",
           content: aiResponse.response

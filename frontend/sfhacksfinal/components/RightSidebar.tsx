@@ -627,9 +627,9 @@ export default function RightSidebar() {
               
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {detections.length > 0 ? (
-                  detections.map((detection) => (
+                  detections.map((detection, index) => (
             <motion.div
-              key={detection.id}
+              key={detection.id || `detection-${index}-${detection.timestamp}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
