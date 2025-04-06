@@ -34,16 +34,16 @@ git clone git@github.com:vietnguyen2358/Foresight.git
 Create a virtual venv called
 ```
 #for windows
-python -m venv winEnv
+python -m venv venv
 #for mac
-python3 -m venv macEnv
+python3 -m venv venv
 ```
 Activate your virtual environment
 ```
 #for windows
-source winEnv/Scripts/activate
+source venv/Scripts/activate
 #for mac
-source macEnv/bin/activate
+source venv/bin/activate
 ```
 Enter the backend folder and install requirements
 ```
