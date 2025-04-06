@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface VideoPlayerProps {
   videoSrc: string;
-  onFrameExtracted: (frameUrl: string) => void;
+  onFrameExtracted: (frameData: string) => void;
   isProcessing: boolean;
   cameraId?: string;
 }
@@ -11,9 +11,28 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing, 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [fallbackImages, setFallbackImages] = useState<string[]>([]);
+  const [currentFallbackIndex, setCurrentFallbackIndex] = useState(0);
   const [useFallback, setUseFallback] = useState(false);
+  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const FRAME_INTERVAL = 5000; // 5 seconds between frame extractions
+
+  // Handle video errors
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error('Video error:', e);
+    setError('Error playing video. Using fallback images.');
+    setUseFallback(true);
+    
+    // Try to load fallback images
+    const fallbackImagePaths = [
+      '/images/fallback1.jpg',
+      '/images/fallback2.jpg',
+      '/images/fallback3.jpg'
+    ];
+    
+    setFallbackImages(fallbackImagePaths);
+  };
 
   // Initialize video player or fallback to image
   useEffect(() => {
@@ -247,77 +266,38 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing, 
     tryNextImage();
   };
 
-  // Extract frame from video
-  const extractFrame = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    if (!video || !canvas || isProcessing) return;
-    
-    try {
-      // Set canvas dimensions to match video's native resolution
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw current video frame to canvas
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      // Use high-quality image rendering
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      
-      // Draw the video frame at full resolution
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Convert canvas to data URL with maximum quality using PNG format
-      const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
-      
-      // Log the frame extraction with detailed information
-      console.log(`Frame extracted at ${new Date().toLocaleTimeString()}`);
-      console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
-      console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
-      console.log(`Frame format: PNG (lossless)`);
-      if (cameraId) {
-        console.log(`Camera ID: ${cameraId}`);
-      }
-      
-      // Check if the frame URL is valid
-      if (!frameUrl || frameUrl.length < 100) {
-        console.error("Invalid frame URL generated");
-        setError("Failed to extract frame - invalid data");
-        return;
-      }
-      
-      // Check if the frame contains actual content (not just a blank frame)
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      let hasContent = false;
-      
-      // Check if the frame has any non-transparent pixels
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 0) { // Alpha channel
-          hasContent = true;
-          break;
+  const extractFrame = useCallback(() => {
+    if (videoRef.current && canvasRef.current && !isProcessing) {
+      try {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+        
+        if (!context) {
+          console.error('Could not get canvas context');
+          return;
         }
+        
+        // Set canvas dimensions to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw the current video frame to the canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to base64 image
+        const frameData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Log camera ID with frame extraction
+        console.log(`Extracting frame from camera: ${cameraId || 'unknown'}`);
+        
+        // Pass the frame data to the parent component
+        onFrameExtracted(frameData);
+      } catch (err) {
+        console.error('Error extracting frame:', err);
       }
-      
-      if (!hasContent) {
-        console.warn("Frame appears to be blank or transparent");
-        setError("Extracted frame is blank - waiting for next frame");
-        return;
-      }
-      
-      // Pass the frame URL to the parent component
-      console.log("Sending frame to parent component for processing");
-      onFrameExtracted(frameUrl);
-    } catch (err) {
-      console.error('Error extracting frame:', err);
-      setError(`Error extracting frame - using image feed instead`);
-      setUseFallback(true);
-      startFallbackFrameExtraction();
     }
-  };
+  }, [onFrameExtracted, isProcessing, cameraId]);
 
   // Manual frame extraction
   const handleManualExtract = () => {
@@ -326,64 +306,51 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing, 
   };
 
   return (
-    <div className="relative w-full">
-      {!useFallback && (
-        <video
-          ref={videoRef}
-          src={videoSrc}
-          className="w-full h-full object-cover rounded-lg"
-          style={{ maxHeight: '300px' }}
-        />
-      )}
-      
-      {useFallback && (
-        <img
-          src="/images/image.jpg"
-          alt="Camera feed"
-          className="w-full h-full object-cover rounded-lg"
-          style={{ maxHeight: '300px' }}
-        />
-      )}
-      
-      {/* Hidden canvas for frame extraction */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      
-      {/* Error message */}
-      {error && (
-        <div className="absolute top-0 left-0 right-0 bg-red-900/80 text-white text-xs p-2 rounded-t-lg">
-          {error}
+    <div className="relative w-full h-full">
+      {error ? (
+        <div className="flex flex-col items-center justify-center h-full bg-gray-100 rounded-lg p-4">
+          <p className="text-red-500 mb-2">{error}</p>
+          {fallbackImages.length > 0 && (
+            <div className="relative w-full h-64">
+              <img 
+                src={fallbackImages[currentFallbackIndex]} 
+                alt="Fallback" 
+                className="w-full h-full object-cover rounded-lg"
+              />
+              <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+                Camera: {cameraId || 'Unknown'}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative w-full h-full">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover rounded-lg"
+            playsInline
+            muted
+            loop
+            onError={handleVideoError}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+          />
+          {cameraId && (
+            <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+              Camera: {cameraId}
+            </div>
+          )}
+          <canvas ref={canvasRef} className="hidden" />
         </div>
       )}
-      
-      {/* Live indicator */}
-      <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center">
-        <span className="relative flex h-2 w-2 mr-1">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-        </span>
-        {useFallback ? 'LIVE (Image Feed)' : 'LIVE'}
-      </div>
-      
-      {/* Camera ID indicator */}
-      {cameraId && (
-        <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-          Camera: {cameraId}
+      {isProcessing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+          <div className="text-white text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
+            <p>Processing frame...</p>
+          </div>
         </div>
       )}
-      
-      {/* Frame extraction indicator */}
-      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-        Frame every 5s
-      </div>
-      
-      {/* Manual extract button */}
-      <button 
-        onClick={handleManualExtract}
-        className="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
-        disabled={isProcessing}
-      >
-        {isProcessing ? 'Processing...' : 'Extract Frame'}
-      </button>
     </div>
   );
 } 

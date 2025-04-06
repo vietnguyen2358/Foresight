@@ -67,6 +67,7 @@ class FrameResponse(BaseModel):
 
 class FrameRequest(BaseModel):
     frame_data: str
+    camera_id: Optional[str] = None
 
 class SearchRequest(BaseModel):
     description: str
@@ -189,11 +190,11 @@ async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False)
         
         # Process the file
         if is_video:
-            people = process_video(file_path, camera_id=camera_id)
+            people = process_video(file_path)
         else:
             # For images, convert to PIL Image
             image = Image.open(file_path)
-            people = process_image(image, camera_id=camera_id)
+            people = process_image(image)
         
         # Process each detected person
         results = []
@@ -323,8 +324,12 @@ async def shutdown_event():
 
 
 @app.post("/process_frame", response_model=FrameResponse)
-async def process_frame(request: FrameRequest, camera_id: str = None):
+async def process_frame(request: FrameRequest):
     try:
+        # Get camera ID from request
+        camera_id = request.camera_id or "unknown"
+        logger.info(f"Processing frame from camera: {camera_id}")
+        
         # Decode base64 image
         frame_data = request.frame_data
         if ',' in frame_data:
@@ -399,7 +404,7 @@ async def process_frame(request: FrameRequest, camera_id: str = None):
                 "confidence": conf,
                 "bbox": [float(x1), float(y1), float(x2), float(y2)],
                 "timestamp": datetime.now().isoformat(),
-                "camera_id": camera_id or "SF-MKT-001"  # Use provided camera_id or default
+                "camera_id": camera_id  # Use the camera ID from the request
             })
             
             # Crop person if the crop is valid
@@ -437,7 +442,7 @@ async def process_frame(request: FrameRequest, camera_id: str = None):
                                 "track_id": detection_id,
                                 "frame": -1,  # We don't have frame number in this context
                                 "image": person_pil,
-                                "camera_id": camera_id or "SF-MKT-001",
+                                "camera_id": camera_id,  # Use the camera ID from the request
                                 "confidence": conf,
                                 "bbox": [float(x1), float(y1), float(x2), float(y2)]
                             }
