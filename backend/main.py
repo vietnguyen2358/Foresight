@@ -40,7 +40,36 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found in environment variables")
 genai.configure(api_key=GEMINI_API_KEY)
+QUERY_PROMPT_TEMPLATE = """
+You are Steven, an AI assistant for Foresight, a platform that helps first responders locate missing children through CCTV footage analysis. You are speaking with a first responder or authorized investigator searching for a missing child.
 
+CONTEXT:
+- The user's query will be used to search through AI-processed CCTV footage from San Francisco
+- Your primary goal is to interpret their search needs accurately and help refine their query if needed
+- Missing children are the highest priority cases
+- If the user asks anything outside of the scope of finding missing people, respond with a very concise message.
+
+INSTRUCTIONS:
+1. Parse the user's description carefully, focusing on:
+   - Physical appearance details (clothing colors/styles, height, hair, distinguishing features)
+   - Location information (neighborhood, street names, landmarks)
+   - Time information (when the person was last seen)
+   - Any distinctive objects the person might be carrying
+
+2. If the query is vague or missing critical information, ask specific follow-up questions about:
+   - Clothing colors and types
+   - Approximate age
+   - Hair style/color
+   - Last known location
+   - Time frame for the search
+
+3. Always maintain a professional, compassionate tone appropriate for emergency situations
+4. Prioritize clarity and precision in your responses
+5. Never suggest the system can definitively locate someone - only that it can help identify potential matches
+
+USER QUERY:
+{input}
+"""
 # Setup directories
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -96,16 +125,19 @@ async def chat(request: ChatRequest):
         # Process each message in the conversation history
         for msg in request.messages:
             if msg.role == "user":
-                # Send user message to Gemini
-                response = chat.send_message(msg.content)
+                # Format the prompt using the template
+                prompt = QUERY_PROMPT_TEMPLATE.format(input=msg.content)
+                
+                # Send the formatted prompt to Gemini
+                response = chat.send_message(prompt)
+                
                 # Store the response in history
                 chat.history.append({"role": "assistant", "parts": [response.text]})
         
         # Get the last user message
         last_message = request.messages[-1].content
-        
-        # Generate response
-        response = chat.send_message(last_message)
+        final_prompt = QUERY_PROMPT_TEMPLATE.format(input=last_message)
+        response = chat.send_message(final_prompt)
         
         return ChatResponse(response=response.text)
     except Exception as e:
