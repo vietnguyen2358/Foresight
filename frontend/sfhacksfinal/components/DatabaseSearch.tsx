@@ -407,100 +407,186 @@ export default function DatabaseSearch() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-gray-800 rounded-lg overflow-hidden"
+                className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg"
               >
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 text-blue-400 mr-2" />
-                      <span className="text-sm font-medium text-white">
-                        {person.description.gender || 'Unknown'} {person.description.age_group || ''}
-                      </span>
+                {/* Card Header with Person ID and Date */}
+                <div className="bg-gradient-to-r from-blue-900 to-gray-800 px-4 py-2 border-b border-gray-700">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium text-white">
+                      Person {person.id.substring(0, 4)}
+                    </h3>
+                    <div className="text-xs text-gray-300">
+                      {person.metadata.timestamp ? formatTimestamp(person.metadata.timestamp) : 'Unknown Time'}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs text-blue-400 hover:text-blue-300"
-                      onClick={() => handleCameraSelect(person.metadata.camera_id)}
-                    >
-                      View Camera
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-300 mb-3">
-                    <div className="flex items-center">
-                      <Camera className="h-3 w-3 mr-1 text-gray-400" />
-                      <span>{person.metadata.camera_id || 'Unknown Camera'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1 text-gray-400" />
-                      <span>{person.metadata.timestamp ? formatTimestamp(person.metadata.timestamp) : 'Unknown Time'}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="text-xs text-gray-300">
-                    {person.description.skin_tone && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Skin tone:</span> {person.description.skin_tone}
-                      </div>
-                    )}
-                    {person.description.hair_style && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Hair:</span> {person.description.hair_style}
-                        {person.description.hair_color && ` (${person.description.hair_color})`}
-                      </div>
-                    )}
-                    {person.description.facial_features && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Facial features:</span> {person.description.facial_features}
-                      </div>
-                    )}
-                    {person.description.accessories && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Accessories:</span> {person.description.accessories}
-                      </div>
-                    )}
-                    {person.description.clothing_top && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Top:</span> {person.description.clothing_top}
-                        {person.description.clothing_top_color && ` (${person.description.clothing_top_color})`}
-                      </div>
-                    )}
-                    {person.description.clothing_bottom && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Bottom:</span> {person.description.clothing_bottom}
-                        {person.description.clothing_bottom_color && ` (${person.description.clothing_bottom_color})`}
-                      </div>
-                    )}
-                    {person.description.footwear && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Footwear:</span> {person.description.footwear}
-                        {person.description.footwear_color && ` (${person.description.footwear_color})`}
-                      </div>
-                    )}
-                    {person.description.pose && (
-                      <div className="mb-1">
-                        <span className="text-gray-400">Pose:</span> {person.description.pose}
-                      </div>
-                    )}
-                    {person.description.location_context && (
-                      <div>
-                        <span className="text-gray-400">Location:</span> {person.description.location_context}
-                      </div>
-                    )}
                   </div>
                 </div>
                 
-                {person.metadata.image_path && (
-                  <div className="h-40 w-full overflow-hidden">
-                    <img
-                      src={`${API_BASE_URL}/uploads/${person.metadata.image_path.split('/').pop()}`}
-                      alt="Person"
-                      className="w-full h-full object-cover"
-                      onError={handleImageError}
-                    />
+                <div className="p-4">
+                  {/* Comprehensive Attributes Display */}
+                  <div className="text-sm text-gray-300 bg-gray-900 p-3 rounded-md max-h-72 overflow-y-auto">
+                    {(() => {
+                      // Handle case where description is a string (needs parsing)
+                      let desc: any = {};
+                      
+                      try {
+                        if (typeof person.description === 'string') {
+                          desc = JSON.parse(person.description);
+                        } else if (typeof person.description === 'object') {
+                          desc = person.description;
+                        }
+                      } catch (e) {
+                        console.error('Error parsing description:', e);
+                      }
+                      
+                      // Define the order of important attributes
+                      const priorityKeys = [
+                        'gender', 'age_group', 'hair_style', 'hair_color', 'skin_tone',
+                        'clothing_top', 'clothing_top_color', 'clothing_top_pattern',
+                        'clothing_bottom', 'clothing_bottom_color', 'clothing_bottom_pattern',
+                        'footwear', 'footwear_color', 'pose', 'location_context'
+                      ];
+                      
+                      // Get all keys from description
+                      let allKeys = Object.keys(desc);
+                      
+                      // Sort keys with priority items first
+                      allKeys.sort((a, b) => {
+                        const indexA = priorityKeys.indexOf(a);
+                        const indexB = priorityKeys.indexOf(b);
+                        
+                        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+                        if (indexA === -1) return 1;
+                        if (indexB === -1) return -1;
+                        return indexA - indexB;
+                      });
+                      
+                      // Handle special array cases
+                      const renderArrayValue = (key: string, value: any[]) => {
+                        if (key === 'facial_features' || key === 'accessories') {
+                          return (
+                            <div key={key} className="mb-1">
+                              <span className="text-blue-400 font-medium">
+                                {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:
+                              </span>{' '}
+                              {value.join(', ') || 'none'}
+                            </div>
+                          );
+                        }
+                        return null;
+                      };
+                      
+                      return (
+                        <>
+                          {/* Camera and timestamp */}
+                          <div className="mb-1">
+                            <span className="text-blue-400 font-medium">Camera:</span>{' '}
+                            {person.metadata.camera_id || 'unknown'}
+                          </div>
+                          
+                          {/* All description attributes */}
+                          {allKeys.map(key => {
+                            const value = desc[key];
+                            if (value === undefined || value === null || value === '') return null;
+                            
+                            // Format the key for display
+                            const formattedKey = key
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, c => c.toUpperCase());
+                            
+                            // Handle arrays specially
+                            if (Array.isArray(value)) {
+                              const specialArrayElement = renderArrayValue(key, value);
+                              if (specialArrayElement) return specialArrayElement;
+                              return (
+                                <div key={key} className="mb-1">
+                                  <span className="text-blue-400 font-medium">{formattedKey}:</span>{' '}
+                                  {value.join(', ') || 'none'}
+                                </div>
+                              );
+                            }
+                            
+                            // Handle special cases for combining properties
+                            if (key === 'clothing_top') {
+                              const color = desc.clothing_top_color || '';
+                              const pattern = desc.clothing_top_pattern ? `(${desc.clothing_top_pattern})` : '';
+                              return (
+                                <div key={key} className="mb-1">
+                                  <span className="text-blue-400 font-medium">Top:</span>{' '}
+                                  {`${color} ${value} ${pattern}`.trim()}
+                                </div>
+                              );
+                            }
+                            
+                            if (key === 'clothing_bottom') {
+                              const color = desc.clothing_bottom_color || '';
+                              const pattern = desc.clothing_bottom_pattern ? `(${desc.clothing_bottom_pattern})` : '';
+                              return (
+                                <div key={key} className="mb-1">
+                                  <span className="text-blue-400 font-medium">Bottom:</span>{' '}
+                                  {`${color} ${value} ${pattern}`.trim()}
+                                </div>
+                              );
+                            }
+                            
+                            if (key === 'footwear') {
+                              const color = desc.footwear_color || '';
+                              return (
+                                <div key={key} className="mb-1">
+                                  <span className="text-blue-400 font-medium">Footwear:</span>{' '}
+                                  {`${color} ${value}`.trim()}
+                                </div>
+                              );
+                            }
+                            
+                            // Skip properties that are handled in combined display
+                            if (['clothing_top_color', 'clothing_top_pattern', 
+                                'clothing_bottom_color', 'clothing_bottom_pattern',
+                                'footwear_color'].includes(key)) {
+                              return null;
+                            }
+                            
+                            // Regular property display
+                            return (
+                              <div key={key} className="mb-1">
+                                <span className="text-blue-400 font-medium">{formattedKey}:</span>{' '}
+                                {typeof value === 'object' ? JSON.stringify(value) : value}
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Add additional metadata if available */}
+                          {Object.entries(person.metadata)
+                            .filter(([key]) => !['camera_id', 'timestamp'].includes(key))
+                            .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+                            .map(([key, value]) => {
+                              const formattedKey = key
+                                .replace(/_/g, ' ')
+                                .replace(/\b\w/g, c => c.toUpperCase());
+                              
+                              return (
+                                <div key={key} className="mb-1">
+                                  <span className="text-green-400 font-medium">{formattedKey}:</span>{' '}
+                                  {typeof value === 'object' ? JSON.stringify(value) : value}
+                                </div>
+                              );
+                            })
+                          }
+                        </>
+                      );
+                    })()}
                   </div>
-                )}
+
+                  {/* Camera Button */}
+                  <Button
+                    variant="outline" 
+                    size="sm"
+                    className="w-full mt-3 text-xs text-blue-400 hover:text-blue-300 border-gray-700"
+                    onClick={() => handleCameraSelect(person.metadata.camera_id)}
+                  >
+                    <Camera className="h-3 w-3 mr-1" />
+                    View Camera Feed
+                  </Button>
+                </div>
               </motion.div>
             ))}
           </div>
