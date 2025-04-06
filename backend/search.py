@@ -164,7 +164,7 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
             'skin_tone': 1.0,
             'hair_style': 1.2,
             'hair_color': 2.5,  # Increased weight for hair color
-            'facial_features': 2.0,  # Increased weight for facial features
+            'facial_features': 3.0,  # Increased weight for facial features to prioritize beard/mustache
             'clothing_top': 2.0,  # Increased weight for clothing type
             'clothing_top_color': 2.5,  # Increased weight for clothing color
             'clothing_bottom': 1.5,
@@ -195,6 +195,14 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
             'other': ['other', 'non-binary', 'nonbinary', 'transgender', 'trans']
         }
         
+        # Age group variations mapping
+        age_group_variations = {
+            'child': ['child', 'kid', 'children', 'kids', 'young', 'little', 'small'],
+            'teen': ['teen', 'teenager', 'adolescent', 'youth', 'young adult'],
+            'adult': ['adult', 'grown-up', 'grown up', 'mature', 'middle-aged'],
+            'senior': ['senior', 'elderly', 'old', 'older', 'aged']
+        }
+        
         # Child context variations mapping
         child_context_variations = {
             'with_parent': ['with parent', 'with parents', 'with mother', 'with father', 'with guardian', 'with family'],
@@ -219,6 +227,43 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
         
         weighted_matches = 0
         weighted_total = 0
+        
+        # Check if the query contains child-related terms
+        query_contains_child_terms = False
+        if 'age_group' in query_json:
+            query_age = str(query_json['age_group']).lower()
+            if any(term in query_age for term in ['child', 'kid', 'children', 'kids']):
+                query_contains_child_terms = True
+        
+        # Check if the person is a child
+        person_is_child = False
+        if 'age_group' in person_json:
+            person_age = str(person_json['age_group']).lower()
+            if person_age == 'child':
+                person_is_child = True
+        
+        # Check if the query contains facial hair terms
+        query_contains_facial_hair = False
+        if 'facial_features' in query_json:
+            query_features = str(query_json['facial_features']).lower()
+            for feature, variations in facial_hair_variations.items():
+                if any(term in query_features for term in variations):
+                    query_contains_facial_hair = True
+                    break
+        
+        # Check if the person has facial hair
+        person_has_facial_hair = False
+        if 'facial_features' in person_json:
+            person_features = str(person_json['facial_features']).lower()
+            for feature, variations in facial_hair_variations.items():
+                if any(term in person_features for term in variations):
+                    person_has_facial_hair = True
+                    break
+        
+        # If query contains facial hair terms but person doesn't have facial hair, return 0
+        if query_contains_facial_hair and not person_has_facial_hair:
+            logger.info(f"Query contains facial hair terms but person doesn't have facial hair")
+            return 0
         
         for key in query_json:
             if key in person_json:
@@ -255,6 +300,41 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
                             logger.info(f"No match on gender: {query_val} != {person_val}")
                             # Return 0 similarity if gender doesn't match (strict matching)
                             return 0
+                
+                # Special handling for age_group - strict matching for child-related queries
+                elif key == 'age_group':
+                    # Check for exact match first
+                    if query_val == person_val:
+                        weighted_matches += weight
+                        logger.info(f"Exact match on age_group: {query_val} = {person_val}")
+                    else:
+                        # Check for variations
+                        query_ages = set([query_val])
+                        person_ages = set([person_val])
+                        
+                        # Add variations
+                        for base_age, variations in age_group_variations.items():
+                            if base_age in query_val:
+                                query_ages.update(variations)
+                            if base_age in person_val:
+                                person_ages.update(variations)
+                        
+                        # Check for matches including variations
+                        if query_ages & person_ages:  # If there's any intersection
+                            weighted_matches += weight
+                            logger.info(f"Match on age_group with variations: {query_ages} ~ {person_ages}")
+                        else:
+                            # If query contains child-related terms and person is not a child, return 0
+                            if query_contains_child_terms and not person_is_child:
+                                logger.info(f"Query contains child terms but person is not a child: {query_val} != {person_val}")
+                                return 0
+                            # Check for partial matches
+                            for query_age in query_ages:
+                                for person_age in person_ages:
+                                    if query_age in person_age or person_age in query_age:
+                                        weighted_matches += weight * 0.7
+                                        logger.info(f"Partial match on age_group: {query_age} ~ {person_age}")
+                                        break
                 
                 # Special handling for hair color
                 elif key == 'hair_color':
@@ -393,7 +473,7 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
         logger.error(f"Error calculating similarity: {e}")
         return 0
 
-def find_similar_people(user_description: str, top_k=3) -> List[Dict[str, Any]]:
+def find_similar_people(user_description: str, top_k=5) -> List[Dict[str, Any]]:
     """Find similar people based on text description."""
     try:
         logger.info(f"Searching for: {user_description}")
@@ -436,21 +516,11 @@ def find_similar_people(user_description: str, top_k=3) -> List[Dict[str, Any]]:
                 # Convert similarity to percentage (0-100%)
                 similarity_score = max(0, min(100, similarity * 100))
                 
-                # Load and encode image
-                image_data = None
-                image_path = person["metadata"].get("image_path", "")
-                if image_path and os.path.exists(image_path):
-                    try:
-                        with open(image_path, "rb") as img_file:
-                            image_data = base64.b64encode(img_file.read()).decode("utf-8")
-                    except Exception as e:
-                        logger.error(f"Error loading image {image_path}: {e}")
-                
+                # Create match without image data
                 matches.append({
                     "description": person["description"],
                     "metadata": person["metadata"],
-                    "similarity": similarity_score,
-                    "image_data": image_data
+                    "similarity": similarity_score
                 })
                 logger.info(f"Added match with similarity {similarity_score}%")
             except Exception as e:

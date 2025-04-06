@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, User, Bot, Loader2, Info, Camera as CameraIcon, MapPin } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import { API_BASE_URL, checkServerHealth } from "@/lib/api"
+import { API_BASE_URL, checkServerHealth, searchPeople } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { useCamera, type Camera } from "@/lib/CameraContext"
 import { 
@@ -114,36 +114,27 @@ export default function ChatAgent() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userInput = input.trim();
+    const userMessage = input.trim();
     setInput("");
     setIsLoading(true);
 
     const newUserMessage: Message = {
       role: "user",
-      content: userInput
+      content: userMessage
     };
     setMessages(prev => [...prev, newUserMessage]);
 
     try {
+      // Check server health
       const isHealthy = await checkServerHealth();
       if (!isHealthy) {
-        throw new Error("Server is not healthy. Please try again later.");
+        throw new Error("Server is not responding. Please try again later.");
       }
       
-      console.log("Making search request for:", userInput);
-      const searchResponse = await fetch(`${API_BASE_URL}/search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ description: userInput }),
-      });
+      console.log("Making search request for:", userMessage);
       
-      if (!searchResponse.ok) {
-        throw new Error(`Search failed: ${searchResponse.statusText}`);
-      }
-
-      const searchData = await searchResponse.json();
+      // Use the searchPeople function from the API module
+      const searchData = await searchPeople(userMessage);
       console.log("Search results:", searchData);
       
       let responseContent = "";
