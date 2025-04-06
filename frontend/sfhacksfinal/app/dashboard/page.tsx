@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import MapWrapper from "@/components/MapWrapper"
 import ChatAgent from "@/components/ChatAgent"
-import SearchSection from "@/components/SearchSection"
+import DatabaseSearch from "@/components/DatabaseSearch"
 import { MapPin, Search } from "lucide-react"
 import RightSidebar from "@/components/RightSidebar"
 
@@ -67,7 +67,7 @@ export default function Dashboard() {
 
           {activeTab === "search" && (
             <div className="h-full w-full">
-              <SearchSection />
+              <DatabaseSearch />
             </div>
           )}
         </div>

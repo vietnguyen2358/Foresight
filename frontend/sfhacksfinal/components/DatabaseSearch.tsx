@@ -39,109 +39,62 @@ interface Person {
 }
 
 // Function to add a person from camera view to the database
-export const addPersonToDatabase = (personData: any) => {
-  // Create a new person object with the required structure
-  const newPerson = {
-    id: personData.id || `person_${Date.now()}`,
-    description: {
-      gender: personData.description?.gender || personData.gender || 'unknown',
-      age_group: personData.description?.age_group || personData.age_group || 'unknown',
-      clothing_top: personData.description?.clothing_top || personData.clothing_top || 'unknown',
-      clothing_bottom: personData.description?.clothing_bottom || personData.clothing_bottom || 'unknown',
-      pose: personData.description?.pose || personData.pose || 'unknown',
-      location_context: personData.description?.location_context || personData.location_context || 'outdoor',
-      hair_style: personData.description?.hair_style || personData.hair_style,
-      hair_color: personData.description?.hair_color || personData.hair_color,
-      skin_tone: personData.description?.skin_tone || personData.skin_tone,
-      facial_features: personData.description?.facial_features || personData.facial_features,
-      accessories: personData.description?.accessories || personData.accessories,
-      clothing_top_color: personData.description?.clothing_top_color || personData.clothing_top_color,
-      clothing_bottom_color: personData.description?.clothing_bottom_color || personData.clothing_bottom_color,
-      clothing_top_pattern: personData.description?.clothing_top_pattern || personData.clothing_top_pattern,
-      clothing_bottom_pattern: personData.description?.clothing_bottom_pattern || personData.clothing_bottom_pattern,
-      footwear: personData.description?.footwear || personData.footwear,
-      footwear_color: personData.description?.footwear_color || personData.footwear_color,
-      ...personData.description
-    },
-    metadata: {
-      camera_id: personData.metadata?.camera_id || personData.camera_id || 'unknown',
-      timestamp: personData.metadata?.timestamp || personData.timestamp || new Date().toISOString(),
-      image_path: personData.metadata?.image_path || personData.image_path || '',
-      track_id: personData.metadata?.track_id || personData.track_id || `person_${Date.now()}`,
-      frame: personData.metadata?.frame || personData.frame || -1,
-      ...personData.metadata
-    }
-  };
-  
-  // Get the current database data
-  let databaseData: DatabaseData = { people: [] };
+export const addPersonToDatabase = async (personData: any) => {
   try {
-    // Try to load from localStorage if available
-    const storedData = localStorage.getItem('people_database');
-    if (storedData) {
-      databaseData = JSON.parse(storedData);
-    } else {
-      // If not in localStorage, try to fetch from the API
-      fetch('/api/people_database')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Failed to fetch database: ${response.statusText}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          databaseData = data;
-          
-          // Add to the database
-          databaseData.people.push(newPerson);
-          
-          // Save to localStorage
-          localStorage.setItem('people_database', JSON.stringify(databaseData));
-          
-          // Save to the API endpoint
-          fetch('/api/people_database', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(databaseData),
-          })
-          .catch(error => {
-            console.error('Error saving database to API:', error);
-          });
-        })
-        .catch(error => {
-          console.error('Error fetching database:', error);
-        });
+    // Create a new person object with the required structure
+    const newPerson = {
+      id: personData.id || `person_${Date.now()}`,
+      description: {
+        gender: personData.description?.gender || personData.gender || 'unknown',
+        age_group: personData.description?.age_group || personData.age_group || 'unknown',
+        clothing_top: personData.description?.clothing_top || personData.clothing_top || 'unknown',
+        clothing_bottom: personData.description?.clothing_bottom || personData.clothing_bottom || 'unknown',
+        pose: personData.description?.pose || personData.pose || 'unknown',
+        location_context: personData.description?.location_context || personData.location_context || 'outdoor',
+        hair_style: personData.description?.hair_style || personData.hair_style,
+        hair_color: personData.description?.hair_color || personData.hair_color,
+        skin_tone: personData.description?.skin_tone || personData.skin_tone,
+        facial_features: personData.description?.facial_features || personData.facial_features,
+        accessories: personData.description?.accessories || personData.accessories,
+        clothing_top_color: personData.description?.clothing_top_color || personData.clothing_top_color,
+        clothing_bottom_color: personData.description?.clothing_bottom_color || personData.clothing_bottom_color,
+        clothing_top_pattern: personData.description?.clothing_top_pattern || personData.clothing_top_pattern,
+        clothing_bottom_pattern: personData.description?.clothing_bottom_pattern || personData.clothing_bottom_pattern,
+        footwear: personData.description?.footwear || personData.footwear,
+        footwear_color: personData.description?.footwear_color || personData.footwear_color,
+        ...personData.description
+      },
+      metadata: {
+        camera_id: personData.metadata?.camera_id || personData.camera_id || 'unknown',
+        timestamp: personData.metadata?.timestamp || personData.timestamp || new Date().toISOString(),
+        image_path: personData.metadata?.image_path || personData.image_path || '',
+        track_id: personData.metadata?.track_id || personData.track_id || `person_${Date.now()}`,
+        frame: personData.metadata?.frame || personData.frame || -1,
+        ...personData.metadata
+      }
+    };
+    
+    // Send to the API endpoint for duplicate checking and adding
+    const response = await fetch('/api/people_database', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(newPerson),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to add person: ${response.statusText}`);
     }
+    
+    const result = await response.json();
+    
+    // Return the result indicating if it was a duplicate
+    return result;
   } catch (error) {
-    console.error('Error loading database from localStorage:', error);
+    console.error('Error adding person to database:', error);
+    throw error;
   }
-  
-  // Add to the database
-  databaseData.people.push(newPerson);
-  
-  // Save to localStorage
-  try {
-    localStorage.setItem('people_database', JSON.stringify(databaseData));
-  } catch (error) {
-    console.error('Error saving database to localStorage:', error);
-  }
-  
-  // Save to the API endpoint
-  fetch('/api/people_database', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(databaseData),
-  })
-  .catch(error => {
-    console.error('Error saving database to API:', error);
-  });
-  
-  // Return the updated database
-  return databaseData;
 };
 
 export default function DatabaseSearch() {

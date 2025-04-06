@@ -1,6 +1,8 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
+import { useCamera } from '@/lib/CameraContext';
+import { API_BASE_URL } from '@/lib/api';
 
 interface Detection {
   label: string;
@@ -17,9 +19,14 @@ export function CameraFeed() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [detections, setDetections] = useState<Detection[]>([]);
   const [description, setDescription] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  const { selectedCamera } = useCamera();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [personDescriptions, setPersonDescriptions] = useState<any[]>([]);
+  const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null);
+  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startCamera = async () => {
     try {
@@ -42,75 +49,106 @@ export function CameraFeed() {
     }
   };
 
-  const processFrame = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    if (!context) return;
-
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw current video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert canvas to base64
-    const frameData = canvas.toDataURL('image/jpeg');
-
+  const processFrame = async (frameData: string) => {
+    if (!selectedCamera) return;
+    
     try {
-      const response = await fetch('http://localhost:8000/process_frame', {
+      setIsProcessing(true);
+      setError(null);
+      
+      console.log(`Processing frame for camera: ${selectedCamera.id}`);
+      
+      const response = await fetch(`${API_BASE_URL}/process_frame`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ frame_data: frameData }),
+        body: JSON.stringify({ 
+          frame_data: frameData,
+          camera_id: selectedCamera.id  // Include camera_id in the request
+        }),
       });
-
+      
       if (!response.ok) {
-        throw new Error('Failed to process frame');
+        const errorText = await response.text();
+        throw new Error(`Failed to process frame: ${response.status} ${errorText}`);
       }
-
-      const data: FrameResponse = await response.json();
-      setDetections(data.detections);
-      setDescription(data.description);
-
-      // Draw detections on canvas
-      context.strokeStyle = '#00ff00';
-      context.lineWidth = 2;
-      context.font = '16px Arial';
-      context.fillStyle = '#00ff00';
-
-      data.detections.forEach(detection => {
-        const [x1, y1, x2, y2] = detection.bbox;
-        context.strokeRect(x1, y1, x2 - x1, y2 - y1);
-        context.fillText(
-          `${detection.label} (${(detection.confidence * 100).toFixed(1)}%)`,
-          x1,
-          y1 - 5
-        );
-      });
-    } catch (err) {
-      setError('Error processing frame: ' + (err as Error).message);
+      
+      const data = await response.json();
+      console.log('Frame processing response:', data);
+      
+      // Update detections and descriptions
+      if (data.detections && data.detections.length > 0) {
+        setDetections(data.detections);
+        
+        // Process person descriptions if available
+        if (data.person_crops && data.person_crops.length > 0) {
+          const descriptions = data.person_crops.map((crop: any) => ({
+            ...crop.description,
+            id: crop.id,
+            yoloCrop: crop.crop,
+            camera_id: selectedCamera.id,  // Ensure camera_id is included
+            timestamp: new Date().toISOString()
+          }));
+          
+          setPersonDescriptions(descriptions);
+        }
+      } else {
+        setDetections([]);
+        setPersonDescriptions([]);
+      }
+      
+      // Update last processed frame
+      setLastProcessedFrame(frameData);
+      
+    } catch (error) {
+      console.error('Error processing frame:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error processing frame');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    if (isStreaming) {
-      intervalId = setInterval(processFrame, 1000); // Process every second
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
+    if (selectedCamera) {
+      console.log("Selected camera changed in CameraFeed:", selectedCamera);
+      
+      // Clear any existing intervals
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
       }
-    };
-  }, [isStreaming]);
+      
+      // Set up frame processing interval
+      frameIntervalRef.current = setInterval(() => {
+        if (!isProcessing && videoRef.current && canvasRef.current) {
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          const context = canvas.getContext('2d');
+          
+          if (!context) return;
+          
+          // Set canvas dimensions to match video
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          // Draw current video frame to canvas without affecting video playback
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert canvas to base64
+          const frameData = canvas.toDataURL('image/jpeg');
+          
+          // Process the frame
+          processFrame(frameData);
+        }
+      }, 5000); // Process a frame every 5 seconds
+      
+      return () => {
+        if (frameIntervalRef.current) {
+          clearInterval(frameIntervalRef.current);
+        }
+      };
+    }
+  }, [selectedCamera, isProcessing]);
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">

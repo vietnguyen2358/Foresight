@@ -62,6 +62,50 @@ def add_person(description_json: Dict[str, Any], metadata: Dict[str, Any] = None
     if metadata is None:
         metadata = {}
     
+    # Load current database
+    db = load_database()
+    
+    # Check for duplicates based on description and metadata
+    for existing_person in db["people"]:
+        # Count matching fields to determine similarity
+        matching_fields = 0
+        total_fields = 0
+        
+        # Compare key fields that would indicate a duplicate
+        desc1 = existing_person["description"]
+        desc2 = description_json
+        
+        # List of fields to compare
+        fields_to_compare = [
+            "gender", "age_group", "hair_style", "hair_color", 
+            "skin_tone", "facial_features", "accessories",
+            "clothing_top", "clothing_top_color", "clothing_top_pattern",
+            "clothing_bottom", "clothing_bottom_color", "clothing_bottom_pattern",
+            "footwear", "footwear_color"
+        ]
+        
+        # Count matching fields
+        for field in fields_to_compare:
+            if field in desc1 or field in desc2:
+                total_fields += 1
+                if desc1.get(field) == desc2.get(field) and desc1.get(field) is not None:
+                    matching_fields += 1
+        
+        # Check if timestamps are within 5 minutes of each other
+        time_diff = abs((datetime.fromisoformat(existing_person["metadata"]["timestamp"]) - 
+                        datetime.fromisoformat(metadata.get("timestamp", datetime.now().isoformat()))).total_seconds())
+        
+        # Check if camera IDs match
+        camera_match = existing_person["metadata"].get("camera_id") == metadata.get("camera_id")
+        
+        # Calculate similarity percentage
+        similarity = matching_fields / total_fields if total_fields > 0 else 0
+        
+        # If high similarity (>80%) and same camera or close in time, consider it a duplicate
+        if similarity > 0.8 and (camera_match or time_diff < 300):
+            logger.info(f"Duplicate person detected with {similarity*100:.1f}% similarity, skipping addition")
+            return existing_person["id"]
+    
     # Generate unique ID for the person
     person_id = str(uuid.uuid4())
     
@@ -91,9 +135,6 @@ def add_person(description_json: Dict[str, Any], metadata: Dict[str, Any] = None
             "timestamp": datetime.now().isoformat()
         }
     }
-    
-    # Load current database
-    db = load_database()
     
     # Add to database
     db["people"].append(person)

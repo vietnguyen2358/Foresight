@@ -18,6 +18,7 @@ import {
   API_BASE_URL,
   checkServerHealth
 } from "@/lib/api"
+import { addPersonToDatabase } from './DatabaseSearch'
 
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
@@ -26,13 +27,51 @@ interface ExtendedPersonDescription extends PersonDescription {
   gender?: string;
   age_group?: string;
   clothing_top?: string;
+  clothing_top_color?: string;
   clothing_bottom?: string;
+  clothing_bottom_color?: string;
+  hair_color?: string;
   similarity?: number;
   camera_id?: string;
   cropped_image?: string;
   raw_data?: Record<string, any>;  // Add raw_data field for Gemini output
   description?: string;  // Add description field for AI model output
   timestamp?: string;    // Add timestamp field for when the description was generated
+}
+
+// Define extended SearchResult type to include suggestions and message
+interface ExtendedSearchResult {
+  matches: Array<{
+    description: {
+      gender?: string;
+      age_group?: string;
+      ethnicity?: string;
+      skin_tone?: string;
+      hair_style?: string;
+      hair_color?: string;
+      facial_features?: string;
+      clothing_top?: string;
+      clothing_top_color?: string;
+      clothing_top_pattern?: string;
+      clothing_bottom?: string;
+      clothing_bottom_color?: string;
+      clothing_bottom_pattern?: string;
+      accessories?: string;
+      bag_type?: string;
+      bag_color?: string;
+      location_context?: string;
+      pose?: string;
+    };
+    metadata: {
+      timestamp: string;
+      camera_id?: string;
+      location?: string;
+    };
+    similarity: number;
+    imageData?: string;
+  }>;
+  suggestions?: string[];
+  message?: string;
 }
 
 export default function RightSidebar() {
@@ -64,6 +103,34 @@ export default function RightSidebar() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
   const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
+  const [searchMessage, setSearchMessage] = useState<string>('')
+
+  // Add a useEffect hook to check server health and clear detections on mount
+  useEffect(() => {
+    const checkHealthAndClear = async () => {
+      try {
+        // Check if the server is healthy
+        console.log("Checking server health on mount...");
+        const isHealthy = await checkServerHealth();
+        if (isHealthy) {
+          console.log("Server is healthy, clearing detections and descriptions");
+          setDetections([]);
+          setPersonDescriptions([]);
+          setLastProcessedFrame(null);
+        } else {
+          console.error("Server is not healthy on mount");
+          setError("Server is not healthy - please check the backend server");
+        }
+      } catch (error) {
+        console.error("Error checking server health on mount:", error);
+        setError("Failed to check server health");
+      }
+    };
+
+    checkHealthAndClear();
+  }, []); // Empty dependency array means this runs once on mount
 
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
@@ -89,7 +156,9 @@ export default function RightSidebar() {
         "SF-EMB-002": "/videos/sf_street_001.mov",
         "SF-UNS-003": "/videos/sf_building_001.mov",
         "SF-FER-004": "/videos/sf_park_001.mov",
-        "SF-CHI-005": "/videos/IMG_8252.mov"
+        "SF-CHI-005": "/videos/IMG_8252.mov",
+        "SF-MIS-006": "/videos/MIS.mov",
+        "SF-HAI-007": "/videos/workingCLip.mov"
       };
 
       if (cameraVideoMap[selectedCamera.id]) {
@@ -127,129 +196,72 @@ export default function RightSidebar() {
           }
           console.log("Server health check passed");
           
-          // For Market Street camera, we need a frame from the video
-          // This will be handled by the VideoPlayer component
-          if (selectedCamera.id === "SF-MKT-001") {
-            if (!lastProcessedFrame) {
-              console.log("Waiting for video frame...");
-              processingRef.current = false;
-              setIsProcessing(false);
-              return;
-            }
-            
-            // Use the last processed frame
-            const frameUrl = lastProcessedFrame;
-            console.log("Processing frame for Market Street camera, frame length:", frameUrl.length);
-            
-            // Process the frame with YOLO
-            console.log("Sending frame to API for processing...");
-            const response = await fetch(`${API_BASE_URL}/process_frame`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                frame_data: frameUrl
-              }),
-            });
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error("API error response:", errorText);
-              throw new Error(`Failed to process frame: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log("API response:", data);
-            console.log("Detections:", data.detections?.length || 0);
-            console.log("Descriptions:", data.descriptions?.length || 0);
-            
-            // Only update detections and descriptions if we have new data
-            if (data.detections && data.detections.length > 0) {
-              console.log("Updating detections:", data.detections);
-              setDetections(data.detections);
-            } else {
-              console.log("No detections found in this frame");
-              // Don't clear existing detections if we don't find new ones
-              // This prevents flickering of the UI
-            }
-            
-            if (data.descriptions && data.descriptions.length > 0) {
-              console.log("Updating descriptions:", data.descriptions);
-              setPersonDescriptions(data.descriptions);
-            } else {
-              console.log("No descriptions found in this frame");
-              // Don't clear existing descriptions if we don't find new ones
-              // This prevents flickering of the UI
-            }
+          // Get the current frame to process
+          let frameUrl = lastProcessedFrame;
+          
+          // If we don't have a frame yet, wait for the next interval
+          if (!frameUrl) {
+            console.log("No frame available yet, waiting for next interval");
+            processingRef.current = false;
+            setIsProcessing(false);
+            return;
+          }
+          
+          console.log(`Processing frame for camera ${selectedCamera.id}, frame length:`, frameUrl.length);
+          
+          // Process the frame with YOLO
+          console.log("Sending frame to API for processing...");
+          const response = await fetch(`${API_BASE_URL}/process_frame`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              frame_data: frameUrl,
+              camera_id: selectedCamera.id
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("API error response:", errorText);
+            throw new Error(`Failed to process frame: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          console.log("API response:", data);
+          console.log("Detections:", data.detections?.length || 0);
+          console.log("Descriptions:", data.descriptions?.length || 0);
+          
+          // Only update detections and descriptions if we have new data
+          if (data.detections && data.detections.length > 0) {
+            console.log("Updating detections:", data.detections);
+            // Add camera ID to each detection
+            const detectionsWithCameraId = data.detections.map((detection: Detection) => ({
+              ...detection,
+              camera_id: selectedCamera.id
+            }));
+            setDetections(detectionsWithCameraId);
           } else {
-            // For other cameras, use random images
-            console.log("Using random images for non-Market Street camera");
-            const randomImage = `/images/image${Math.floor(Math.random() * 5) + 1}.jpg`;
-            console.log("Selected random image:", randomImage);
-            
-            // Create a canvas to convert the image to base64
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.crossOrigin = "anonymous"; // Enable CORS for the image
-            
-            // Wait for the image to load
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-              img.src = randomImage;
-            });
-            
-            // Set canvas dimensions to match image
-            canvas.width = img.width;
-            canvas.height = img.height;
-            
-            // Draw image to canvas
-            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Convert to base64
-            const frameData = canvas.toDataURL('image/jpeg');
-            
-            // Process the random image with YOLO
-            console.log("Sending random image to API for processing...");
-            const response = await fetch(`${API_BASE_URL}/process_frame`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                frame_data: frameData
-              }),
-            });
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error("API error response:", errorText);
-              throw new Error(`Failed to process random image: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log("API response for random image:", data);
-            console.log("Detections:", data.detections?.length || 0);
-            console.log("Descriptions:", data.descriptions?.length || 0);
-            
-            // Only update detections and descriptions if we have new data
-            if (data.detections && data.detections.length > 0) {
-              console.log("Updating detections for random image:", data.detections);
-              setDetections(data.detections);
-            } else {
-              console.log("No detections found in random image");
-              // Don't clear existing detections if we don't find new ones
-            }
-            
-            if (data.descriptions && data.descriptions.length > 0) {
-              console.log("Updating descriptions for random image:", data.descriptions);
-              setPersonDescriptions(data.descriptions);
-            } else {
-              console.log("No descriptions found in random image");
-              // Don't clear existing descriptions if we don't find new ones
-            }
+            console.log("No detections found in this frame");
+            // Don't clear existing detections if we don't find new ones
+            // This prevents flickering of the UI
+          }
+          
+          // Process person descriptions if available
+          if (data.person_crops && data.person_crops.length > 0) {
+            console.log("Processing person descriptions:", data.person_crops.length);
+            const descriptions = data.person_crops.map((crop: any) => ({
+              ...crop.description,
+              id: crop.id,
+              yoloCrop: crop.crop,
+              camera_id: selectedCamera.id,
+              timestamp: new Date().toISOString()
+            }));
+            setPersonDescriptions(descriptions);
+          } else {
+            console.log("No person descriptions found in this frame");
+            // Don't clear existing descriptions if we don't find new ones
           }
           
         } catch (error) {
@@ -282,6 +294,7 @@ export default function RightSidebar() {
     
     // Process the frame with YOLO if not already processing
     if (!isProcessing) {
+      console.log(`Processing frame for camera ${selectedCamera?.id || 'unknown'}`);
       processFrame(frameUrl);
     } else {
       console.log("Skipping frame processing - still processing previous frame");
@@ -306,6 +319,10 @@ export default function RightSidebar() {
       
       // Process the frame with YOLO
       console.log("Sending frame to API for processing...");
+      if (!selectedCamera) {
+        console.error("No camera selected");
+        return;
+      }
       console.log("Frame URL length:", frameUrl.length);
       
       // Log the first 100 characters of the frame URL to help with debugging
@@ -317,7 +334,8 @@ export default function RightSidebar() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          frame_data: frameUrl
+          frame_data: frameUrl,
+          camera_id: selectedCamera.id
         }),
       });
       
@@ -338,7 +356,12 @@ export default function RightSidebar() {
       // Update detections and descriptions
       if (data.detections && data.detections.length > 0) {
         console.log("Updating detections:", data.detections);
-        setDetections(data.detections);
+        // Add camera ID to each detection
+        const detectionsWithCameraId = data.detections.map((detection: Detection) => ({
+          ...detection,
+          camera_id: selectedCamera.id
+        }));
+        setDetections(detectionsWithCameraId);
       } else {
         console.log("No detections found in the response");
       }
@@ -371,7 +394,7 @@ export default function RightSidebar() {
             id: crop.id,
             description: typeof parsedDescription === 'string' ? parsedDescription : JSON.stringify(parsedDescription),
             timestamp: data.timestamp || new Date().toISOString(),
-            camera_id: selectedCamera?.id || "SF-MKT-001",
+            camera_id: selectedCamera.id, // Always use the current selected camera ID
             cropped_image: `data:image/jpeg;base64,${crop.crop}`,
             raw_data: structuredData
           };
@@ -388,7 +411,7 @@ export default function RightSidebar() {
           id: `general_${Date.now()}`,
           description: data.description,
           timestamp: data.timestamp || new Date().toISOString(),
-          camera_id: selectedCamera?.id || "SF-MKT-001"
+          camera_id: selectedCamera.id // Always use the current selected camera ID
         };
         
         // Try to extract structured data from the description
@@ -451,34 +474,97 @@ export default function RightSidebar() {
 
   // Handle search
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return
+    if (!searchQuery.trim()) return;
     
-    setIsLoading(true)
-    setError(null)
     try {
-      // Use the actual API
-      const result = await searchPeople(searchQuery)
-      console.log('Search results:', result)
+      setSearching(true);
       
-      if (result.matches && result.matches.length > 0) {
-        setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
+      // Parse the search query to extract key attributes
+      const searchTerms = searchQuery.toLowerCase().split(' ');
+      const gender = searchTerms.find(term => ['male', 'female', 'man', 'woman'].includes(term));
+      const hairColor = searchTerms.find(term => ['blonde', 'blond', 'black', 'brown', 'red', 'white', 'gray'].includes(term));
+      const clothingColor = searchTerms.find(term => ['blue', 'red', 'green', 'yellow', 'black', 'white', 'brown'].includes(term));
+      const clothingType = searchTerms.find(term => ['hoodie', 'shirt', 't-shirt', 'jacket', 'coat', 'sweater'].includes(term));
+      
+      // Add facial hair detection
+      const facialHair = searchTerms.find(term => ['beard', 'mustache', 'goatee', 'stubble', 'facial hair'].includes(term));
+      
+      // Construct a more specific search query
+      let enhancedQuery = searchQuery;
+      if (gender) enhancedQuery += ` gender:${gender}`;
+      if (hairColor) enhancedQuery += ` hair_color:${hairColor}`;
+      if (clothingColor && clothingType) enhancedQuery += ` clothing:${clothingColor} ${clothingType}`;
+      if (facialHair) enhancedQuery += ` facial_features:${facialHair}`;
+      
+      console.log("Enhanced search query:", enhancedQuery);
+      
+      const result = await searchPeople(enhancedQuery) as ExtendedSearchResult;
+      
+      if (result.suggestions && result.suggestions.length > 0) {
+        setSearchSuggestions(result.suggestions);
       } else {
-        setSearchResults([])
-        // Show suggestions if available
-        if (result.suggestions && result.suggestions.length > 0) {
-          setError(result.message || 'No matches found. Try these suggestions:')
-        } else {
-          setError(result.message || 'No matches found')
+        setSearchSuggestions([]);
+      }
+      
+      if (result.message) {
+        setSearchMessage(result.message);
+      } else {
+        setSearchMessage('');
+      }
+      
+      // Map the search results to ExtendedPersonDescription type
+      const mappedResults: ExtendedPersonDescription[] = result.matches.map(match => ({
+        id: match.metadata.camera_id,
+        gender: match.description.gender,
+        age_group: match.description.age_group,
+        clothing_top: match.description.clothing_top,
+        clothing_top_color: match.description.clothing_top_color,
+        clothing_bottom: match.description.clothing_bottom,
+        clothing_bottom_color: match.description.clothing_bottom_color,
+        hair_color: match.description.hair_color,
+        similarity: match.similarity,
+        camera_id: match.metadata.camera_id,
+        description: JSON.stringify(match.description), // Convert description object to string
+        timestamp: match.metadata.timestamp,
+        raw_data: match.description // Store the raw description data
+      }));
+      
+      // Sort results by similarity score
+      mappedResults.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+      
+      // Remove duplicates based on a unique identifier
+      // We'll use a combination of gender, age_group, and clothing as a unique identifier
+      const uniqueResults: ExtendedPersonDescription[] = [];
+      const seenIdentifiers = new Set<string>();
+      
+      for (const person of mappedResults) {
+        // Create a unique identifier based on key attributes
+        const identifier = [
+          person.gender || 'unknown',
+          person.age_group || 'unknown',
+          person.clothing_top || 'unknown',
+          person.clothing_top_color || 'unknown',
+          person.clothing_bottom || 'unknown',
+          person.clothing_bottom_color || 'unknown',
+          person.hair_color || 'unknown'
+        ].join('|');
+        
+        // Only add if we haven't seen this identifier before
+        if (!seenIdentifiers.has(identifier)) {
+          seenIdentifiers.add(identifier);
+          uniqueResults.push(person);
         }
       }
+      
+      setSearchResults(uniqueResults);
     } catch (error) {
-      console.error("Search error:", error)
-      setError('Failed to search. Please try again.')
-      setSearchResults([])
+      console.error('Error searching people:', error);
+      setSearchMessage('Error searching people. Please try again.');
+      setSearchResults([]);
     } finally {
-      setIsLoading(false)
+      setSearching(false);
     }
-  }
+  };
 
   // Handle chat
   const handleChat = async () => {
@@ -738,7 +824,38 @@ export default function RightSidebar() {
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-white">Person {index + 1}</span>
-                    <span className="text-xs text-gray-400">{person.timestamp}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-400">{person.timestamp}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs text-green-400 hover:text-green-300"
+                        onClick={async (e) => {
+                          e.stopPropagation(); // Prevent triggering the parent onClick
+                          try {
+                            const result = await addPersonToDatabase(person);
+                            
+                            if (result.duplicate) {
+                              alert('This person is already in the database!');
+                            } else {
+                              alert('Person added to database!');
+                            }
+                            
+                            // Refresh the database display
+                            // @ts-ignore
+                            if (window.refreshDatabase) {
+                              // @ts-ignore
+                              window.refreshDatabase();
+                            }
+                          } catch (error) {
+                            console.error('Error adding person to database:', error);
+                            alert('Error adding person to database.');
+                          }
+                        }}
+                      >
+                        Add to Database
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Display cropped image if available */}
@@ -776,6 +893,24 @@ export default function RightSidebar() {
                         )}
                         {person.raw_data.facial_features && (
                           <p><span className="text-gray-400">Facial Features:</span> {person.raw_data.facial_features}</p>
+                        )}
+                        {person.raw_data.beard_length && (
+                          <p><span className="text-gray-400">Beard Length:</span> {person.raw_data.beard_length}</p>
+                        )}
+                        {person.raw_data.beard_style && (
+                          <p><span className="text-gray-400">Beard Style:</span> {person.raw_data.beard_style}</p>
+                        )}
+                        {person.raw_data.beard_color && (
+                          <p><span className="text-gray-400">Beard Color:</span> {person.raw_data.beard_color}</p>
+                        )}
+                        {person.raw_data.child_context && (
+                          <p><span className="text-gray-400">Child Context:</span> {person.raw_data.child_context}</p>
+                        )}
+                        {person.raw_data.height_estimate && (
+                          <p><span className="text-gray-400">Height:</span> {person.raw_data.height_estimate}</p>
+                        )}
+                        {person.raw_data.build_type && (
+                          <p><span className="text-gray-400">Build:</span> {person.raw_data.build_type}</p>
                         )}
                         {person.raw_data.clothing_top && (
                           <p><span className="text-gray-400">Top:</span> {person.raw_data.clothing_top}</p>
@@ -824,26 +959,9 @@ export default function RightSidebar() {
       {/* Search Section - Only show when a camera is selected */}
       {selectedCamera && (
         <div className="p-4 border-b border-gray-800">
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Search</h2>
-          </div>
+         
           <div className="flex space-x-2 mb-4">
-            <Input
-              placeholder="Search for people..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white"
-            />
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleSearch}
-              disabled={!searchQuery.trim() || isLoading}
-              className="text-gray-400 hover:text-white"
-            >
-              <Search className="h-4 w-4" />
-            </Button>
+           
           </div>
           
           {isLoading ? (
@@ -879,11 +997,40 @@ export default function RightSidebar() {
                     <span className="text-xs text-gray-400">{result.timestamp}</span>
                   </div>
                   <div className="text-xs text-gray-300 space-y-1">
-                    <p><span className="text-blue-400">Appearance:</span> {result.appearance}</p>
-                    <p><span className="text-blue-400">Clothing:</span> {result.clothing}</p>
-                    <p><span className="text-blue-400">Accessories:</span> {result.accessories}</p>
-                    <p><span className="text-blue-400">Actions:</span> {result.actions}</p>
-                    <p><span className="text-blue-400">Location:</span> {result.location}</p>
+                    {result.gender && (
+                      <p><span className="text-blue-400">Gender:</span> {result.gender}</p>
+                    )}
+                    {result.age_group && (
+                      <p><span className="text-blue-400">Age Group:</span> {result.age_group}</p>
+                    )}
+                    {result.hair_color && (
+                      <p><span className="text-blue-400">Hair Color:</span> {result.hair_color}</p>
+                    )}
+                    {result.clothing_top && (
+                      <p><span className="text-blue-400">Top:</span> {result.clothing_top}
+                        {result.clothing_top_color && ` (${result.clothing_top_color})`}
+                      </p>
+                    )}
+                    {result.clothing_bottom && (
+                      <p><span className="text-blue-400">Bottom:</span> {result.clothing_bottom}
+                        {result.clothing_bottom_color && ` (${result.clothing_bottom_color})`}
+                      </p>
+                    )}
+                    {result.raw_data?.accessories && (
+                      <p><span className="text-blue-400">Accessories:</span> {result.raw_data.accessories}</p>
+                    )}
+                    {result.raw_data?.pose && (
+                      <p><span className="text-blue-400">Pose:</span> {result.raw_data.pose}</p>
+                    )}
+                    {result.raw_data?.location_context && (
+                      <p><span className="text-blue-400">Location:</span> {result.raw_data.location_context}</p>
+                    )}
+                    {result.camera_id && (
+                      <p><span className="text-blue-400">Camera:</span> {result.camera_id}</p>
+                    )}
+                    {result.similarity && (
+                      <p><span className="text-blue-400">Similarity:</span> {result.similarity.toFixed(1)}%</p>
+                    )}
                   </div>
                   {/* Add image display */}
                   {result.image && (
@@ -904,7 +1051,7 @@ export default function RightSidebar() {
 
       {/* JSON View Modal */}
       {showJsonView && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-xl font-semibold text-white">Details</h3>

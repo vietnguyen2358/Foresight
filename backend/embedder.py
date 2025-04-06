@@ -42,6 +42,22 @@ Describe this person in structured JSON format with the following keys:
 - bag_color (primary color of bag)
 - pose (standing, sitting, walking, etc.)
 - location_context (indoor, outdoor, etc.)
+- child_context (with_parent, with_guardian, alone, playing, etc.)
+- height_estimate (short, average, tall - relative to typical adult height)
+- build_type (slim, average, athletic, etc.)
+
+For children, pay special attention to:
+1. Age-appropriate clothing and accessories
+2. Presence of parents or guardians
+3. Activities they are engaged in
+4. Their relative size compared to adults
+5. Child-specific items (toys, school bags, etc.)
+
+For facial hair, be specific about:
+1. Type (beard, mustache, goatee, stubble)
+2. Length and style
+3. Color (if different from head hair)
+4. Grooming state (well-groomed, unkempt, etc.)
 
 Respond with ONLY a valid JSON object, nothing else. Include only the attributes you can confidently identify.
 """

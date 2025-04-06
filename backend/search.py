@@ -78,25 +78,45 @@ def query_to_structured_json(query: str) -> Dict[str, Any]:
                     query = f"Find a {gender} {query}"
                 break
         
-        # Handle "wearing" queries
-        if "wearing" in query:
-            # Extract color after "wearing"
-            parts = query.split("wearing")
-            if len(parts) > 1:
-                color_part = parts[1].strip()
-                # Check if it's a color query
-                if any(color in color_part for color in ["grey", "gray", "black", "white", "red", "blue", "green", "yellow", "brown"]):
-                    # Create a structured query focusing on the clothing color
-                    query = f"Find a person with {color_part} clothing"
-        
-        # Handle "with" queries for colors
-        if "with" in query and any(color in query for color in ["grey", "gray", "black", "white", "red", "blue", "green", "yellow", "brown"]):
-            # Extract color after "with"
+        # Handle "with" queries for hair color
+        hair_colors = ['blonde', 'blond', 'black', 'brown', 'red', 'white', 'gray', 'grey']
+        if "with" in query:
             parts = query.split("with")
             if len(parts) > 1:
-                color_part = parts[1].strip()
-                # Create a structured query focusing on the clothing color
-                query = f"Find a person with {color_part} clothing"
+                hair_part = parts[1].strip()
+                for color in hair_colors:
+                    if color in hair_part:
+                        # Create a structured query focusing on the hair color
+                        query = f"Find a person with {color} hair {parts[0].strip()}"
+                        break
+        
+        # Handle "wearing" queries
+        if "wearing" in query:
+            # Extract color and clothing type after "wearing"
+            parts = query.split("wearing")
+            if len(parts) > 1:
+                clothing_part = parts[1].strip()
+                # Check if it's a color query
+                colors = ["grey", "gray", "black", "white", "red", "blue", "green", "yellow", "brown", "light blue", "dark blue"]
+                clothing_types = ["hoodie", "shirt", "t-shirt", "jacket", "coat", "sweater"]
+                
+                # Extract color and clothing type
+                found_color = None
+                found_type = None
+                
+                for color in colors:
+                    if color in clothing_part:
+                        found_color = color
+                        break
+                
+                for clothing_type in clothing_types:
+                    if clothing_type in clothing_part:
+                        found_type = clothing_type
+                        break
+                
+                if found_color and found_type:
+                    # Create a structured query focusing on the clothing
+                    query = f"Find a person wearing a {found_color} {found_type} {parts[0].strip()}"
         
         # Format the prompt with the processed query
         prompt = QUERY_PROMPT_TEMPLATE.format(query)
@@ -131,34 +151,41 @@ def query_to_structured_json(query: str) -> Dict[str, Any]:
         return {}
 
 def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]) -> float:
-    """Calculate similarity between query and person descriptions."""
+    """Calculate similarity between query and person description."""
     try:
         # Define weights for different attributes
         weights = {
-            'gender': 2.0,  # Increased weight for gender to ensure strict matching
-            'age_group': 1.2,
-            'hair_color': 1.2,
-            'hair_style': 1.0,
-            'facial_features': 1.5,
-            'clothing_top': 1.2,
-            'clothing_top_color': 2.0,  # Increased weight for clothing color
-            'clothing_bottom': 1.0,
-            'clothing_bottom_color': 1.5,  # Increased weight for bottom color
+            'gender': 3.0,  # Increased weight for gender
+            'age_group': 2.0,  # Increased weight for age group
+            'child_context': 1.5,  # New weight for child context
+            'height_estimate': 1.0,  # New weight for height
+            'build_type': 1.0,  # New weight for build
+            'ethnicity': 1.0,
+            'skin_tone': 1.0,
+            'hair_style': 1.2,
+            'hair_color': 2.5,  # Increased weight for hair color
+            'facial_features': 2.0,  # Increased weight for facial features
+            'clothing_top': 2.0,  # Increased weight for clothing type
+            'clothing_top_color': 2.5,  # Increased weight for clothing color
+            'clothing_bottom': 1.5,
+            'clothing_bottom_color': 1.5,
+            'footwear': 1.0,
             'accessories': 1.0,
-            'location_context': 0.5
+            'pose': 1.0,
+            'location_context': 1.0
         }
         
         # Color variations mapping
         color_variations = {
-            'grey': ['gray', 'grey'],
-            'gray': ['grey', 'gray'],
-            'black': ['black', 'dark'],
-            'white': ['white', 'light'],
-            'red': ['red', 'maroon'],
-            'blue': ['blue', 'navy'],
-            'green': ['green', 'olive'],
-            'yellow': ['yellow', 'gold'],
-            'brown': ['brown', 'tan']
+            'grey': ['gray', 'grey', 'silver'],
+            'gray': ['grey', 'gray', 'silver'],
+            'black': ['black', 'dark', 'navy'],
+            'white': ['white', 'light', 'cream'],
+            'red': ['red', 'maroon', 'burgundy'],
+            'blue': ['blue', 'navy', 'light blue', 'sky blue', 'azure'],
+            'green': ['green', 'olive', 'emerald'],
+            'yellow': ['yellow', 'gold', 'amber'],
+            'brown': ['brown', 'tan', 'beige']
         }
         
         # Gender variations mapping
@@ -166,6 +193,28 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
             'female': ['female', 'woman', 'girl', 'lady', 'women', 'girls', 'ladies'],
             'male': ['male', 'man', 'boy', 'guy', 'men', 'boys', 'guys'],
             'other': ['other', 'non-binary', 'nonbinary', 'transgender', 'trans']
+        }
+        
+        # Child context variations mapping
+        child_context_variations = {
+            'with_parent': ['with parent', 'with parents', 'with mother', 'with father', 'with guardian', 'with family'],
+            'with_guardian': ['with guardian', 'with caregiver', 'with adult', 'with supervisor'],
+            'alone': ['alone', 'by themselves', 'independent', 'unaccompanied'],
+            'playing': ['playing', 'engaged in play', 'playing with toys', 'playing with others'],
+            'learning': ['learning', 'studying', 'reading', 'in class', 'at school'],
+            'with_peers': ['with peers', 'with friends', 'with other children', 'in group']
+        }
+        
+        # Facial hair variations mapping
+        facial_hair_variations = {
+            'beard': ['beard', 'bearded', 'facial hair', 'facial-hair', 'full beard'],
+            'mustache': ['mustache', 'moustache', 'stache', 'mustachio'],
+            'goatee': ['goatee', 'goatee beard', 'chin beard'],
+            'stubble': ['stubble', '5 o\'clock shadow', 'facial stubble', 'light beard'],
+            'clean-shaven': ['clean-shaven', 'clean shaven', 'no facial hair', 'no beard'],
+            'beard_length': ['short beard', 'medium beard', 'long beard', 'full beard'],
+            'beard_style': ['trimmed', 'neat', 'well-groomed', 'unkempt', 'messy'],
+            'beard_color': ['black beard', 'brown beard', 'gray beard', 'white beard', 'colored beard']
         }
         
         weighted_matches = 0
@@ -198,69 +247,128 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
                             if base_gender in person_val:
                                 person_genders.update(variations)
                         
-                        # Check for intersection
-                        if query_genders & person_genders:
+                        # Check for matches including variations
+                        if query_genders & person_genders:  # If there's any intersection
                             weighted_matches += weight
                             logger.info(f"Match on gender with variations: {query_genders} ~ {person_genders}")
                         else:
-                            # No match for gender - this is critical, so we don't add partial matches
                             logger.info(f"No match on gender: {query_val} != {person_val}")
-                            # For gender, we want to heavily penalize non-matches
-                            # This ensures that if someone searches for "female", they only get female results
-                            return 0.0  # Return 0 similarity if gender doesn't match
+                            # Return 0 similarity if gender doesn't match (strict matching)
+                            return 0
+                
+                # Special handling for hair color
+                elif key == 'hair_color':
+                    # Check for exact match first
+                    if query_val == person_val:
+                        weighted_matches += weight
+                        logger.info(f"Exact match on hair color: {query_val} = {person_val}")
+                    else:
+                        # Check for variations
+                        query_colors = set([query_val])
+                        person_colors = set([person_val])
+                        
+                        # Add variations
+                        for base_color, variations in color_variations.items():
+                            if base_color in query_val:
+                                query_colors.update(variations)
+                            if base_color in person_val:
+                                person_colors.update(variations)
+                        
+                        # Check for matches including variations
+                        if query_colors & person_colors:  # If there's any intersection
+                            weighted_matches += weight
+                            logger.info(f"Match on hair color with variations: {query_colors} ~ {person_colors}")
+                        else:
+                            # Check for partial matches
+                            for query_color in query_colors:
+                                for person_color in person_colors:
+                                    if query_color in person_color or person_color in query_color:
+                                        weighted_matches += weight * 0.7
+                                        logger.info(f"Partial match on hair color: {query_color} ~ {person_color}")
+                                        break
+                
+                # Special handling for facial features (including facial hair)
+                elif key == 'facial_features':
+                    # Check for exact match first
+                    if query_val == person_val:
+                        weighted_matches += weight
+                        logger.info(f"Exact match on facial features: {query_val} = {person_val}")
+                    else:
+                        # Check for variations
+                        query_features = set([query_val])
+                        person_features = set([person_val])
+                        
+                        # Add facial hair variations
+                        for base_feature, variations in facial_hair_variations.items():
+                            if base_feature in query_val:
+                                query_features.update(variations)
+                            if base_feature in person_val:
+                                person_features.update(variations)
+                        
+                        # Check for matches including variations
+                        if query_features & person_features:  # If there's any intersection
+                            weighted_matches += weight
+                            logger.info(f"Match on facial features with variations: {query_features} ~ {person_features}")
+                        else:
+                            # Check for partial matches
+                            for query_feature in query_features:
+                                for person_feature in person_features:
+                                    if query_feature in person_feature or person_feature in query_feature:
+                                        weighted_matches += weight * 0.8
+                                        logger.info(f"Partial match on facial features: {query_feature} ~ {person_feature}")
+                                        break
                 
                 # Special handling for clothing colors
                 elif key in ['clothing_top_color', 'clothing_bottom_color']:
-                    # Check for color variations
-                    query_colors = set()
-                    person_colors = set()
-                    
-                    # Add base colors
-                    query_colors.add(query_val)
-                    person_colors.add(person_val)
-                    
-                    # Add variations
-                    for base_color, variations in color_variations.items():
-                        if base_color in query_val:
-                            query_colors.update(variations)
-                        if base_color in person_val:
-                            person_colors.update(variations)
-                    
-                    # Check for matches including variations
-                    if query_colors & person_colors:  # If there's any intersection
+                    # Check for exact match first
+                    if query_val == person_val:
                         weighted_matches += weight
-                        logger.info(f"Match on {key} with variations: {query_colors} ~ {person_colors}")
+                        logger.info(f"Exact match on {key}: {query_val} = {person_val}")
+                    else:
+                        # Check for variations
+                        query_colors = set([query_val])
+                        person_colors = set([person_val])
+                        
+                        # Add variations
+                        for base_color, variations in color_variations.items():
+                            if base_color in query_val:
+                                query_colors.update(variations)
+                            if base_color in person_val:
+                                person_colors.update(variations)
+                        
+                        # Check for matches including variations
+                        if query_colors & person_colors:  # If there's any intersection
+                            weighted_matches += weight
+                            logger.info(f"Match on {key} with variations: {query_colors} ~ {person_colors}")
+                        else:
+                            # Check for partial matches
+                            for query_color in query_colors:
+                                for person_color in person_colors:
+                                    if query_color in person_color or person_color in query_color:
+                                        weighted_matches += weight * 0.7
+                                        logger.info(f"Partial match on {key}: {query_color} ~ {person_color}")
+                                        break
+                
+                # Special handling for clothing type
+                elif key in ['clothing_top', 'clothing_bottom']:
+                    # Check for exact match first
+                    if query_val == person_val:
+                        weighted_matches += weight
+                        logger.info(f"Exact match on {key}: {query_val} = {person_val}")
                     else:
                         # Check for partial matches
-                        for query_color in query_colors:
-                            for person_color in person_colors:
-                                if query_color in person_color or person_color in query_color:
-                                    weighted_matches += weight * 0.7
-                                    logger.info(f"Partial match on {key}: {query_color} ~ {person_color}")
-                                    break
-                
-                # Special handling for facial features
-                elif key == 'facial_features':
-                    # Split features into individual terms
-                    query_features = set(f.strip() for f in query_val.replace(' and ', ',').split(','))
-                    person_features = set(f.strip() for f in person_val.replace(' and ', ',').split(','))
-                    
-                    # Check for partial matches
-                    has_match = False
-                    for query_feature in query_features:
-                        for person_feature in person_features:
-                            if query_feature in person_feature or person_feature in query_feature:
-                                has_match = True
-                                break
-                        if has_match:
-                            break
-                    
-                    if has_match:
-                        weighted_matches += weight
-                        logger.info(f"Match on facial features: {query_features} ~ {person_features}")
-                    else:
-                        weighted_matches += weight * 0.3
-                        logger.info(f"Partial match on facial features: {query_features} ~ {person_features}")
+                        query_terms = set(query_val.split())
+                        person_terms = set(person_val.split())
+                        
+                        # Check for intersection
+                        if query_terms & person_terms:
+                            weighted_matches += weight * 0.8
+                            logger.info(f"Partial match on {key}: {query_terms} ~ {person_terms}")
+                        else:
+                            # Check for substring matches
+                            if query_val in person_val or person_val in query_val:
+                                weighted_matches += weight * 0.6
+                                logger.info(f"Substring match on {key}: {query_val} ~ {person_val}")
                 
                 # Check for partial matches with more lenient comparison for other attributes
                 elif (query_val in person_val or 
@@ -268,30 +376,6 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
                       any(word in person_val.split() for word in query_val.split())):
                     weighted_matches += weight
                     logger.info(f"Match on {key}: {query_val} ~ {person_val}")
-                elif key in ['clothing_top', 'clothing_bottom']:
-                    # Special handling for clothing - check color and type separately
-                    color_key = f"{key}_color"
-                    if color_key in query_json and color_key in person_json:
-                        query_color = str(query_json[color_key]).lower()
-                        person_color = str(person_json[color_key]).lower()
-                        
-                        # Check for color variations
-                        query_colors = set([query_color])
-                        person_colors = set([person_color])
-                        for base_color, variations in color_variations.items():
-                            if base_color in query_color:
-                                query_colors.update(variations)
-                            if base_color in person_color:
-                                person_colors.update(variations)
-                        
-                        if query_colors & person_colors:
-                            weighted_matches += weight * 0.7
-                            logger.info(f"Match on {color_key}: {query_colors} ~ {person_colors}")
-                    
-                    # Check clothing type
-                    if query_val in person_val or person_val in query_val:
-                        weighted_matches += weight * 0.3
-                        logger.info(f"Match on {key}: {query_val} ~ {person_val}")
         
         # Calculate final similarity score (0-1)
         if weighted_total == 0:

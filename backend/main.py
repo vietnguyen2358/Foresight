@@ -35,6 +35,11 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Reset database on startup
+logger.info("Resetting database on startup...")
+reset_database()
+logger.info("Database reset complete")
+
 # Configure Gemini
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
@@ -67,6 +72,7 @@ class FrameResponse(BaseModel):
 
 class FrameRequest(BaseModel):
     frame_data: str
+    camera_id: str = Field(default="SF-MKT-001")
 
 class SearchRequest(BaseModel):
     description: str
@@ -105,13 +111,48 @@ async def chat(request: ChatRequest):
             "facial_features": {},
             "clothing_top": {},
             "clothing_top_color": {},
-            "location_context": {}
+            "location_context": {},
+            "cameras": {}  # Add camera statistics
         }
+        
+        # Track camera details
+        camera_details = {}
         
         for person in db["people"]:
             desc = person["description"]
+            # Track camera statistics
+            camera_id = person.get("metadata", {}).get("camera_id", "unknown")
+            stats["cameras"][camera_id] = stats["cameras"].get(camera_id, 0) + 1
+            
+            # Track camera details
+            if camera_id not in camera_details:
+                camera_details[camera_id] = {
+                    "count": 0,
+                    "last_seen": person.get("metadata", {}).get("timestamp", "unknown"),
+                    "gender_dist": {},
+                    "age_dist": {},
+                    "clothing_dist": {}
+                }
+            
+            camera_details[camera_id]["count"] += 1
+            
+            # Track gender distribution per camera
+            if "gender" in desc:
+                gender = desc["gender"]
+                camera_details[camera_id]["gender_dist"][gender] = camera_details[camera_id]["gender_dist"].get(gender, 0) + 1
+            
+            # Track age distribution per camera
+            if "age_group" in desc:
+                age = desc["age_group"]
+                camera_details[camera_id]["age_dist"][age] = camera_details[camera_id]["age_dist"].get(age, 0) + 1
+            
+            # Track clothing distribution per camera
+            if "clothing_top" in desc:
+                clothing = desc["clothing_top"]
+                camera_details[camera_id]["clothing_dist"][clothing] = camera_details[camera_id]["clothing_dist"].get(clothing, 0) + 1
+            
             for key in stats:
-                if key in desc:
+                if key != "cameras" and key in desc:
                     value = desc[key]
                     if isinstance(value, str):
                         values = [v.strip() for v in value.split(",")]
@@ -131,12 +172,35 @@ Dataset Statistics:
 - Clothing (tops): {', '.join(f'{k}: {v}' for k, v in stats['clothing_top'].items())}
 - Top colors: {', '.join(f'{k}: {v}' for k, v in stats['clothing_top_color'].items())}
 - Locations: {', '.join(f'{k}: {v}' for k, v in stats['location_context'].items())}
+- Camera distribution: {', '.join(f'{k}: {v} detections' for k, v in stats['cameras'].items())}
 
+Camera Details:
+"""
+        
+        # Add detailed camera information
+        for camera_id, details in camera_details.items():
+            system_prompt += f"""
+Camera {camera_id}:
+- Total detections: {details['count']}
+- Last active: {details['last_seen']}
+- Gender distribution: {', '.join(f'{k}: {v}' for k, v in details['gender_dist'].items())}
+- Age distribution: {', '.join(f'{k}: {v}' for k, v in details['age_dist'].items())}
+- Clothing distribution: {', '.join(f'{k}: {v}' for k, v in details['clothing_dist'].items())}
+"""
+        
+        system_prompt += """
 You can help users:
 1. Understand what's in the dataset
 2. Search for specific people using natural language
 3. Analyze patterns and statistics
 4. Answer questions about the data
+5. Provide information about specific cameras and their detections
+
+If the user asks about a specific camera or camera ID, you can tell them:
+- How many detections that camera has made
+- What types of people it has detected
+- When it was last active
+- The gender, age, and clothing distribution of people detected by that camera
 
 If the user wants to search for someone, extract the search criteria and use it to find matches."""
         
@@ -393,13 +457,13 @@ async def process_frame(request: FrameRequest):
             logger.info(f"Processing person detection with confidence {conf:.2f} at coordinates [{x1}, {y1}, {x2}, {y2}]")
             logger.info(f"Detection size: {x2-x1}x{y2-y1} pixels")
             
-            # Add to detections list
+            # Add to detections list with camera_id from request
             detections.append({
                 "type": "person",
                 "confidence": conf,
                 "bbox": [float(x1), float(y1), float(x2), float(y2)],
                 "timestamp": datetime.now().isoformat(),
-                "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
+                "camera_id": request.camera_id
             })
             
             # Crop person if the crop is valid
@@ -430,14 +494,14 @@ async def process_frame(request: FrameRequest):
                         person_description = describe_person(person_pil)
                         logger.info(f"Generated description for person: {person_description}")
                         
-                        # Add to database with image and camera_id
+                        # Add to database with image and camera_id from request
                         add_person(
                             description_json=person_description,
                             metadata={
                                 "track_id": detection_id,
                                 "frame": -1,  # We don't have frame number in this context
                                 "image": person_pil,
-                                "camera_id": "SF-MKT-001",
+                                "camera_id": request.camera_id,
                                 "confidence": conf,
                                 "bbox": [float(x1), float(y1), float(x2), float(y2)]
                             }
@@ -514,4 +578,4 @@ async def health_check():
 
 if __name__ == "__main__":
     logger.info("Starting server...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
