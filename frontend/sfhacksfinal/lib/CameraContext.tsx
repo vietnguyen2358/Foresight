@@ -8,6 +8,8 @@ export interface Camera {
   lat: number
   lng: number
   status: string
+  feed_url?: string
+  image_url?: string
 }
 
 // Mock camera data with real lat/lng coordinates for San Francisco
@@ -18,6 +20,8 @@ export const cameras: Camera[] = [
     lat: 37.783,
     lng: -122.407,
     status: "active",
+    feed_url: "http://localhost:8000/camera/SF-MKT-001/feed",
+    image_url: "http://localhost:8000/camera/SF-MKT-001/image"
   },
   {
     id: "SF-EMB-002",
@@ -25,6 +29,8 @@ export const cameras: Camera[] = [
     lat: 37.795,
     lng: -122.394,
     status: "active",
+    feed_url: "http://localhost:8000/camera/SF-EMB-002/feed",
+    image_url: "http://localhost:8000/camera/SF-EMB-002/image"
   },
   {
     id: "SF-UNS-003",
@@ -32,6 +38,8 @@ export const cameras: Camera[] = [
     lat: 37.788,
     lng: -122.407,
     status: "active",
+    feed_url: "http://localhost:8000/camera/SF-UNS-003/feed",
+    image_url: "http://localhost:8000/camera/SF-UNS-003/image"
   },
   {
     id: "SF-FER-004",
@@ -39,6 +47,8 @@ export const cameras: Camera[] = [
     lat: 37.795,
     lng: -122.393,
     status: "active",
+    feed_url: "http://localhost:8000/camera/SF-FER-004/feed",
+    image_url: "http://localhost:8000/camera/SF-FER-004/image"
   },
   {
     id: "SF-CHI-005",
@@ -46,6 +56,8 @@ export const cameras: Camera[] = [
     lat: 37.79,
     lng: -122.405,
     status: "active",
+    feed_url: "http://localhost:8000/camera/SF-CHI-005/feed",
+    image_url: "http://localhost:8000/camera/SF-CHI-005/image"
   },
   {
     id: "SF-MIS-006",

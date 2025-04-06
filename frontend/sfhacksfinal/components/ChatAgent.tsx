@@ -200,54 +200,52 @@ export default function ChatAgent() {
         value.trim() !== '' && 
         !['id', 'timestamp'].includes(key)
       )
-      .map(([key, value]) => ({ key, value }));
-    
-    // Get image path if available
-    const imagePath = metadata.image_path ? `${API_BASE_URL}/${metadata.image_path}` : null;
+      .map(([key, value]) => `${key}:${value}`);
     
     return (
-      <Card key={index} className="p-4 mb-4 border border-primary/20">
+      <Card key={index} className="p-4 bg-gray-800/50">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-semibold">Match #{index + 1}</h3>
-          <Badge variant={similarity > 80 ? "default" : similarity > 60 ? "secondary" : "outline"}>
-            {similarity.toFixed(1)}% match
-          </Badge>
+          <div className="flex items-center">
+            <User className="h-4 w-4 text-blue-400 mr-2" />
+            <span className="text-sm font-medium text-white">
+              Match {index + 1} ({similarity.toFixed(1)}% match)
+            </span>
+          </div>
+          {matchCamera && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs text-blue-400 hover:text-blue-300"
+              onClick={() => setSelectedCamera(matchCamera)}
+            >
+              <CameraIcon className="h-3 w-3 mr-1" />
+              View Camera
+            </Button>
+          )}
         </div>
         
-        {imagePath && (
-          <div className="mb-3 flex justify-center">
-            <div className="relative w-48 h-48 overflow-hidden rounded-md border border-border">
-              <img 
-                src={imagePath} 
-                alt={`Person match #${index + 1}`} 
-                className="object-cover w-full h-full"
-                onError={(e) => {
-                  // Hide the image if it fails to load
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
+        <div className="grid grid-cols-2 gap-2 text-xs text-gray-300 mb-3">
+          {metadata.camera_id && (
+            <div className="flex items-center">
+              <CameraIcon className="h-3 w-3 mr-1 text-gray-400" />
+              <span>{metadata.camera_id}</span>
             </div>
-          </div>
-        )}
+          )}
+          {metadata.timestamp && (
+            <div className="flex items-center">
+              <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+              <span>{new Date(metadata.timestamp).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
         
-        {uniqueAttributes.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {uniqueAttributes.map((attr, i) => (
-              <Badge key={i} variant="outline" className="text-xs">
-                {attr.key.replace(/_/g, ' ')}: {attr.value}
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        {matchCamera && (
-          <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
-            <CameraIcon className="h-4 w-4" />
-            <span>Camera: {matchCamera.name}</span>
-            <MapPin className="h-4 w-4 ml-2" />
-            <span>{matchCamera.id}</span>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1 mb-3">
+          {uniqueAttributes.map((attr, i) => (
+            <Badge key={i} variant="outline" className="text-xs">
+              {attr}
+            </Badge>
+          ))}
+        </div>
         
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="description">
@@ -273,7 +271,7 @@ export default function ChatAgent() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full left-sidebar-content">
       <div className="p-2 border-b flex items-center justify-between">
         <h2 className="text-lg font-semibold">Person Search</h2>
         <div className="relative group">
@@ -293,7 +291,31 @@ export default function ChatAgent() {
         </div>
       </div>
       
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={chatContainerRef} 
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        style={{ 
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#4B5563 #1F2937',
+          msOverflowStyle: 'none'
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            width: 6px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #1F2937;
+          }
+          div::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background-color: #6B7280;
+          }
+        `}</style>
+        
         <AnimatePresence>
           {messages.map((message, index) => (
             <motion.div
@@ -304,11 +326,11 @@ export default function ChatAgent() {
               transition={{ duration: 0.2 }}
             >
               <Card className={`p-4 ${
-                message.role === "user" ? "bg-primary/10" : "bg-secondary/10"
+                message.role === "user" ? "bg-blue-600/60" : "bg-secondary/10"
               }`}>
                 <div className="flex items-start gap-2">
                   {message.role === "user" ? (
-                    <User className="h-5 w-5 mt-1" />
+                    <User className="h-5 w-5 mt-1 text-white-500" />
                   ) : (
                     <Bot className="h-5 w-5 mt-1" />
                   )}
@@ -336,6 +358,7 @@ export default function ChatAgent() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe the person you're looking for in detail..."
             disabled={isLoading}
+            className="border-blue-500 focus:border-blue-600 focus:ring-blue-500"
           />
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (

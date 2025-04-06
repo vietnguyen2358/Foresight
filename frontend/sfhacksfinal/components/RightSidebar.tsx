@@ -74,6 +74,13 @@ interface ExtendedSearchResult {
   message?: string;
 }
 
+type Camera = {
+  id: string;
+  name: string;
+  feed_url?: string;
+  image_url?: string;
+};
+
 export default function RightSidebar() {
   const { selectedCamera, setSelectedCamera } = useCamera()
   const [transcription, setTranscription] = useState([
@@ -106,6 +113,7 @@ export default function RightSidebar() {
   const [searching, setSearching] = useState(false)
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [searchMessage, setSearchMessage] = useState<string>('')
+  const sidebarRef = useRef<HTMLDivElement>(null)
 
   // Add a useEffect hook to check server health and clear detections on mount
   useEffect(() => {
@@ -132,15 +140,44 @@ export default function RightSidebar() {
     checkHealthAndClear();
   }, []); // Empty dependency array means this runs once on mount
 
+  // Reset detections and descriptions when camera changes
+  useEffect(() => {
+    if (selectedCamera) {
+      console.log('Camera selected:', selectedCamera);
+      
+      // Clear previous detections and descriptions
+      setDetections([]);
+      setPersonDescriptions([]);
+      setSearchResults([]);
+      setSelectedDetection(null);
+      setSelectedPerson(null);
+      setShowJsonView(false);
+      
+      // Set the camera feed based on the selected camera
+      if (selectedCamera.feed_url) {
+        setCameraFeed(selectedCamera.feed_url);
+      } else if (selectedCamera.image_url) {
+        setCameraImage(selectedCamera.image_url);
+      }
+      
+      // Reset error state
+      setError(null);
+    }
+  }, [selectedCamera]);
+
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
     if (selectedCamera) {
       console.log("Selected camera changed in RightSidebar:", selectedCamera);
       
-      // Clear detections and descriptions when camera changes
+      // Clear all state when camera changes
       setDetections([]);
       setPersonDescriptions([]);
       setLastProcessedFrame(null);
+      setSearchResults([]);
+      setSelectedDetection(null);
+      setSelectedPerson(null);
+      setShowJsonView(false);
       
       // Clear any existing intervals
       if (frameIntervalRef.current) {
@@ -175,6 +212,9 @@ export default function RightSidebar() {
         setIsVideoPlaying(false);
         setCameraFeed(null);
       }
+      
+      // Reset error state
+      setError(null);
       
       // Start a new interval to process frames
       frameIntervalRef.current = setInterval(async () => {
@@ -672,7 +712,31 @@ export default function RightSidebar() {
   }, [personDescriptions]);
 
   return (
-    <div className="w-80 bg-gray-900 border-l border-gray-800 h-screen overflow-y-auto">
+    <div 
+      ref={sidebarRef}
+      className="w-80 bg-gray-900 border-l border-gray-800 h-screen overflow-y-auto right-sidebar-content"
+      style={{ 
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#4B5563 #1F2937',
+        msOverflowStyle: 'none'
+      }}
+    >
+      <style jsx>{`
+        div::-webkit-scrollbar {
+          width: 6px;
+        }
+        div::-webkit-scrollbar-track {
+          background: #1F2937;
+        }
+        div::-webkit-scrollbar-thumb {
+          background-color: #4B5563;
+          border-radius: 3px;
+        }
+        div::-webkit-scrollbar-thumb:hover {
+          background-color: #6B7280;
+        }
+      `}</style>
+      
       {/* Phone Call Transcription */}
       <div className="p-4 border-b border-gray-800">
         <div className="flex items-center space-x-2 mb-4">
@@ -715,11 +779,14 @@ export default function RightSidebar() {
           <div className="space-y-4">
             {cameraFeed ? (
               // Use VideoPlayer for cameras with video feeds
-              <VideoPlayer 
-                videoSrc={cameraFeed}
-                onFrameExtracted={handleFrameExtracted}
-                isProcessing={isProcessing}
-              />
+              <div className="relative">
+                <VideoPlayer 
+                  videoSrc={cameraFeed}
+                  onFrameExtracted={handleFrameExtracted}
+                  isProcessing={isProcessing}
+                />
+                
+              </div>
             ) : cameraImage ? (
               // Use image for other cameras
               <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
@@ -1026,22 +1093,12 @@ export default function RightSidebar() {
                       <p><span className="text-blue-400">Location:</span> {result.raw_data.location_context}</p>
                     )}
                     {result.camera_id && (
-                      <p><span className="text-blue-400">Camera:</span> {result.camera_id}</p>
+                      <p><span className="text-blue-400">Camera:</span> {result.camera_id || selectedCamera?.id || 'Unknown'}</p>
                     )}
                     {result.similarity && (
                       <p><span className="text-blue-400">Similarity:</span> {result.similarity.toFixed(1)}%</p>
                     )}
                   </div>
-                  {/* Add image display */}
-                  {result.image && (
-                    <div className="mt-3 rounded overflow-hidden">
-                      <img 
-                        src={`${API_BASE_URL}/${result.image}`}
-                        alt={`Match ${index + 1}`} 
-                        className="w-full h-32 object-cover"
-                      />
-                    </div>
-                  )}
                 </motion.div>
               ))}
             </div>

@@ -13,6 +13,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [useFallback, setUseFallback] = useState(false);
   const FRAME_INTERVAL = 5000; // 5 seconds between frame extractions
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Initialize video player or fallback to image
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
           }
           
           frameIntervalRef.current = setInterval(() => {
-            if (!isProcessing) {
+            if (!isProcessing && !isExtracting) {
               console.log('Extracting frame for AI detection...');
               extractFrame();
             } else {
@@ -114,9 +115,11 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    if (!video || !canvas || isProcessing) return;
+    if (!video || !canvas || isProcessing || isExtracting) return;
     
     try {
+      setIsExtracting(true);
+      
       // Set canvas dimensions to match video's native resolution
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -175,6 +178,8 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
       setError(`Error extracting frame - using image feed instead`);
       setUseFallback(true);
       startFallbackFrameExtraction();
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -185,7 +190,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     
     // Use a small timeout to ensure the video is loaded
     const timeoutId = setTimeout(() => {
-      if (!isProcessing) {
+      if (!isProcessing && !isExtracting) {
         extractFrame();
       }
     }, 1000);
@@ -290,7 +295,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
 
       // Set up interval for continuous frame extraction
       frameIntervalRef.current = setInterval(() => {
-        if (!isProcessing) {
+        if (!isProcessing && !isExtracting) {
           console.log('Extracting frame from fallback image for AI detection...');
           const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
           
