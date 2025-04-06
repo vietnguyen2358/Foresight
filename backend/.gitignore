@@ -46,3 +46,6 @@ chroma_storage/
 # Logs
 *.log
 logs/ 
+
+# Transcription
+transcription.txt
