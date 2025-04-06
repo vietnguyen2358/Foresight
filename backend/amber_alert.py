@@ -30,13 +30,18 @@ def load_amber_alerts():
                 data = json.load(f)
                 # Only return data if amber alerts are active
                 if data.get("active", False):
-                    return data.get("alerts", [])
+                    alerts = data.get("alerts", [])
+                    logger.info(f"Loaded {len(alerts)} active amber alerts")
+                    return alerts
                 else:
                     logger.info("Amber alerts are not currently active")
                     return []
         else:
             logger.warning(f"Amber alert file not found at {AMBER_ALERT_FILE}")
             return []
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error in amber alert file: {str(e)}")
+        return []
     except Exception as e:
         logger.error(f"Error loading amber alerts: {str(e)}")
         return []
@@ -47,23 +52,39 @@ def check_amber_alert_match(person_description: Dict[str, Any]) -> Dict[str, Any
     Returns the matching alert if found, otherwise None.
     """
     try:
+        # Ensure person_description is a dictionary
+        if not isinstance(person_description, dict):
+            logger.error(f"Invalid person_description type: {type(person_description)}")
+            return None
+            
         # Load active amber alerts
         active_alerts = load_amber_alerts()
         if not active_alerts:
+            logger.info("No active amber alerts found")
             return None
         
         logger.info(f"Checking amber alert match against {len(active_alerts)} active alerts")
-        logger.info(f"Person description: {person_description}")
+        logger.info(f"Person description keys: {list(person_description.keys())}")
         
         # Calculate match scores for each alert
         matches = []
-        for alert in active_alerts:
-            alert_desc = alert.get("description", {})
-            if not alert_desc:
+        for i, alert in enumerate(active_alerts):
+            if not isinstance(alert, dict):
+                logger.warning(f"Alert {i} is not a dictionary: {type(alert)}")
                 continue
                 
+            alert_desc = alert.get("description", {})
+            if not alert_desc:
+                logger.warning(f"Alert {i} has no description field")
+                continue
+            
+            if not isinstance(alert_desc, dict):
+                logger.warning(f"Alert {i} description is not a dictionary: {type(alert_desc)}")
+                continue
+                
+            logger.info(f"Calculating match score for alert {alert.get('id', f'alert-{i}')}")
             score = calculate_match_score(person_description, alert_desc)
-            logger.info(f"Match score for alert {alert.get('id')}: {score}")
+            logger.info(f"Match score for alert {alert.get('id', f'alert-{i}')}: {score}")
             
             # Consider a match if score is above 0.7 (70%)
             if score >= 0.7:
@@ -75,13 +96,15 @@ def check_amber_alert_match(person_description: Dict[str, Any]) -> Dict[str, Any
         # Return the highest scoring match if any
         if matches:
             matches.sort(key=lambda x: x["score"], reverse=True)
-            logger.info(f"Found amber alert match with score {matches[0]['score']}")
+            best_match = matches[0]
+            logger.info(f"Found amber alert match with score {best_match['score']}")
             return {
                 "match": True,
-                "alert": matches[0]["alert"],
-                "score": matches[0]["score"]
+                "alert": best_match["alert"],
+                "score": best_match["score"]
             }
         
+        logger.info("No amber alert matches found above threshold")
         return None
     except Exception as e:
         logger.error(f"Error checking amber alert match: {str(e)}")
@@ -93,6 +116,11 @@ def calculate_match_score(person_desc: Dict[str, Any], alert_desc: Dict[str, Any
     Returns a value between 0 and 1, where 1 is a perfect match.
     """
     try:
+        # Ensure both inputs are dictionaries
+        if not isinstance(person_desc, dict) or not isinstance(alert_desc, dict):
+            logger.error(f"Invalid input types: person_desc={type(person_desc)}, alert_desc={type(alert_desc)}")
+            return 0
+            
         # Hard-coded special case: if person is male, child, and wearing black top and bottom
         if (person_desc.get("gender", "").lower() == "male" and 
             person_desc.get("age_group", "").lower() == "child" and

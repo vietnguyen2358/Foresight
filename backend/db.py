@@ -26,10 +26,37 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def load_database() -> Dict[str, Any]:
     """Load the database from JSON file."""
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, 'r') as f:
-            return json.load(f)
-    return {"people": []}
+    try:
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE, 'r') as f:
+                try:
+                    data = json.load(f)
+                    
+                    # Validate basic database structure
+                    if not isinstance(data, dict):
+                        logger.error(f"Database is not a dictionary: {type(data)}")
+                        return {"people": []}
+                        
+                    if "people" not in data:
+                        logger.error("Database is missing 'people' key")
+                        return {"people": []}
+                        
+                    if not isinstance(data["people"], list):
+                        logger.error(f"Database 'people' is not a list: {type(data['people'])}")
+                        return {"people": []}
+                    
+                    # Log database load success
+                    logger.info(f"Database loaded successfully with {len(data.get('people', []))} people")
+                    return data
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parsing database JSON: {str(e)}")
+                    return {"people": []}
+        else:
+            logger.warning(f"Database file not found: {DB_FILE}")
+            return {"people": []}
+    except Exception as e:
+        logger.error(f"Error loading database: {str(e)}")
+        return {"people": []}
 
 def save_database(data: Dict[str, Any]):
     """Save the database to JSON file."""

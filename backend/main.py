@@ -221,13 +221,32 @@ If the user wants to search for someone, extract the search criteria and use it 
                 if any(keyword in msg.content.lower() for keyword in ["find", "search", "look for", "where is"]):
                     # Use the search endpoint
                     matches = find_similar_people(msg.content)
-                    if matches:
+                    logger.info(f"Search results: Found {len(matches)} matches")
+                    
+                    if matches and len(matches) > 0:
                         match_desc = "\n\nI found these matches:\n"
                         for i, match in enumerate(matches, 1):
-                            desc = match["description"]
-                            similarity = match["similarity"]
+                            # Verify match is a dictionary
+                            if not isinstance(match, dict):
+                                logger.error(f"Match {i} is not a dictionary: {match}")
+                                continue
+                                
+                            desc = match.get("description", {})
+                            similarity = match.get("similarity", 0)
+                            
+                            # Safety check for description
+                            if not isinstance(desc, dict):
+                                logger.error(f"Description is not a dictionary: {desc}")
+                                continue
+                                
                             match_desc += f"\n{i}. Match ({similarity:.1f}% similarity):\n"
-                            match_desc += "- " + ", ".join(f"{k}: {v}" for k, v in desc.items() if v) + "\n"
+                            # Extract key attributes
+                            match_attrs = []
+                            for key, value in desc.items():
+                                if value and key not in ["id", "timestamp"]:
+                                    match_attrs.append(f"{key}: {value}")
+                            match_desc += "- " + ", ".join(match_attrs) + "\n"
+                        
                         response = chat.send_message(msg.content + match_desc)
                     else:
                         response = chat.send_message(msg.content + "\n\nI couldn't find any matches in the database.")
@@ -339,7 +358,7 @@ async def search_person(request: SearchRequest):
         return {
             "matches": matches,
             "count": len(matches),
-            "rag_response": rag_result["response"]
+            "rag_response": rag_result["response"] if isinstance(rag_result, dict) and "response" in rag_result else "I found some matches for your search."
         }
     except Exception as e:
         logger.error(f"Error in search endpoint: {str(e)}")

@@ -733,8 +733,13 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
     Now defaults to only returning the top 1 match.
     """
     try:
-        logger.info(f"Searching for: {user_description}")
+        logger.info(f"Starting search for: '{user_description}'")
         
+        # Add more comprehensive logging
+        if not user_description or len(user_description.strip()) < 3:
+            logger.warning(f"Search query too short or empty: '{user_description}'")
+            return []
+            
         # Extract critical terms from the query that will require exact matching
         critical_terms = extract_critical_terms(user_description)
         if critical_terms:
@@ -770,13 +775,29 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
         # Convert query to structured JSON
         query_json = query_to_structured_json(user_description)
         if not query_json:
-            logger.error("Could not parse query into structured JSON")
-            return {
-                "matches": [],
-                "count": 0,
-                "message": "Could not understand the query. Please try rephrasing.",
-                "suggestions": ["Try including specific details like gender, clothing colors, or hair style."]
-            }
+            logger.error(f"Could not parse query into structured JSON: '{user_description}'")
+            # Try a simple fallback approach for basic queries
+            basic_query = {}
+            
+            # Check for basic gender terms
+            if any(term in lower_desc for term in ["man", "male", "boy", "guy"]):
+                basic_query["gender"] = "male"
+            elif any(term in lower_desc for term in ["woman", "female", "girl", "lady"]):
+                basic_query["gender"] = "female"
+                
+            # Check for basic color terms
+            for color in color_terms:
+                if color in lower_desc:
+                    if "wearing" in lower_desc or any(term in lower_desc for term in clothing_terms):
+                        basic_query["clothing_top_color"] = color
+                    elif any(term in lower_desc for term in hair_terms):
+                        basic_query["hair_color"] = color
+            
+            if basic_query:
+                logger.info(f"Using basic fallback query: {basic_query}")
+                query_json = basic_query
+            else:
+                return []
 
         # Log the structured query for debugging
         logger.info(f"Structured query: {json.dumps(query_json, indent=2)}")
@@ -785,11 +806,7 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
         db = load_database()
         if not db or "people" not in db:
             logger.error("Database is empty or invalid")
-            return {
-                "matches": [],
-                "count": 0,
-                "message": "No people in database to search against."
-            }
+            return []
         
         logger.info(f"Database loaded with {len(db['people'])} people")
         
@@ -799,6 +816,11 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
             if "description" not in person:
                 logger.warning(f"Person missing description: {person.get('id', 'unknown')}")
                 continue
+            
+            # Log for debugging first few entries    
+            if idx < 3:
+                logger.info(f"Checking person {idx}: {person.get('id', 'unknown')}")
+                logger.info(f"Description: {person['description']}")
                 
             # If critical terms are present, check for exact matches
             if critical_terms:
@@ -807,7 +829,8 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
                 for term, attr in critical_terms.items():
                     if attr not in person["description"] or term not in str(person["description"][attr]).lower():
                         meets_critical_requirements = False
-                        logger.info(f"Person {person.get('id', 'unknown')} missing critical term '{term}' in {attr}")
+                        if idx < 3:  # Only log for first few entries
+                            logger.info(f"Person {person.get('id', 'unknown')} missing critical term '{term}' in {attr}")
                         break
                 
                 # Skip this person if they don't match critical terms
@@ -828,12 +851,11 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
         
         # Add a message if there are critical terms but no matches
         if critical_terms and not similarities:
-            return {
-                "matches": [],
-                "count": 0,
-                "message": f"No exact matches found for critical terms: {', '.join(critical_terms.keys())}",
-                "suggestions": ["Try broadening your search by removing specific requirements."]
-            }
+            logger.info(f"No matches found for critical terms: {critical_terms}")
+            return []
+        
+        # Log how many similarities we found
+        logger.info(f"Found {len(similarities)} potential matches before normalization")
         
         # Normalize similarities for better differentiation
         if similarities:
@@ -862,6 +884,7 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
         
         # Take top k results
         top_results = similarities[:top_k]
+        logger.info(f"Selected top {len(top_results)} results")
         
         # Process results
         matches = []
@@ -869,6 +892,7 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
             try:
                 # Only include results with reasonable similarity
                 if similarity < 0.1:
+                    logger.info(f"Skipping match with similarity below threshold: {similarity}")
                     continue
                     
                 # Convert similarity to percentage (0-100%)
@@ -922,74 +946,30 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
                                     match_highlights.append(f"top color: {person_val}")
                                     break
                 
-                matches.append({
+                match_result = {
                     "description": person["description"],
                     "metadata": person["metadata"],
                     "similarity": similarity_score,
-                    "image_data": image_data,
-                    "highlights": match_highlights[:3],  # Limit to top 3 highlights
-                    "match_details": match_details  # Add detailed matching info
-                })
+                    "highlights": match_highlights[:3]  # Limit to top 3 highlights
+                }
+                
+                # Only add image data if available
+                if image_data:
+                    match_result["image_data"] = image_data
+                
+                matches.append(match_result)
+                logger.info(f"Added match with similarity: {similarity_score}%")
+                
             except Exception as e:
-                logger.error(f"Error processing result: {e}")
+                logger.error(f"Error processing result: {str(e)}")
                 continue
         
-        # Return empty result if no matches
-        if not matches:
-            message = "No matching people found for your query."
-            if critical_terms:
-                message = f"No exact matches found for critical terms: {', '.join(critical_terms.keys())}"
-            
-            return {
-                "matches": [],
-                "count": 0,
-                "message": message,
-                "suggestions": [
-                    "Try being more general in your search.",
-                    "Check if you specified details correctly (like colors, gender, age).",
-                    "Try searching just by clothing or just by physical appearance."
-                ] + suggested_refinements
-            }
-        
-        # Generate RAG response for the query
-        rag_response = None
-        try:
-            rag_result = generate_rag_response(user_description, matches[:1])  # Only use top match for RAG
-            rag_response = rag_result.get("response")
-        except Exception as e:
-            logger.error(f"Error generating RAG response: {e}")
-        
-        # Create helpful suggestions based on the query and results
-        suggestions = []
-        
-        # If query is very general, suggest adding more specific details
-        if len(query_json) <= 2:
-            suggestions.append("Try adding more details like clothing colors, hair style, or accessories.")
-        
-        # Include query refinement suggestions
-        suggestions.extend(suggested_refinements)
-        
-        # Create a message based on whether critical terms were used
-        message = f"Found {len(matches)} potential matches."
-        if critical_terms:
-            message = f"Found {len(matches)} exact matches for critical terms: {', '.join(critical_terms.keys())}"
-        
-        return {
-            "query": user_description,
-            "matches": matches,
-            "count": len(matches),
-            "message": message if matches else "No matches found.",
-            "suggestions": suggestions[:5],  # Limit to top 5 suggestions
-            "rag_response": rag_response
-        }
+        logger.info(f"Returning {len(matches)} final matches")
+        return matches
     except Exception as e:
-        logger.error(f"Error in find_similar_people: {e}")
-        return {
-            "matches": [],
-            "count": 0,
-            "message": f"Search error: {str(e)}",
-            "suggestions": ["Try simplifying your search query."]
-        }
+        logger.error(f"Error in find_similar_people: {str(e)}")
+        # Return an empty list on error
+        return []
 
 def extract_critical_terms(query: str) -> Dict[str, str]:
     """Extract critical terms from a query that must be matched exactly.
@@ -1071,7 +1051,10 @@ def generate_rag_response(user_query: str, matches: List[Dict[str, Any]]) -> Dic
     a more natural language response that explains why these matches were found.
     """
     try:
+        logger.info(f"Generating RAG response for query: '{user_query}' with {len(matches)} matches")
+        
         if not matches:
+            logger.info("No matches found for RAG response")
             return {
                 "response": "I couldn't find any matches for your search. Try using more general terms or fewer specific details.",
                 "matches": []
@@ -1080,9 +1063,25 @@ def generate_rag_response(user_query: str, matches: List[Dict[str, Any]]) -> Dic
         # Format matches for the prompt
         matches_text = ""
         for i, match in enumerate(matches):
+            # Ensure match is a dictionary
+            if not isinstance(match, dict):
+                logger.error(f"Match {i} is not a dictionary: {type(match)}")
+                continue
+                
             desc = match.get("description", {})
+            if not isinstance(desc, dict):
+                logger.error(f"Match description is not a dictionary: {type(desc)}")
+                continue
+                
             metadata = match.get("metadata", {})
+            if not isinstance(metadata, dict):
+                logger.error(f"Match metadata is not a dictionary: {type(metadata)}")
+                metadata = {}
+                
             similarity = match.get("similarity", 0)
+            
+            # Log match details for debugging
+            logger.info(f"Processing match {i+1}: similarity={similarity}, description keys={list(desc.keys())}")
             
             # Format the match as a readable string
             match_text = f"Match {i+1} (Similarity: {similarity:.1f}%):\n"
@@ -1097,9 +1096,11 @@ def generate_rag_response(user_query: str, matches: List[Dict[str, Any]]) -> Dic
             if "hair_color" in desc:
                 match_text += f"- Hair color: {desc['hair_color']}\n"
             if "clothing_top" in desc:
-                match_text += f"- Wearing: {desc.get('clothing_top_color', '')} {desc['clothing_top']}\n"
+                top_color = desc.get("clothing_top_color", "")
+                match_text += f"- Wearing: {top_color} {desc['clothing_top']}\n"
             if "clothing_bottom" in desc:
-                match_text += f"- Bottom: {desc.get('clothing_bottom_color', '')} {desc['clothing_bottom']}\n"
+                bottom_color = desc.get("clothing_bottom_color", "")
+                match_text += f"- Bottom: {bottom_color} {desc['clothing_bottom']}\n"
             if "location_context" in desc:
                 match_text += f"- Location: {desc['location_context']}\n"
             if "camera_id" in metadata:
@@ -1108,6 +1109,8 @@ def generate_rag_response(user_query: str, matches: List[Dict[str, Any]]) -> Dic
                 match_text += f"- Time: {metadata['timestamp']}\n"
             
             matches_text += match_text + "\n"
+        
+        logger.info(f"Formatted matches for RAG: {matches_text[:200]}...")
         
         # Create the RAG prompt
         rag_prompt = f"""
@@ -1127,8 +1130,10 @@ Keep your response concise and focused on helping the user understand the search
 """
         
         # Generate response using Gemini
+        logger.info("Sending prompt to Gemini for RAG response")
         response = model.generate_content(rag_prompt)
         rag_response = response.text
+        logger.info(f"Received RAG response: {rag_response[:100]}...")
         
         # Return both the RAG response and the original matches
         return {
@@ -1136,7 +1141,7 @@ Keep your response concise and focused on helping the user understand the search
             "matches": matches
         }
     except Exception as e:
-        logger.error(f"Error generating RAG response: {e}")
+        logger.error(f"Error generating RAG response: {str(e)}")
         # Fall back to returning just the matches if RAG fails
         return {
             "response": "I found some matches for your search, but couldn't generate a detailed explanation.",

@@ -26,52 +26,19 @@ export default function Dashboard() {
     }
   }, [activeTab])
   
-  // Add scroll locking for the main page and left sidebar
-  useEffect(() => {
-    // Function to prevent scrolling on the main page and left sidebar
-    const preventScroll = (e: Event) => {
-      // Get the target element
-      const target = e.target as Node;
-      
-      // Check if the event is from a scrollable container in the right sidebar
-      const rightSidebarContent = document.querySelector('.right-sidebar-content');
-      const leftSidebarContent = document.querySelector('.left-sidebar-content');
-      
-      // Allow scrolling only if the event is from a scrollable container in either sidebar
-      if ((rightSidebarContent && rightSidebarContent.contains(target)) || 
-          (leftSidebarContent && leftSidebarContent.contains(target))) {
-        return; // Allow the scroll
-      }
-      
-      // Prevent scrolling for all other elements
-      e.preventDefault();
-    };
-
-    // Add event listener to prevent scrolling
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('wheel', preventScroll, { passive: false });
-    document.addEventListener('touchmove', preventScroll, { passive: false });
-
-    // Cleanup function
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('wheel', preventScroll);
-      document.removeEventListener('touchmove', preventScroll);
-    };
-  }, []);
+  // Removed scroll locking for the main page and left sidebar
   
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-black overflow-hidden">
-
+    <div className="flex h-[calc(100vh-4rem)] bg-black">
       <div 
         ref={leftSidebarRef}
-        className="w-80 bg-gray-950 border-r border-gray-800 h-[calc(100vh-4rem)] overflow-hidden"
+        className="w-80 bg-gray-950 border-r border-gray-800 h-[calc(100vh-4rem)] overflow-auto"
       >
         <ChatAgent />
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         <div className="bg-gray-950 border-b border-gray-800 px-4 py-2 flex z-20">
           <div className="flex bg-gray-900 border border-gray-800 rounded-md h-10 overflow-hidden w-full">
             <button
@@ -100,7 +67,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative">
           {activeTab === "map" && (
             <div className="absolute inset-0">
               <MapWrapper mapKey={mapKey} />
@@ -108,7 +75,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === "search" && (
-            <div className="h-full w-full overflow-hidden">
+            <div className="h-full w-full overflow-auto">
               <DatabaseSearch />
             </div>
           )}

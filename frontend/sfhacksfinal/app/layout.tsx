@@ -40,13 +40,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <CameraProvider>
-            <div className="flex min-h-screen flex-col bg-black overflow-hidden">
+            <div className="flex min-h-screen flex-col bg-black">
               <Navbar />
               <div className="h-16"></div>
-              <div className="flex-1 flex overflow-hidden">
+              <div className="flex-1 flex">
                 {/* Main Content */}
-                <div className="flex-1 bg-gray-950 overflow-hidden">
-                  <main className="h-full overflow-hidden">
+                <div className="flex-1 bg-gray-950">
+                  <main className="h-full">
                     {children}
                   </main>
                 </div>
