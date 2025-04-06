@@ -113,8 +113,8 @@ supervision==0.18.0
 sympy==1.13.1
 tenacity==9.1.2
 tokenizers==0.15.2
-torch==2.6.0
-torchvision==0.21.0
+torch==2.0.1
+torchvision==0.15.2
 tqdm==4.67.1
 transformers==4.38.2
 twilio==9.5.1

@@ -24,9 +24,6 @@ from embedder import embed_image, embed_text, describe_person, embed_description
 from db import add_person, search_people, reset_database, load_database
 from search import find_similar_people
 
-from fastapi.websockets import WebSocketDisconnect
-from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
-from Twilio.call import process_stream
 
 # Load environment variables
 load_dotenv()
@@ -243,6 +240,8 @@ If the user wants to search for someone, extract the search criteria and use it 
         logger.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False), camera_id: str = Form(None)):
     try:
@@ -363,21 +362,6 @@ async def search_guidelines():
             "Middle-aged woman with shoulder-length brown hair wearing a floral blouse and black skirt"
         ]
     }
-
-
-@app.api_route("/incoming_call", methods=["GET", "POST"])
-async def handle_incoming_call(request: Request):
-    """Handle incoming call and return TwiML response to connect to Media Stream."""
-    response = VoiceResponse()
-    # <Say> punctuation to improve text-to-speech flow
-    response.say("Please wait while we connect your call.")
-    response.pause(length=1)
-    response.say("O.K. you can start talking!")
-    host = request.url.hostname
-    connect = Connect()
-    connect.stream(url=f'wss://{host}/process_stream')
-    response.append(connect)
-    return HTMLResponse(content=str(response), media_type="application/xml")
 
 
 @app.on_event("shutdown")

@@ -19,7 +19,7 @@ import {
   checkServerHealth
 } from "@/lib/api"
 import { addPersonToDatabase } from './DatabaseSearch'
-
+import { connectWebSocket, disconnectWebSocket, addWebSocketEventListener, isWebSocketConnected } from "@/lib/websocket"
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
   id?: string;
@@ -74,6 +74,13 @@ interface ExtendedSearchResult {
   message?: string;
 }
 
+// Define WebSocket message interface
+interface WebSocketMessage {
+  message: string;
+  type?: string;
+  content?: string;
+}
+
 type Camera = {
   id: string;
   name: string;
@@ -83,11 +90,9 @@ type Camera = {
 
 export default function RightSidebar() {
   const { selectedCamera, setSelectedCamera } = useCamera()
-  const [transcription, setTranscription] = useState([
-    { id: 1, speaker: "Operator", text: "911, what's your emergency?", timestamp: "10:30:15" },
-    { id: 2, speaker: "Caller", text: "There's a suspicious person near the park.", timestamp: "10:30:20" },
-    { id: 3, speaker: "Operator", text: "Can you describe what they look like?", timestamp: "10:30:25" },
-  ])
+  const [transcription, setTranscription] = useState('');
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
 
   const [detections, setDetections] = useState<Detection[]>([])
   const [personDescriptions, setPersonDescriptions] = useState<ExtendedPersonDescription[]>([])
@@ -326,6 +331,58 @@ export default function RightSidebar() {
       };
     }
   }, [selectedCamera, lastProcessedFrame]);
+
+  const fetchTranscription = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/transcription`);
+      const data = await response.json();
+      if (data.transcription) {
+        setTranscription(data.transcription);
+        if (data.search_results) {
+          setSearchResults(data.search_results);
+        }
+
+        setLastFetchTime(Date.now());
+      }
+    } catch (error) {
+      console.error("Error fetching transcription:", error);
+    }
+  };
+
+// Set up WebSocket connection and polling for transcription
+  useEffect(() => {
+    // Connect to WebSocket
+    connectWebSocket();
+  
+    // Add event listener for WebSocket connection status
+    const removeConnectedListener = addWebSocketEventListener('connected', () => {
+      setIsCallActive(true);
+    });
+
+    const removeDisconnectedListener = addWebSocketEventListener('disconnected', () => {
+      setIsCallActive(false);
+    });
+
+    const removeStatusListener = addWebSocketEventListener('status', (data: WebSocketMessage) => {
+      if (data.message == 'Transcription Updated') {
+        fetchTranscription();
+      }
+    })
+
+    const pollInterval = setInterval(() => {
+      fetchTranscription();
+    }, 2000);
+
+    return () => {
+      disconnectWebSocket();
+      removeConnectedListener();
+      removeDisconnectedListener();
+      removeStatusListener();
+      clearInterval(pollInterval);
+    };
+  }, []);
+
+  //119
 
   // Handle frame extraction from video
   const handleFrameExtracted = (frameUrl: string) => {
@@ -744,21 +801,25 @@ export default function RightSidebar() {
           <h2 className="text-lg font-semibold text-white">Live Call Transcription</h2>
         </div>
         <div className="space-y-3">
-          {transcription.map((entry) => (
+          {transcription ? (
             <motion.div
-              key={entry.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
               className="bg-gray-800 rounded-lg p-3"
             >
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium text-blue-400">{entry.speaker}</span>
-                <span className="text-xs text-gray-400">{entry.timestamp}</span>
-              </div>
-              <p className="text-sm text-gray-300">{entry.text}</p>
+              <p className="text-sm text-gray-300">{transcription}</p>
             </motion.div>
-          ))}
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-gray-800 rounded-lg p-3"
+            >
+              <p className="text-sm text-gray-300">{isCallActive ? 'Connecting...' : 'Waiting for call...'}</p>
+            </motion.div>
+          )}
         </div>
       </div>
 

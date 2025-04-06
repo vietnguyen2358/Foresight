@@ -1,7 +1,7 @@
 // API service for backend communication
 
 // API base URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
 // Log the API base URL for debugging
 console.log("API_BASE_URL:", API_BASE_URL);
