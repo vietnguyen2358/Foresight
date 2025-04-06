@@ -16,9 +16,11 @@ import {
   ChatResponse,
   uploadImageStream,
   API_BASE_URL,
-  checkServerHealth
+  checkServerHealth,
+  FrameResponse
 } from "@/lib/api"
 import { addPersonToDatabase } from './DatabaseSearch'
+import { amberAlertEvents } from './Map'
 
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
@@ -114,6 +116,7 @@ export default function RightSidebar() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [searchMessage, setSearchMessage] = useState<string>('')
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const [specialCameraProcessed, setSpecialCameraProcessed] = useState(false)
 
   // Add a useEffect hook to check server health and clear detections on mount
   useEffect(() => {
@@ -162,6 +165,11 @@ export default function RightSidebar() {
       
       // Reset error state
       setError(null);
+      
+      // Reset the special camera processed flag when camera changes
+      if (selectedCamera.id !== "SF-MIS-006") {
+        setSpecialCameraProcessed(false);
+      }
     }
   }, [selectedCamera]);
 
@@ -268,10 +276,84 @@ export default function RightSidebar() {
             throw new Error(`Failed to process frame: ${response.statusText}`);
           }
           
-          const data = await response.json();
+          const data = await response.json() as FrameResponse;
           console.log("API response:", data);
           console.log("Detections:", data.detections?.length || 0);
-          console.log("Descriptions:", data.descriptions?.length || 0);
+          console.log("Person crops:", data.person_crops?.length || 0);
+          
+          // Add a simple alert for testing purposes
+          console.log("⚠️ TESTING ALERT SYSTEM - Frame processed successfully");
+          
+          // Only trigger Amber Alert for SF-MIS-006 camera
+          if (selectedCamera.id === "SF-MIS-006" && !specialCameraProcessed && data.person_crops && data.person_crops.length > 0) {
+            console.log("SF-MIS-006 Camera detected - triggering AMBER alert");
+            
+            // Mark as processed so we don't trigger it again
+            setSpecialCameraProcessed(true);
+            
+            // Create a synthetic amber alert match
+            const syntheticAlert = {
+              match: true,
+              alert: {
+                id: "amber-auto-test",
+                timestamp: new Date().toISOString(),
+                location: selectedCamera.name,
+                description: {
+                  gender: "male",
+                  age_group: "child",
+                  hair_style: "short",
+                  clothing_top: "jacket",
+                  clothing_top_color: "black",
+                  clothing_bottom: "pants",
+                  clothing_bottom_color: "black",
+                  location_context: "outdoor"
+                },
+                alert_message: `AMBER ALERT: Missing child potentially detected in ${selectedCamera.name} camera feed.`
+              },
+              score: 0.92 // 92% match
+            };
+            
+            // Show a browser alert for immediate testing
+           
+            
+            // Dispatch the amber alert event
+            console.log("Triggering Amber Alert for SF-MIS-006 camera");
+            amberAlertEvents.dispatch({ 
+              amber_alert: syntheticAlert,
+              camera_id: selectedCamera.id
+            });
+            
+            // Play alert sound
+            try {
+              const alertSound = new Audio('/alert-sound.mp3');
+              alertSound.play().catch(e => console.log('Error playing alert sound:', e));
+            } catch (soundError) {
+              console.error('Error with alert sound:', soundError);
+            }
+          }
+          
+          // Check for amber alert matches from backend (keeping this functionality)
+          if (data.amber_alert && selectedCamera.id === "SF-MIS-006") {
+            console.log("AMBER ALERT MATCH DETECTED FROM BACKEND:", data.amber_alert);
+            
+            // Dispatch amber alert event only for SF-MIS-006
+            console.log("Triggering backend-provided Amber Alert for SF-MIS-006 camera");
+            amberAlertEvents.dispatch({ 
+              amber_alert: data.amber_alert,
+              camera_id: selectedCamera.id
+            });
+            
+            // Optional: Play alert sound
+            try {
+              const alertSound = new Audio('/alert-sound.mp3');
+              alertSound.play().catch(e => console.log('Error playing alert sound:', e));
+            } catch (soundError) {
+              console.error('Error with alert sound:', soundError);
+            }
+          } else if (data.amber_alert) {
+            // For other cameras, just log it but don't trigger the UI alert
+            console.log(`AMBER ALERT detected but not displayed (camera ${selectedCamera.id} is not SF-MIS-006)`);
+          }
           
           // Only update detections and descriptions if we have new data
           if (data.detections && data.detections.length > 0) {
@@ -325,7 +407,7 @@ export default function RightSidebar() {
         }
       };
     }
-  }, [selectedCamera, lastProcessedFrame]);
+  }, [selectedCamera, lastProcessedFrame, specialCameraProcessed]);
 
   // Handle frame extraction from video
   const handleFrameExtracted = (frameUrl: string) => {
@@ -385,8 +467,81 @@ export default function RightSidebar() {
         throw new Error(`Failed to process frame: ${response.statusText} - ${errorText}`);
       }
       
-      const data = await response.json();
+      const data = await response.json() as FrameResponse;
       console.log("API response:", data);
+      
+      // Add a simple alert for testing purposes
+      console.log("⚠️ TESTING ALERT SYSTEM - Frame processed successfully");
+      
+      // Only trigger Amber Alert for SF-MIS-006 camera
+      if (selectedCamera.id === "SF-MIS-006" && !specialCameraProcessed && data.person_crops && data.person_crops.length > 0) {
+        console.log("SF-MIS-006 Camera detected - triggering AMBER alert");
+        
+        // Mark as processed so we don't trigger it again
+        setSpecialCameraProcessed(true);
+        
+        // Create a synthetic amber alert match
+        const syntheticAlert = {
+          match: true,
+          alert: {
+            id: "amber-auto-test",
+            timestamp: new Date().toISOString(),
+            location: selectedCamera.name,
+            description: {
+              gender: "male",
+              age_group: "child",
+              hair_style: "short",
+              clothing_top: "jacket",
+              clothing_top_color: "black",
+              clothing_bottom: "pants",
+              clothing_bottom_color: "black",
+              location_context: "outdoor"
+            },
+            alert_message: `AMBER ALERT: Missing child potentially detected in ${selectedCamera.name} camera feed.`
+          },
+          score: 0.92 // 92% match
+        };
+        
+        
+        
+        // Dispatch the amber alert event
+        console.log("Triggering Amber Alert for SF-MIS-006 camera");
+        amberAlertEvents.dispatch({ 
+          amber_alert: syntheticAlert,
+          camera_id: selectedCamera.id
+        });
+        
+        // Play alert sound
+        try {
+          const alertSound = new Audio('/alert-sound.mp3');
+          alertSound.play().catch(e => console.log('Error playing alert sound:', e));
+        } catch (soundError) {
+          console.error('Error with alert sound:', soundError);
+        }
+      }
+      
+      // Check for amber alert matches from backend (keeping this functionality)
+      if (data.amber_alert && selectedCamera.id === "SF-MIS-006") {
+        console.log("AMBER ALERT MATCH DETECTED FROM BACKEND:", data.amber_alert);
+        
+        // Dispatch amber alert event only for SF-MIS-006
+        console.log("Triggering backend-provided Amber Alert for SF-MIS-006 camera");
+        amberAlertEvents.dispatch({ 
+          amber_alert: data.amber_alert,
+          camera_id: selectedCamera.id
+        });
+        
+        // Optional: Play alert sound
+        try {
+          const alertSound = new Audio('/alert-sound.mp3');
+          alertSound.play().catch(e => console.log('Error playing alert sound:', e));
+        } catch (soundError) {
+          console.error('Error with alert sound:', soundError);
+        }
+      } else if (data.amber_alert) {
+        // For other cameras, just log it but don't trigger the UI alert
+        console.log(`AMBER ALERT detected but not displayed (camera ${selectedCamera.id} is not SF-MIS-006)`);
+      }
       
       // Debug: Log detailed information about the response
       console.log(`Response contains ${data.detections?.length || 0} detections`);
@@ -904,6 +1059,8 @@ export default function RightSidebar() {
                             
                             if (result.duplicate) {
                               alert('This person is already in the database!');
+                            } else if (result.filtered) {
+                              alert(`Not added: ${result.reason}`);
                             } else {
                               alert('Person added to database!');
                             }

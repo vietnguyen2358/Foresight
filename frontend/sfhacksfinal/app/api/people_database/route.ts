@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// Configuration flag: When true, only children will be added to the database
+const CHILD_ONLY_MODE = false; // Set to false to allow all people to be added
+
 export async function GET() {
   try {
     // Path to the people_database.json file in the backend directory
@@ -28,6 +31,19 @@ export async function POST(request: Request) {
   try {
     // Get the person data from the request body
     const personData = await request.json();
+    
+    // Check if we're in CHILD_ONLY_MODE and filter out adults
+    if (CHILD_ONLY_MODE) {
+      const ageGroup = personData.description?.age_group?.toLowerCase();
+      // Only accept if age_group is "child" - reject adults and unknown age groups
+      if (ageGroup !== 'child') {
+        console.log(`Rejected database entry: age_group is "${ageGroup}" but CHILD_ONLY_MODE is enabled`);
+        return NextResponse.json({ 
+          filtered: true, 
+          reason: `CHILD_ONLY_MODE is enabled - only children can be added to the database` 
+        });
+      }
+    }
     
     // Path to the people_database.json file in the backend directory
     const filePath = path.join(process.cwd(), '../../backend/people_database.json');

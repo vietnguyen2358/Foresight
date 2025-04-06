@@ -4,70 +4,73 @@ import React, { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { MapPin, Navigation, Camera, X } from "lucide-react"
 import { useCamera } from "@/lib/CameraContext"
-import L from 'leaflet'
+// Dynamically import Leaflet to avoid SSR issues
+import dynamic from 'next/dynamic'
+import { cameras, Camera as CameraType } from '@/lib/cameraData'
+import AlertOverlay from './AlertOverlay'
 
-// Mock camera data with real lat/lng coordinates for San Francisco
-const cameras = [
-  {
-    id: "SF-MKT-001",
-    name: "Market Street & 5th",
-    lat: 37.783,
-    lng: -122.407,
-    status: "active",
-  },
-  {
-    id: "SF-EMB-002",
-    name: "Embarcadero Plaza",
-    lat: 37.795,
-    lng: -122.394,
-    status: "active",
-  },
-  {
-    id: "SF-UNS-003",
-    name: "Union Square",
-    lat: 37.788,
-    lng: -122.407,
-    status: "active",
-  },
-  {
-    id: "SF-FER-004",
-    name: "Ferry Building",
-    lat: 37.795,
-    lng: -122.393,
-    status: "active",
-  },
-  {
-    id: "SF-CHI-005",
-    name: "Chinatown Gate",
-    lat: 37.79,
-    lng: -122.405,
-    status: "active",
-  },
-  {
-    id: "SF-MIS-006",
-    name: "Mission District",
-    lat: 37.763,
-    lng: -122.419,
-    status: "active",
-  },
-  {
-    id: "SF-HAI-007",
-    name: "Haight Street",
-    lat: 37.77,
-    lng: -122.446,
-    status: "active",
-  },
-  {
-    id: "SF-NOB-008",
-    name: "Nob Hill",
-    lat: 37.793,
-    lng: -122.416,
-    status: "active",
-  },
-]
+// Let's access Leaflet only on the client side
+let L: any;
+if (typeof window !== 'undefined') {
+  L = require('leaflet');
+}
+
+// Event system for amber alerts
+interface AmberAlertEvent {
+  amber_alert: {
+    match: boolean;
+    alert: {
+      id: string;
+      timestamp: string;
+      location: string;
+      description: any;
+      alert_message: string;
+    };
+    score: number;
+    metadata?: {
+      camera_id?: string;
+    };
+  };
+  camera_id?: string;
+}
+
+// Create a custom event system
+const createAmberAlertEventSystem = () => {
+  const eventTarget = new EventTarget();
+  
+  return {
+    dispatch: (data: AmberAlertEvent) => {
+      const event = new CustomEvent('amber-alert', { detail: data });
+      eventTarget.dispatchEvent(event);
+    },
+    subscribe: (callback: (data: AmberAlertEvent) => void) => {
+      const handler = (e: Event) => {
+        const customEvent = e as CustomEvent<AmberAlertEvent>;
+        callback(customEvent.detail);
+      };
+      
+      eventTarget.addEventListener('amber-alert', handler);
+      
+      return () => {
+        eventTarget.removeEventListener('amber-alert', handler);
+      };
+    }
+  };
+};
+
+// Create the event system
+export const amberAlertEvents = createAmberAlertEventSystem();
 
 // Default center coordinates (San Francisco)
 const DEFAULT_CENTER = { lat: 37.7749, lng: -122.4194 }
+
+// Add functions to window object
+declare global {
+  interface Window {
+    zoomToCamera: (camera: CameraType) => void;
+    triggerAmberAlert: (alertData: AmberAlertEvent) => void;
+  }
+}
 
 export default function Map() {
   const mapRef = useRef<any>(null)
@@ -83,6 +86,52 @@ export default function Map() {
   const pulseAnimationRef = useRef<any>(null)
   const nearestCameraLineRef = useRef<any>(null)
   const mapClickHandlerRef = useRef<any>(null)
+  
+  // Add amber alert state
+  const [activeAlert, setActiveAlert] = useState<AmberAlertEvent["amber_alert"] | null>(null);
+  
+  // Add camera markers to the map
+  function addCameraMarkers(map: any, L: any) {
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove())
+    markersRef.current = []
+
+    // Add markers for each camera
+    cameras.forEach(camera => {
+      const marker = L.marker([camera.lat, camera.lng], {
+        icon: L.divIcon({
+          className: 'custom-marker',
+          html: `
+            <div class="relative">
+              <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                  <circle cx="12" cy="13" r="3"></circle>
+                </svg>
+              </div>
+            </div>
+          `,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        }),
+      })
+
+      // Add click handler
+      marker.on('click', (e: any) => {
+        e.originalEvent.stopPropagation()
+        setSelectedCamera(camera)
+        // Smooth zoom to camera location
+        map.flyTo([camera.lat, camera.lng], 18, {
+          animate: true,
+          duration: 1.5,
+          easeLinearity: 0.25
+        })
+      })
+
+      marker.addTo(map)
+      markersRef.current.push(marker)
+    })
+  }
 
   // Initialize or reinitialize the map
   const initializeMap = async () => {
@@ -165,57 +214,6 @@ export default function Map() {
       console.error("Error initializing map:", error)
       return null
     }
-  }
-
-  // Add camera markers to the map
-  const addCameraMarkers = (map: any, L: any) => {
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove())
-    markersRef.current = []
-
-    // Add markers for each camera
-    cameras.forEach(camera => {
-      const marker = L.marker([camera.lat, camera.lng], {
-        icon: L.divIcon({
-          className: 'custom-marker',
-          html: `
-            <div class="relative">
-              <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
-                  <circle cx="12" cy="13" r="3"></circle>
-                </svg>
-              </div>
-              ${camera.id === selectedCamera?.id ? `
-                <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
-                </div>
-              ` : ''}
-            </div>
-          `,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-        }),
-      })
-
-      // Add click handler
-      marker.on('click', (e: any) => {
-        e.originalEvent.stopPropagation()
-        setSelectedCamera(camera)
-        // Smooth zoom to camera location
-        map.flyTo([camera.lat, camera.lng], 18, {
-          animate: true,
-          duration: 1.5,
-          easeLinearity: 0.25
-        })
-      })
-
-      marker.addTo(map)
-      markersRef.current.push(marker)
-    })
   }
 
   // Get user's current location
@@ -469,12 +467,6 @@ export default function Map() {
                     <circle cx="12" cy="13" r="3"></circle>
                   </svg>
                 </div>
-                <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
-                </div>
               </div>
             `,
             iconSize: [32, 32],
@@ -512,12 +504,6 @@ export default function Map() {
                         <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
                         <circle cx="12" cy="13" r="3"></circle>
                       </svg>
-                    </div>
-                    <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                      <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                      </span>
                     </div>
                   </div>
                 `,
@@ -569,6 +555,39 @@ export default function Map() {
       // Only remove the link if we created it
       if (link && link.parentNode && !document.querySelector('link[href*="leaflet.css"]:not(:first-of-type)')) {
         link.parentNode.removeChild(link);
+      }
+    };
+  }, []);
+
+  // Add amber alert subscription
+  useEffect(() => {
+    // Subscribe to amber alert events
+    const unsubscribe = amberAlertEvents.subscribe((data) => {
+      console.log('Amber alert received:', data);
+      
+      // Check if this alert is for SF-MIS-006 camera or contains camera ID in metadata
+      const alertCameraId = data.camera_id || data.amber_alert?.metadata?.camera_id;
+      
+      if (alertCameraId && alertCameraId !== "SF-MIS-006") {
+        console.log(`Ignoring amber alert for camera ${alertCameraId} - only showing alerts for SF-MIS-006`);
+        return;
+      }
+      
+      // Only show the alert if it's from SF-MIS-006 or no camera ID is specified
+      setActiveAlert(data.amber_alert);
+    });
+    
+    // Expose global trigger function
+    window.triggerAmberAlert = (alertData) => {
+      amberAlertEvents.dispatch(alertData);
+    };
+    
+    return () => {
+      unsubscribe();
+      // Clean up global function
+      if ('triggerAmberAlert' in window) {
+        // @ts-ignore - TypeScript doesn't like delete on window properties
+        window.triggerAmberAlert = undefined;
       }
     };
   }, []);
@@ -677,6 +696,14 @@ export default function Map() {
           Find Nearest Camera
         </Button>
       </div>
+
+      {/* Amber Alert Overlay */}
+      {activeAlert && (
+        <AlertOverlay 
+          alert={activeAlert.alert} 
+          onClose={() => setActiveAlert(null)} 
+        />
+      )}
     </div>
   )
 }

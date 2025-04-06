@@ -120,53 +120,81 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     try {
       setIsExtracting(true);
       
+      // Check if video is actually ready and has dimensions
+      if (video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) {
+        console.warn("Video not ready for frame extraction, will retry...");
+        setTimeout(() => {
+          setIsExtracting(false);
+          extractFrame();
+        }, 500);
+        return;
+      }
+      
       // Set canvas dimensions to match video's native resolution
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
-      // Draw current video frame to canvas
+      // Clear canvas first
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        console.error("Could not get canvas context");
+        setError("Failed to extract frame - canvas context unavailable");
+        setIsExtracting(false);
+        return;
+      }
       
-      // Use high-quality image rendering
+      // Clear the canvas and use high-quality image rendering
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       
       // Draw the video frame at full resolution
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      // Convert canvas to data URL with maximum quality using PNG format
-      const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
+      // First try with PNG for maximum quality
+      let frameUrl = canvas.toDataURL('image/png'); 
+      
+      // Check if the frame URL is valid - if not, try JPEG as fallback
+      if (!frameUrl || frameUrl.length < 100) {
+        console.warn("PNG format failed, trying JPEG...");
+        frameUrl = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
+      }
       
       // Log the frame extraction with detailed information
       console.log(`Frame extracted at ${new Date().toLocaleTimeString()}`);
       console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
       console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
-      console.log(`Frame format: PNG (lossless)`);
       
-      // Check if the frame URL is valid
+      // Final validation check
       if (!frameUrl || frameUrl.length < 100) {
-        console.error("Invalid frame URL generated");
+        console.error("Invalid frame URL generated after multiple attempts");
         setError("Failed to extract frame - invalid data");
+        setIsExtracting(false);
         return;
       }
       
       // Check if the frame contains actual content (not just a blank frame)
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-      let hasContent = false;
+      let nonZeroPixels = 0;
+      const sampleSize = 1000; // Check a sample of pixels for efficiency
+      const stride = Math.max(1, Math.floor(data.length / 4 / sampleSize));
       
-      // Check if the frame has any non-transparent pixels
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 0) { // Alpha channel
-          hasContent = true;
-          break;
+      // Check if the frame has any non-blank pixels (sampling approach for performance)
+      for (let i = 0; i < data.length; i += 4 * stride) {
+        // Check if the pixel has any significant color or alpha
+        if (data[i] > 10 || data[i + 1] > 10 || data[i + 2] > 10 || data[i + 3] > 10) {
+          nonZeroPixels++;
+          if (nonZeroPixels > 10) { // If we find at least 10 non-blank pixels, consider it valid
+            break;
+          }
         }
       }
       
-      if (!hasContent) {
-        console.warn("Frame appears to be blank or transparent");
+      if (nonZeroPixels <= 10) {
+        console.warn("Frame appears to be blank or nearly blank");
         setError("Extracted frame is blank - waiting for next frame");
+        setIsExtracting(false);
         return;
       }
       

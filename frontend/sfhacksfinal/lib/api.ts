@@ -79,6 +79,8 @@ export interface Match {
   };
   similarity: number;
   image?: string;
+  image_data?: string;
+  highlights?: string[];
 }
 
 export interface SearchResult {
@@ -91,6 +93,28 @@ export interface SearchResult {
 
 export interface ChatResponse {
   response: string;
+}
+
+export interface FrameResponse {
+  detections: Detection[];
+  description: string;
+  timestamp: string;
+  person_crops: {
+    id: string;
+    crop: string;
+    description: any;
+  }[];
+  amber_alert?: {
+    match: boolean;
+    alert: {
+      id: string;
+      timestamp: string;
+      location: string;
+      description: any;
+      alert_message: string;
+    };
+    score: number;
+  };
 }
 
 // API functions
@@ -272,7 +296,9 @@ export async function searchPeople(description: string): Promise<SearchResult> {
       description: match.description || {},
       metadata: match.metadata || {},
       similarity: match.similarity || 0,
-      image: match.metadata?.image_path ? `${API_BASE_URL}/${match.metadata.image_path}` : undefined
+      image: match.metadata?.image_path ? `${API_BASE_URL}/${match.metadata.image_path}` : undefined,
+      image_data: match.image_data,
+      highlights: match.highlights || []
     }));
     
     return {

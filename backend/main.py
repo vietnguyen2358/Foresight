@@ -18,11 +18,13 @@ from app_init import app
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
-
-from tracker import process_image, process_video
-from embedder import embed_image, embed_text, describe_person, embed_description
+import uuid
+import supervision as sv
+import google.generativeai as palm
+from describe import describe_person
 from db import add_person, search_people, reset_database, load_database
 from search import find_similar_people, generate_rag_response
+from amber_alert import check_amber_alert_match
 
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
@@ -69,6 +71,7 @@ class FrameResponse(BaseModel):
     description: str
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
     person_crops: List[dict] = Field(default_factory=list)
+    amber_alert: Optional[dict] = None
 
 class FrameRequest(BaseModel):
     frame_data: str
@@ -562,11 +565,23 @@ async def process_frame(request: FrameRequest):
         # Debug: Log the response being sent
         logger.info(f"Sending response with {len(detections)} detections and {len(person_crops)} person crops")
         
+        # Check for amber alert matches for each person description
+        amber_alert_match = None
+        for person_crop in person_crops:
+            if "description" in person_crop and isinstance(person_crop["description"], dict):
+                # Check if this person matches any active amber alerts
+                match_result = check_amber_alert_match(person_crop["description"])
+                if match_result:
+                    logger.info(f"Found amber alert match: {match_result}")
+                    amber_alert_match = match_result
+                    break
+        
         return FrameResponse(
             detections=detections,
             description=description_str,
             timestamp=datetime.now().isoformat(),
-            person_crops=person_crops
+            person_crops=person_crops,
+            amber_alert=amber_alert_match
         )
         
     except Exception as e:
