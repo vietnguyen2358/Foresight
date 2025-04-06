@@ -348,20 +348,6 @@ export default function ChatAgent() {
           </Button>
         </form>
       </div>
-
-      {/* Transcription Section */}
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-2">Transcription</h3>
-        <div className="bg-gray-100 p-4 rounded-lg">
-          {transcription ? (
-            <p>{transcription}</p>
-          ) : (
-            <p className="text-gray-500 italic">
-              {isCallActive ? 'Listening...' : 'No active call'}
-            </p>
-          )}
-        </div>
-      </div>
       
       {/* Search Results Section */}
       {searchResults && searchResults.matches && searchResults.matches.length > 0 && (
