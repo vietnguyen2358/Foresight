@@ -116,77 +116,77 @@ export default function DatabaseSearch() {
       setIsLoading(true);
       setError(null);
       
-      // Try to load from localStorage first
-      let loadedPeople: Person[] = [];
-      try {
-        const storedData = localStorage.getItem('people_database');
-        if (storedData) {
-          const parsedData = JSON.parse(storedData);
-          loadedPeople = parsedData.people.map((person: any, index: number) => ({
-            id: String(index + 1),
-            description: person.description || {},
-            metadata: person.metadata || {},
-            cropped_image: `/cropped_images/person_${index + 1}.jpg`
-          }));
-          setDatabaseData(parsedData);
-        } else {
-          // If not in localStorage, try to fetch from the API
-          fetch('/api/people_database')
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`Failed to fetch database: ${response.statusText}`);
+      // Load data directly from the public/db.json file
+      fetch('/db.json')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch database: ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Transform data and add image URLs
+          const loadedPeople = data.people.map((person: any) => {
+            // Split the camera_id and person id from metadata for structured identifiers
+            const cameraId = person.metadata?.camera_id || 'unknown';
+            const personIdParts = person.id.split('-');
+            const shortId = personIdParts[0] || 'unknown';
+            
+            return {
+              ...person,
+              id: person.id || `${cameraId}:${shortId}`,
+              gender: person.description?.gender || 'unknown',
+              age_group: person.description?.age_group || 'unknown',
+              clothing_top: person.description?.clothing_top || 'unknown',
+              clothing_top_color: person.description?.clothing_top_color,
+              clothing_bottom: person.description?.clothing_bottom,
+              clothing_bottom_color: person.description?.clothing_bottom_color,
+              hair_color: person.description?.hair_color,
+              camera_id: cameraId,
+              timestamp: person.metadata?.timestamp || new Date().toISOString(),
+              description: JSON.stringify(person.description),
+              raw_data: person.description,
+              // Generate a placeholder image URL - in production you'd use real cropped images
+              cropped_image: `/images/placeholder-person.png`
+            };
+          });
+          
+          // Set the data in state
+          setPeople(loadedPeople);
+          setFilteredPeople(loadedPeople);
+          setDatabaseData({ people: data.people });
+          
+          // Extract all possible tags
+          const tags = new Set<string>();
+          
+          loadedPeople.forEach((person: Person) => {
+            // Extract tags from description
+            Object.entries(person.description).forEach(([key, value]) => {
+              if (value && typeof value === 'string') {
+                tags.add(`${key}:${value}`);
               }
-              return response.json();
-            })
-            .then(data => {
-              loadedPeople = data.people.map((person: any, index: number) => ({
-                id: String(index + 1),
-                description: person.description || {},
-                metadata: person.metadata || {},
-                cropped_image: `/cropped_images/person_${index + 1}.jpg`
-              }));
-              setDatabaseData(data);
-              
-              // Save to localStorage for future use
-              localStorage.setItem('people_database', JSON.stringify(data));
-            })
-            .catch(error => {
-              console.error('Error fetching database:', error);
-              setError('Failed to load database. Please try again later.');
             });
-        }
-      } catch (error) {
-        console.error('Error loading database:', error);
-        setError('Failed to load database. Please try again later.');
-      }
-      
-      setPeople(loadedPeople);
-      setFilteredPeople(loadedPeople);
-      
-      // Extract all possible tags
-      const tags = new Set<string>();
-      
-      loadedPeople.forEach((person: Person) => {
-        // Extract tags from description
-        Object.entries(person.description).forEach(([key, value]) => {
-          if (value && typeof value === 'string') {
-            tags.add(`${key}:${value}`);
-          }
+            
+            // Extract tags from metadata
+            Object.entries(person.metadata).forEach(([key, value]) => {
+              if (value && typeof value === 'string') {
+                tags.add(`${key}:${value}`);
+              }
+            });
+          });
+          
+          setAvailableTags(Array.from(tags).sort());
+        })
+        .catch(error => {
+          console.error('Error fetching database:', error);
+          setError(`Failed to load database: ${error.message}`);
+        })
+        .finally(() => {
+          setIsLoading(false);
         });
-        
-        // Extract tags from metadata
-        Object.entries(person.metadata).forEach(([key, value]) => {
-          if (value && typeof value === 'string') {
-            tags.add(`${key}:${value}`);
-          }
-        });
-      });
-      
-      setAvailableTags(Array.from(tags).sort());
     } catch (error) {
       console.error('Error loading database:', error);
       setError(error instanceof Error ? error.message : 'Unknown error loading database');
-    } finally {
       setIsLoading(false);
     }
   }, [refreshKey]);

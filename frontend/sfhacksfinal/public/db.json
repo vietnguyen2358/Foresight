@@ -1,0 +1,154 @@
+{
+  "people": [
+    {
+      "id": "bd4d6fcd-03ca-40a4-adcb-f63c5d19ebed",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "hair_style": "long",
+        "hair_color": "black",
+        "skin_tone": "medium",
+        "facial_features": [
+          "glasses"
+        ],
+        "clothing_top": "jacket",
+        "clothing_top_color": "pink",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "leggings",
+        "clothing_bottom_color": "blue",
+        "clothing_bottom_pattern": "solid",
+        "accessories": [
+          "head covering",
+          "wristband",
+          "knee brace"
+        ],
+        "pose": "sitting",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "gender": "female",
+        "age_group": "adult",
+        "track_id": "SF-MIS-006_person_0",
+        "frame": -1,
+        "image_path": "uploads/bd4d6fcd-03ca-40a4-adcb-f63c5d19ebed.jpg",
+        "camera_id": "SF-MIS-006",
+        "timestamp": "2025-04-06T09:06:38.142864"
+      }
+    },
+    {
+      "id": "f1c02608-e0a8-4982-9cbe-77a11805de03",
+      "description": {
+        "gender": "male",
+        "age_group": "child",
+        "hair_style": "short",
+        "hair_color": "black",
+        "skin_tone": "medium",
+        "clothing_top": "hoodie",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "pose": "sitting",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "gender": "male",
+        "age_group": "child",
+        "track_id": "SF-MIS-006_person_1",
+        "frame": -1,
+        "image_path": "uploads/f1c02608-e0a8-4982-9cbe-77a11805de03.jpg",
+        "camera_id": "SF-MIS-006",
+        "timestamp": "2025-04-06T09:06:40.562682"
+      }
+    },
+    {
+      "id": "9b3c7250-de0b-497c-a41a-735597c68eb5",
+      "description": {
+        "gender": "male",
+        "age_group": "teen",
+        "hair_style": "short",
+        "hair_color": "black",
+        "skin_tone": "dark",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "green",
+        "clothing_top_pattern": "solid",
+        "pose": "sitting",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "gender": "male",
+        "age_group": "teen",
+        "track_id": "SF-MIS-006_person_2",
+        "frame": -1,
+        "image_path": "uploads/9b3c7250-de0b-497c-a41a-735597c68eb5.jpg",
+        "camera_id": "SF-MIS-006",
+        "timestamp": "2025-04-06T09:06:42.921057"
+      }
+    },
+    {
+      "id": "036d0b32-3675-4eb2-b036-895c3ee001b2",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "facial_features": [
+          "beard"
+        ],
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "gender": "male",
+        "age_group": "adult",
+        "track_id": "SF-MKT-001_person_0",
+        "frame": -1,
+        "image_path": "uploads/036d0b32-3675-4eb2-b036-895c3ee001b2.jpg",
+        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-06T09:07:15.127966"
+      }
+    },
+    {
+      "id": "37c448da-a611-4938-b97d-76d53a4a5fcd",
+      "description": {
+        "gender": "unknown",
+        "age_group": "unknown",
+        "clothing_top": "unknown",
+        "clothing_bottom": "unknown"
+      },
+      "metadata": {
+        "gender": "unknown",
+        "age_group": "unknown",
+        "track_id": "SF-MKT-001_person_1",
+        "frame": -1,
+        "image_path": "uploads/37c448da-a611-4938-b97d-76d53a4a5fcd.jpg",
+        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-06T09:07:16.722999"
+      }
+    },
+    {
+      "id": "950f8326-9e9c-4933-b15e-888c4a9933f1",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "dark",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "gender": "male",
+        "age_group": "adult",
+        "track_id": "SF-MKT-001_person_3",
+        "frame": -1,
+        "image_path": "uploads/950f8326-9e9c-4933-b15e-888c4a9933f1.jpg",
+        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-06T09:07:19.315515"
+      }
+    }
+  ]
+} 
