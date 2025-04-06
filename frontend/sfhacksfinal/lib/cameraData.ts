@@ -16,31 +16,10 @@ export const cameras: Camera[] = [
     status: "active",
   },
   {
-    id: "SF-EMB-002",
-    name: "Embarcadero Plaza",
-    lat: 37.795,
-    lng: -122.394,
-    status: "active",
-  },
-  {
     id: "SF-UNS-003",
     name: "Union Square",
     lat: 37.788,
     lng: -122.407,
-    status: "active",
-  },
-  {
-    id: "SF-FER-004",
-    name: "Ferry Building",
-    lat: 37.795,
-    lng: -122.393,
-    status: "active",
-  },
-  {
-    id: "SF-CHI-005",
-    name: "Chinatown Gate",
-    lat: 37.79,
-    lng: -122.405,
     status: "active",
   },
   {

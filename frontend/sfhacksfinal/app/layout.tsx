@@ -45,7 +45,7 @@ export default function RootLayout({
               <div className="h-16"></div>
               <div className="flex-1 flex">
                 {/* Main Content */}
-                <div className="flex-1 bg-gray-950">
+                <div className="flex-1 bg-black">
                   <main className="h-full">
                     {children}
                   </main>
