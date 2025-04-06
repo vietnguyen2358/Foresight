@@ -177,7 +177,7 @@ export default function HowItWorks() {
           <motion.div className="order-1 lg:order-2 relative" style={{ y: imageY }}>
             <div className="relative h-[500px] rounded-lg overflow-hidden border border-gray-800 shadow-xl">
               <Image
-                src="/placeholder.svg?height=1000&width=800"
+                src="/images/screen.gif"
                 alt="How Find & Seek works"
                 fill
                 className="object-cover"
