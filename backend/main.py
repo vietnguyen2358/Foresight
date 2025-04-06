@@ -22,7 +22,7 @@ from ultralytics import YOLO
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
 from db import add_person, search_people, reset_database, load_database
-from search import find_similar_people
+from search import find_similar_people, generate_rag_response
 
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
@@ -330,9 +330,13 @@ async def search_person(request: SearchRequest):
             logger.info(f"Description: {match['description']}")
             logger.info(f"Metadata: {match['metadata']}")
         
+        # Generate RAG-enhanced response using Gemini
+        rag_result = generate_rag_response(request.description, matches)
+        
         return {
             "matches": matches,
-            "count": len(matches)
+            "count": len(matches),
+            "rag_response": rag_result["response"]
         }
     except Exception as e:
         logger.error(f"Error in search endpoint: {str(e)}")

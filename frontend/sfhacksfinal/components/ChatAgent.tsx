@@ -16,6 +16,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type MatchDescription = {
   id?: string;
@@ -112,61 +113,36 @@ export default function ChatAgent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
     const userMessage = input.trim();
     setInput("");
-    setIsLoading(true);
-
-    const newUserMessage: Message = {
-      role: "user",
-      content: userMessage
-    };
-    setMessages(prev => [...prev, newUserMessage]);
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
 
     try {
-      // Check server health
-      const isHealthy = await checkServerHealth();
-      if (!isHealthy) {
-        throw new Error("Server is not responding. Please try again later.");
-      }
+      setIsLoading(true);
       
-      console.log("Making search request for:", userMessage);
+      // Search for people
+      const searchResults = await searchPeople(userMessage);
       
-      // Use the searchPeople function from the API module
-      const searchData = await searchPeople(userMessage);
-      console.log("Search results:", searchData);
-      
-      let responseContent = "";
-      
-      if (searchData.matches && searchData.matches.length > 0) {
-        const bestMatch = searchData.matches[0];
-        
-        if (bestMatch.metadata?.camera_id) {
-          const matchCamera = cameras.find((c) => c.id === bestMatch.metadata.camera_id);
-          if (matchCamera) {
-            setSelectedCamera(matchCamera);
-            responseContent = `Found a match!\n\nPerson Details:\n${JSON.stringify(bestMatch.description, null, 2)}\n\nLocation: Camera ${matchCamera.name} (${matchCamera.id})`;
-          }
-        } else {
-          responseContent = `Found a match!\n\nPerson Details:\n${JSON.stringify(bestMatch.description, null, 2)}`;
-        }
-      } else {
-        responseContent = "No matches found for your search. Try describing the person differently.";
-      }
-
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: responseContent,
-        matches: searchData.matches || []
-      }]);
-
+      // Add assistant message with search results
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: searchResults.rag_response || "I found some matches for your search.",
+          matches: searchResults.matches,
+        },
+      ]);
     } catch (error) {
-      console.error("Search error:", error);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: `Error: ${error instanceof Error ? error.message : 'Something went wrong'}`
-      }]);
+      console.error("Error searching for people:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I encountered an error while searching. Please try again.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }

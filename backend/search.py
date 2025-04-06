@@ -532,3 +532,82 @@ def find_similar_people(user_description: str, top_k=5) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error in find_similar_people: {e}")
         return []
+
+def generate_rag_response(user_query: str, matches: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Use Gemini to generate a RAG-enhanced response based on the user query and matches.
+    This function takes the top matches from our database and uses Gemini to provide
+    a more natural language response that explains why these matches were found.
+    """
+    try:
+        if not matches:
+            return {
+                "response": "I couldn't find any matches for your search. Try using more general terms or fewer specific details.",
+                "matches": []
+            }
+        
+        # Format matches for the prompt
+        matches_text = ""
+        for i, match in enumerate(matches):
+            desc = match.get("description", {})
+            metadata = match.get("metadata", {})
+            similarity = match.get("similarity", 0)
+            
+            # Format the match as a readable string
+            match_text = f"Match {i+1} (Similarity: {similarity:.1f}%):\n"
+            
+            # Add key attributes
+            if "gender" in desc:
+                match_text += f"- Gender: {desc['gender']}\n"
+            if "age_group" in desc:
+                match_text += f"- Age: {desc['age_group']}\n"
+            if "facial_features" in desc and desc["facial_features"]:
+                match_text += f"- Facial features: {desc['facial_features']}\n"
+            if "hair_color" in desc:
+                match_text += f"- Hair color: {desc['hair_color']}\n"
+            if "clothing_top" in desc:
+                match_text += f"- Wearing: {desc.get('clothing_top_color', '')} {desc['clothing_top']}\n"
+            if "clothing_bottom" in desc:
+                match_text += f"- Bottom: {desc.get('clothing_bottom_color', '')} {desc['clothing_bottom']}\n"
+            if "location_context" in desc:
+                match_text += f"- Location: {desc['location_context']}\n"
+            if "camera_id" in metadata:
+                match_text += f"- Camera: {metadata['camera_id']}\n"
+            if "timestamp" in metadata:
+                match_text += f"- Time: {metadata['timestamp']}\n"
+            
+            matches_text += match_text + "\n"
+        
+        # Create the RAG prompt
+        rag_prompt = f"""
+You are an AI assistant helping with a person search system. A user has searched for: "{user_query}"
+
+The system found the following matches in the database:
+
+{matches_text}
+
+Based on these matches, provide a natural language response that:
+1. Explains why these matches were found
+2. Highlights the key similarities between the matches and the user's query
+3. Mentions any notable differences or limitations
+4. Suggests how the user could refine their search if needed
+
+Keep your response concise and focused on helping the user understand the search results.
+"""
+        
+        # Generate response using Gemini
+        response = model.generate_content(rag_prompt)
+        rag_response = response.text
+        
+        # Return both the RAG response and the original matches
+        return {
+            "response": rag_response,
+            "matches": matches
+        }
+    except Exception as e:
+        logger.error(f"Error generating RAG response: {e}")
+        # Fall back to returning just the matches if RAG fails
+        return {
+            "response": "I found some matches for your search, but couldn't generate a detailed explanation.",
+            "matches": matches
+        }

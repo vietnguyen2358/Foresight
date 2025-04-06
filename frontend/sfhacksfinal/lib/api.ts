@@ -48,36 +48,45 @@ export interface PersonDescription {
   };
 }
 
+export interface Match {
+  description: {
+    gender?: string;
+    age_group?: string;
+    ethnicity?: string;
+    skin_tone?: string;
+    hair_style?: string;
+    hair_color?: string;
+    facial_features?: string;
+    clothing_top?: string;
+    clothing_top_color?: string;
+    clothing_top_pattern?: string;
+    clothing_bottom?: string;
+    clothing_bottom_color?: string;
+    clothing_bottom_pattern?: string;
+    accessories?: string;
+    bag_type?: string;
+    bag_color?: string;
+    location_context?: string;
+    pose?: string;
+    [key: string]: any;
+  };
+  metadata: {
+    timestamp?: string;
+    camera_id?: string;
+    location?: string;
+    image_path?: string;
+    [key: string]: any;
+  };
+  similarity: number;
+  image?: string;
+}
+
 export interface SearchResult {
-  matches: Array<{
-    description: {
-      gender?: string;
-      age_group?: string;
-      ethnicity?: string;
-      skin_tone?: string;
-      hair_style?: string;
-      hair_color?: string;
-      facial_features?: string;
-      clothing_top?: string;
-      clothing_top_color?: string;
-      clothing_top_pattern?: string;
-      clothing_bottom?: string;
-      clothing_bottom_color?: string;
-      clothing_bottom_pattern?: string;
-      accessories?: string;
-      bag_type?: string;
-      bag_color?: string;
-      location_context?: string;
-      pose?: string;
-    };
-    metadata: {
-      timestamp: string;
-      camera_id?: string;
-      location?: string;
-    };
-    similarity: number;
-    imageData?: string;
-  }>;
+  matches: Match[];
+  count?: number;
+  message?: string;
+  suggestions?: string[];
+  rag_response?: string;
 }
 
 export interface ChatResponse {
@@ -253,21 +262,28 @@ export async function searchPeople(description: string): Promise<SearchResult> {
     const data = await response.json();
     console.log("Search API response:", data);
     
-    if (!data || !data.matches) {
-      console.error("Invalid search response format:", data);
+    if (!data || !Array.isArray(data.matches)) {
+      console.error("Invalid response format from search API");
       return { matches: [] };
     }
     
+    // Process the matches
+    const matches = data.matches.map((match: any) => ({
+      description: match.description || {},
+      metadata: match.metadata || {},
+      similarity: match.similarity || 0,
+      image: match.metadata?.image_path ? `${API_BASE_URL}/${match.metadata.image_path}` : undefined
+    }));
+    
     return {
-      matches: data.matches.map((match: any) => ({
-        description: match.description,
-        metadata: match.metadata,
-        similarity: match.similarity,
-        imageData: match.image_data,
-      }))
+      matches,
+      count: data.count,
+      message: data.message,
+      suggestions: data.suggestions,
+      rag_response: data.rag_response
     };
   } catch (error) {
-    console.error('Error searching people:', error);
+    console.error("Error in searchPeople:", error);
     return { matches: [] };
   }
 }
