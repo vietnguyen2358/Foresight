@@ -9,6 +9,8 @@ from datetime import datetime
 import numpy as np
 from typing import List, Dict, Any
 import logging
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,86 +19,142 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Setup JSON storage - Use ml.json as the source
-DB_FILE = "ml.json"  # Changed from people_database.json to ml.json
+# MongoDB Connection Setup
+password = os.getenv("DB_PASS")
+uri = f"mongodb+srv://vietnguyen2358:{password}@cluster0.sysyjal.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+
+# Create a new client and connect to the server
+client = MongoClient(uri, server_api=ServerApi('1'))
+
+# Database and collection setup
+db = client['foresight_db']
+people_collection = db['people']
+
+# Local storage for uploads
 UPLOADS_DIR = "uploads"
 
 # Ensure uploads directory exists
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-def load_database() -> Dict[str, Any]:
-    """Load the database from JSON file."""
-    try:
-        if os.path.exists(DB_FILE):
-            with open(DB_FILE, 'r') as f:
-                try:
-                    data = json.load(f)
-                    
-                    # Validate basic database structure
-                    if not isinstance(data, dict):
-                        logger.error(f"Database is not a dictionary: {type(data)}")
-                        return {"people": []}
-                        
-                    if "people" not in data:
-                        logger.error("Database is missing 'people' key")
-                        return {"people": []}
-                        
-                    if not isinstance(data["people"], list):
-                        logger.error(f"Database 'people' is not a list: {type(data['people'])}")
-                        return {"people": []}
-                    
-                    # Log database load success
-                    logger.info(f"Database loaded successfully from {DB_FILE} with {len(data.get('people', []))} people")
-                    return data
-                except json.JSONDecodeError as e:
-                    logger.error(f"Error parsing database JSON: {str(e)}")
-                    return {"people": []}
-        else:
-            logger.warning(f"Database file not found: {DB_FILE}")
-            return {"people": []}
-    except Exception as e:
-        logger.error(f"Error loading database: {str(e)}")
-        return {"people": []}
-
-# Note: The following functions are kept for compatibility but will log warnings when called since we're in read-only mode
-
-def save_database(data: Dict[str, Any]):
-    """
-    This function is kept for compatibility but will not write to the file.
-    We're using ml.json in read-only mode.
-    """
-    logger.warning("Attempted to save to database, but ml.json is being used in read-only mode. No changes were made.")
-    return
-
-def reset_database():
-    """
-    This function is kept for compatibility but will not reset the database.
-    We're using ml.json in read-only mode.
-    """
-    logger.warning("Attempted to reset database, but ml.json is being used in read-only mode. No changes were made.")
-    return
+# Optional - Keep the JSON file path for backward compatibility
+DB_FILE = "ml.json"
 
 def initialize_database():
     """
-    Check if the ml.json file exists, but don't create or modify it.
+    Initialize MongoDB connection and verify it's working.
     """
-    if os.path.exists(DB_FILE):
-        logger.info(f"Database file {DB_FILE} found and will be used in read-only mode.")
-    else:
-        logger.error(f"Database file {DB_FILE} not found. Please ensure it exists.")
+    try:
+        # Send a ping to confirm a successful connection
+        client.admin.command('ping')
+        logger.info("Pinged your deployment. Successfully connected to MongoDB!")
+        
+        # Create indexes if needed
+        people_collection.create_index([("id", 1)], unique=True)
+        logger.info("Database indexes created or verified")
+        
+        # Log the current count of documents
+        count = people_collection.count_documents({})
+        logger.info(f"Current database contains {count} people records")
+        
+        return True
+    except Exception as e:
+        logger.error(f"MongoDB connection error: {e}")
+        return False
 
-# Initialize database check on module import
-initialize_database()
+# Initialize database on module import
+db_initialized = initialize_database()
+
+def load_database() -> Dict[str, Any]:
+    """Load the database from MongoDB."""
+    try:
+        if not db_initialized:
+            logger.error("Database not initialized, cannot load data")
+            return {"people": []}
+            
+        # Fetch all people documents
+        people = list(people_collection.find({}, {'_id': 0}))
+        logger.info(f"Database loaded successfully from MongoDB with {len(people)} people")
+        
+        return {"people": people}
+    except Exception as e:
+        logger.error(f"Error loading database from MongoDB: {str(e)}")
+        return {"people": []}
+
+def save_database(data: Dict[str, Any]):
+    """
+    This function is kept for compatibility but is a no-op with MongoDB,
+    since documents are saved individually with add_person.
+    """
+    logger.info("save_database called - this is a no-op with MongoDB as documents are saved individually")
+    return
+
+def reset_database():
+    """Reset the MongoDB collection."""
+    try:
+        if not db_initialized:
+            logger.error("Database not initialized, cannot reset")
+            return
+            
+        # Drop the collection
+        people_collection.delete_many({})
+        logger.info("Database reset successfully")
+        return
+    except Exception as e:
+        logger.error(f"Error resetting database: {str(e)}")
+        return
 
 def add_person(description_json: Dict[str, Any], metadata: Dict[str, Any] = None):
     """
-    This function is kept for compatibility but will not add to the database.
-    We're using ml.json in read-only mode.
+    Add a person to the MongoDB database.
+    Returns the ID of the inserted document.
     """
-    logger.warning("Attempted to add person to database, but ml.json is being used in read-only mode. No changes were made.")
-    
-    # Generate a fake ID to return for API compatibility
-    return str(uuid.uuid4())
+    try:
+        if not db_initialized:
+            logger.error("Database not initialized, cannot add person")
+            return str(uuid.uuid4())  # Return a random ID for compatibility
+        
+        # Generate a unique ID
+        person_id = str(uuid.uuid4())
+        
+        # Handle the image if present in metadata
+        image_path = None
+        if metadata and 'image' in metadata:
+            # Save the image to disk
+            if hasattr(metadata['image'], 'save'):  # Check if it's a PIL Image
+                # Create a unique filename
+                filename = f"{person_id}.jpg"
+                file_path = os.path.join(UPLOADS_DIR, filename)
+                
+                # Save the image
+                metadata['image'].save(file_path)
+                
+                # Update metadata with image path
+                image_path = file_path
+                
+                # Remove the PIL image from metadata as it's not JSON serializable
+                metadata_copy = metadata.copy()
+                metadata_copy.pop('image')
+                metadata = metadata_copy
+                
+                # Add image path to metadata
+                metadata['image_path'] = image_path
+        
+        # Create the document
+        person_doc = {
+            "id": person_id,
+            "description": description_json,
+            "metadata": metadata or {},
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Insert into MongoDB
+        people_collection.insert_one(person_doc)
+        logger.info(f"Added person to MongoDB with ID: {person_id}")
+        
+        return person_id
+    except Exception as e:
+        logger.error(f"Error adding person to MongoDB: {str(e)}")
+        return str(uuid.uuid4())  # Return a random ID for compatibility
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
     """Calculate cosine similarity between two vectors."""
@@ -105,50 +163,70 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def search_people(query_embedding: List[float], n: int = 3) -> Dict[str, Any]:
-    """Search for similar people in the database."""
-    db = load_database()
-    
-    # Calculate similarities
-    similarities = []
-    for person in db["people"]:
-        similarity = cosine_similarity(query_embedding, person["embedding"])
-        similarities.append((person, similarity))
-    
-    # Sort by similarity (descending)
-    similarities.sort(key=lambda x: x[1], reverse=True)
-    
-    # Take top n results
-    top_results = similarities[:n]
-    
-    # Process results
-    processed_results = []
-    for person, similarity in top_results:
-        try:
-            # Convert similarity to percentage (0-100%)
-            similarity_score = max(0, min(100, similarity * 100))
-            
-            # Load and encode image
-            image_data = None
-            image_path = person["metadata"].get("image_path", "")
-            if image_path and os.path.exists(image_path):
-                try:
-                    with open(image_path, "rb") as img_file:
-                        image_data = base64.b64encode(img_file.read()).decode("utf-8")
-                except Exception as e:
-                    print(f"Error loading image {image_path}: {e}")
-            
-            processed_results.append({
-                "description": person["description"],
-                "metadata": person["metadata"],
-                "similarity": similarity_score,
-                "image_data": image_data
-            })
-        except Exception as e:
-            print(f"Error processing result: {e}")
-            continue
-    
-    return {
-        "query": "find someone",
-        "matches": processed_results,
-        "count": len(processed_results)
-    }
+    """Search for similar people in the MongoDB database."""
+    try:
+        if not db_initialized:
+            logger.error("Database not initialized, cannot search")
+            return {"query": "find someone", "matches": [], "count": 0}
+        
+        # Get all people documents
+        people = list(people_collection.find({}, {'_id': 0}))
+        
+        # Calculate similarities
+        similarities = []
+        for person in people:
+            # Check if the person has an embedding
+            if "embedding" in person:
+                similarity = cosine_similarity(query_embedding, person["embedding"])
+                similarities.append((person, similarity))
+            else:
+                logger.warning(f"Person {person.get('id', 'unknown')} missing embedding, skipping")
+        
+        # Sort by similarity (descending)
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        
+        # Take top n results
+        top_results = similarities[:n]
+        
+        # Process results
+        processed_results = []
+        for person, similarity in top_results:
+            try:
+                # Convert similarity to percentage (0-100%)
+                similarity_score = max(0, min(100, similarity * 100))
+                
+                # Load and encode image
+                image_data = None
+                image_path = person["metadata"].get("image_path", "")
+                if image_path and os.path.exists(image_path):
+                    try:
+                        with open(image_path, "rb") as img_file:
+                            image_data = base64.b64encode(img_file.read()).decode("utf-8")
+                    except Exception as e:
+                        logger.error(f"Error loading image {image_path}: {e}")
+                
+                processed_results.append({
+                    "description": person["description"],
+                    "metadata": person["metadata"],
+                    "similarity": similarity_score,
+                    "image_data": image_data
+                })
+            except Exception as e:
+                logger.error(f"Error processing result: {e}")
+                continue
+        
+        return {
+            "query": "find someone",
+            "matches": processed_results,
+            "count": len(processed_results)
+        }
+    except Exception as e:
+        logger.error(f"Error searching people in MongoDB: {str(e)}")
+        return {"query": "find someone", "matches": [], "count": 0}
+
+# Add function to get direct database reference (for use in other modules)
+def get_db_reference():
+    """Get reference to MongoDB database and collection"""
+    if db_initialized:
+        return db, people_collection
+    return None, None
