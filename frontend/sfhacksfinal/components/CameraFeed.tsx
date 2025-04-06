@@ -25,6 +25,7 @@ export function CameraFeed() {
   const { selectedCamera } = useCamera();
   const [isProcessing, setIsProcessing] = useState(false);
   const [personDescriptions, setPersonDescriptions] = useState<any[]>([]);
+  const [cameraPersonDescriptions, setCameraPersonDescriptions] = useState<Record<string, any[]>>({});
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null);
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -91,11 +92,22 @@ export function CameraFeed() {
             timestamp: new Date().toISOString()
           }));
           
+          // Store descriptions by camera ID
+          setCameraPersonDescriptions(prev => ({
+            ...prev,
+            [selectedCamera.id]: descriptions
+          }));
+          
+          // Update current view
           setPersonDescriptions(descriptions);
         }
       } else {
         setDetections([]);
-        setPersonDescriptions([]);
+        // Don't clear person descriptions to prevent UI flickering
+        // Only reset if no descriptions previously existed for this camera
+        if (!cameraPersonDescriptions[selectedCamera.id]) {
+          setPersonDescriptions([]);
+        }
       }
       
       // Update last processed frame
@@ -117,6 +129,14 @@ export function CameraFeed() {
       if (frameIntervalRef.current) {
         clearInterval(frameIntervalRef.current);
       }
+      
+      // Reset state for new camera or load existing camera data
+      if (cameraPersonDescriptions[selectedCamera.id]) {
+        setPersonDescriptions(cameraPersonDescriptions[selectedCamera.id]);
+      } else {
+        setPersonDescriptions([]);
+      }
+      setDetections([]);
       
       // Set up frame processing interval
       frameIntervalRef.current = setInterval(() => {
@@ -148,7 +168,7 @@ export function CameraFeed() {
         }
       };
     }
-  }, [selectedCamera, isProcessing]);
+  }, [selectedCamera, isProcessing, cameraPersonDescriptions]);
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">

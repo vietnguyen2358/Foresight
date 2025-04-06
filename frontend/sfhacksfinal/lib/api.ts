@@ -73,14 +73,17 @@ export interface Match {
   metadata: {
     timestamp?: string;
     camera_id?: string;
-    location?: string;
+    camera_location?: string;
     image_path?: string;
+    explanation?: string;
     [key: string]: any;
   };
   similarity: number;
   image?: string;
   image_data?: string;
   highlights?: string[];
+  explanation?: string;
+  match_details?: any;
 }
 
 export interface SearchResult {
@@ -115,6 +118,27 @@ export interface FrameResponse {
     };
     score: number;
   };
+}
+
+// Add the interface for person search chat
+export interface PersonSearchChatRequest {
+  query: string;
+  conversation_history?: Array<{role: string, content: string}>;
+  include_raw_database?: boolean;
+}
+
+export interface PersonSearchChatResponse {
+  response: string;
+  suggested_searches: string[];
+  database_stats: Record<string, any>;
+  matches: Array<{
+    id: string;
+    camera_id: string;
+    camera_location: string;
+    description: Record<string, any>;
+    score: number;
+    match_reasons: string[];
+  }>;
 }
 
 // API functions
@@ -269,12 +293,27 @@ export async function searchPeople(description: string): Promise<SearchResult> {
   try {
     console.log("Searching for people with description:", description);
     
+    // Log that we're using Gemini for natural language processing
+    console.log("Using Gemini direct database search processing");
+    
+    // Additional parameters to ensure we get the best structured search results
+    const searchParams = {
+      description, 
+      use_gemini: true,
+      include_camera_location: true,
+      include_match_highlights: true,
+      structured_json: true,
+      include_rag_response: true,
+      use_direct_search: true, // Enable the direct database search with Gemini
+      top_k: 5 // Number of results to return
+    };
+    
     const response = await fetch(`${API_BASE_URL}/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ description }),
+      body: JSON.stringify(searchParams),
     });
 
     if (!response.ok) {
@@ -291,27 +330,89 @@ export async function searchPeople(description: string): Promise<SearchResult> {
       return { matches: [] };
     }
     
-    // Process the matches
-    const matches = data.matches.map((match: any) => ({
-      description: match.description || {},
-      metadata: match.metadata || {},
-      similarity: match.similarity || 0,
-      image: match.metadata?.image_path ? `${API_BASE_URL}/${match.metadata.image_path}` : undefined,
-      image_data: match.image_data,
-      highlights: match.highlights || []
-    }));
+    // Process the matches, ensuring camera location is included
+    const matches = data.matches.map((match: any) => {
+      // Ensure we have metadata
+      const metadata = match.metadata || {};
+      
+      // Get camera location from either the response or our local mapping
+      const cameraLocation = metadata.camera_location || 
+                            getCameraLocation(metadata.camera_id) || 
+                            "Unknown location";
+      
+      // Extract explanation if available from direct search
+      const explanation = match.explanation || "";
+      
+      // Extract match highlights if available
+      const highlights = match.highlights || [];
+      
+      // Get match details if available
+      const matchDetails = match.match_details || {};
+      
+      // Prepare the complete match object with all necessary fields
+      return {
+        description: match.description || {},
+        metadata: {
+          ...metadata,
+          camera_location: cameraLocation,
+          explanation: explanation  // Add explanation field to metadata
+        },
+        similarity: match.similarity || 0,
+        image: metadata.image_path ? `${API_BASE_URL}/${metadata.image_path}` : undefined,
+        image_data: match.image_data,
+        highlights: highlights,
+        match_details: matchDetails,
+        explanation: explanation  // Also add at top level for easy access
+      };
+    });
+    
+    // Process response message and RAG response
+    const message = data.message || "";
+    const ragResponse = data.rag_response || data.response || "";
+    const suggestions = data.suggestions || [];
     
     return {
       matches,
-      count: data.count,
-      message: data.message,
-      suggestions: data.suggestions,
-      rag_response: data.rag_response
+      count: data.count || matches.length,
+      message: message,
+      suggestions: suggestions,
+      rag_response: ragResponse
     };
   } catch (error) {
     console.error("Error in searchPeople:", error);
-    return { matches: [] };
+    return { 
+      matches: [],
+      message: "Error searching for people. Please try again.",
+      rag_response: "I encountered an error while searching. Please try a different query or try again later."
+    };
   }
+}
+
+// Helper function to get camera location from camera ID
+function getCameraLocation(cameraId: string | undefined): string {
+  if (!cameraId) return "Unknown";
+  
+  // Map camera IDs to locations - this could be expanded or moved to a configuration file
+  const cameraLocations: {[key: string]: string} = {
+    "SF-MIS-001": "Mission District - 16th Street",
+    "SF-MIS-002": "Mission District - 24th Street",
+    "SF-MIS-003": "Mission District - Valencia Street",
+    "SF-MIS-004": "Mission District - Dolores Park",
+    "SF-MIS-005": "Mission District - Bryant Street",
+    "SF-MIS-006": "Mission District - Folsom Street",
+    "SF-MIS-007": "Mission District - Guerrero Street",
+    "SF-MIS-008": "Mission District - South Van Ness Avenue",
+    "SF-FID-001": "Financial District - Market Street",
+    "SF-FID-002": "Financial District - Montgomery Street",
+    "SF-FID-003": "Financial District - California Street",
+    "SF-FID-004": "Financial District - Embarcadero",
+    "SF-NOB-001": "Nob Hill - Powell Street",
+    "SF-NOB-002": "Nob Hill - California Street",
+    "SF-CHI-001": "Chinatown - Grant Avenue",
+    "SF-CHI-002": "Chinatown - Stockton Street"
+  };
+  
+  return cameraLocations[cameraId] || `Location for ${cameraId}`;
 }
 
 export async function chatWithAI(messages: { role: string; content: string }[]): Promise<ChatResponse> {
@@ -391,4 +492,29 @@ export const mockPersonDescriptions: PersonDescription[] = [
     timestamp: new Date().toLocaleTimeString(),
     image: "https://picsum.photos/seed/person2/200/150"
   }
-]; 
+];
+
+// Add the person search chat function
+export async function personSearchChat(request: PersonSearchChatRequest): Promise<PersonSearchChatResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/person_search_chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      console.error('Error in person search chat response:', await response.text());
+      throw new Error(`Error in person search chat: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json() as PersonSearchChatResponse;
+    console.log('Person search chat response:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in person search chat:', error);
+    throw error;
+  }
+} 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useCamera } from '@/lib/CameraContext';
 
 interface VideoPlayerProps {
   videoSrc: string;
@@ -14,6 +15,10 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
   const [useFallback, setUseFallback] = useState(false);
   const FRAME_INTERVAL = 5000; // 5 seconds between frame extractions
   const [isExtracting, setIsExtracting] = useState(false);
+  // Get current camera context to ensure frames are associated with the correct camera
+  const { selectedCamera } = useCamera();
+  // Track frames that have already been processed for this video
+  const [processedFrameHashes, setProcessedFrameHashes] = useState<Set<string>>(new Set());
 
   // Initialize video player or fallback to image
   useEffect(() => {
@@ -24,9 +29,13 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     // Reset state when video source changes
     setError(null);
     setUseFallback(false);
+    // Only clear the frame interval, not the processed frames
     if (frameIntervalRef.current) {
       clearInterval(frameIntervalRef.current);
     }
+    
+    // Reset the processed frames when video source changes
+    setProcessedFrameHashes(new Set());
 
     // Set up video source
     video.src = videoSrc;
@@ -45,6 +54,9 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         setUseFallback(true);
         startFallbackFrameExtraction();
       });
+      
+      // Don't clear the processed frames when video loops
+      // This ensures we don't reprocess the same frames
     };
 
     // Handle errors
@@ -110,12 +122,35 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     };
   }, [videoSrc, isProcessing]);
 
+  // Create a simple hash for a frame to avoid duplicates
+  const getFrameHash = (frameData: string): string => {
+    // Use a simple hashing approach - take parts of the data at different positions
+    const length = frameData.length;
+    const sampleSize = 100; // Sample this many characters
+    const samples = 5; // Take this many samples from the data
+    
+    let hash = '';
+    for (let i = 0; i < samples; i++) {
+      const position = Math.floor((i * length) / samples);
+      hash += frameData.substring(position, position + sampleSize);
+    }
+    
+    // Return a numeric hash of the combined samples
+    let numericHash = 0;
+    for (let i = 0; i < hash.length; i++) {
+      numericHash = ((numericHash << 5) - numericHash) + hash.charCodeAt(i);
+      numericHash = numericHash & numericHash; // Convert to 32bit integer
+    }
+    
+    return `${selectedCamera?.id || 'unknown'}_${numericHash}`;
+  };
+
   // Extract frame from video
   const extractFrame = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    if (!video || !canvas || isProcessing || isExtracting) return;
+    if (!video || !canvas || isProcessing || isExtracting || !selectedCamera) return;
     
     try {
       setIsExtracting(true);
@@ -160,10 +195,27 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         frameUrl = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
       }
       
+      // Check if we've already processed this frame (approximately)
+      const frameHash = getFrameHash(frameUrl);
+      
+      if (processedFrameHashes.has(frameHash)) {
+        console.log(`Skipping already processed frame: ${frameHash}`);
+        setIsExtracting(false);
+        return;
+      }
+      
+      // Add this frame to processed frames
+      setProcessedFrameHashes(prev => {
+        const updated = new Set(prev);
+        updated.add(frameHash);
+        return updated;
+      });
+      
       // Log the frame extraction with detailed information
-      console.log(`Frame extracted at ${new Date().toLocaleTimeString()}`);
+      console.log(`Frame extracted at ${new Date().toLocaleTimeString()} for camera ${selectedCamera.id}`);
       console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
       console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
+      console.log(`Frame hash: ${frameHash}`);
       
       // Final validation check
       if (!frameUrl || frameUrl.length < 100) {
@@ -199,7 +251,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
       }
       
       // Pass the frame URL to the parent component
-      console.log("Sending frame to parent component for processing");
+      console.log(`Sending frame to parent component for processing (camera: ${selectedCamera.id})`);
       onFrameExtracted(frameUrl);
     } catch (err) {
       console.error('Error extracting frame:', err);

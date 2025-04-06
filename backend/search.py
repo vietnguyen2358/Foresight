@@ -56,199 +56,105 @@ Respond with ONLY a valid JSON object.
 """
 
 def query_to_structured_json(query: str) -> Dict[str, Any]:
-    """Convert a natural language query to structured JSON."""
+    """Convert natural language query to structured JSON."""
     try:
-        # Extensive preprocessing
-        query = query.lower().strip()
-        
-        # Record original query for logging
         original_query = query
-        logger.info(f"Original query: {original_query}")
+        query = query.lower()
+        logger.info(f"Converting query to structured JSON: {query}")
         
-        # Expanded gender terms dictionary
+        # Detect gender explicitly as a preprocessing step
         gender_terms = {
-            'female': [
-                'female', 'woman', 'girl', 'lady', 'women', 'girls', 'ladies', 
-                'she', 'her', 'feminine', 'mom', 'mother', 'daughter', 'sister',
-                'aunt', 'grandma', 'grandmother', 'wife'
-            ],
-            'male': [
-                'male', 'man', 'boy', 'guy', 'men', 'boys', 'guys', 'he', 
-                'him', 'his', 'masculine', 'dad', 'father', 'son', 'brother',
-                'uncle', 'grandpa', 'grandfather', 'husband'
-            ]
+            "male": ["man", "male", "boy", "guy", "men", "boys", "guys", "gentleman", "masculine"],
+            "female": ["woman", "female", "girl", "lady", "women", "girls", "ladies", "feminine"],
+            "other": ["person", "non-binary", "nonbinary", "transgender", "trans", "neutral", "other gender"]
         }
         
-        # Expanded clothing color dictionary
-        colors = [
-            "red", "blue", "green", "yellow", "orange", "purple", "pink", "brown", 
-            "black", "white", "grey", "gray", "light blue", "dark blue", "navy", 
-            "teal", "turquoise", "maroon", "burgundy", "beige", "tan", "cream", 
-            "gold", "silver", "olive", "lime", "aqua", "cyan", "magenta", "violet"
-        ]
-        
-        # Expanded clothing types dictionary
-        clothing_types = {
-            "top": [
-                "hoodie", "shirt", "t-shirt", "t shirt", "tshirt", "sweater", "sweatshirt", 
-                "jacket", "coat", "blazer", "blouse", "tank top", "vest", "jersey", 
-                "polo", "cardigan", "dress shirt", "button-up", "button up", "top"
-            ],
-            "bottom": [
-                "jeans", "pants", "shorts", "skirt", "trousers", "slacks", "leggings", 
-                "sweatpants", "joggers", "khakis", "capris", "cargo pants", "chinos",
-                "dress pants", "bottom"
-            ],
-            "footwear": [
-                "shoes", "sneakers", "boots", "sandals", "heels", "flats", "loafers", 
-                "slippers", "flip-flops", "flip flops", "running shoes", "tennis shoes", 
-                "basketball shoes", "hiking boots", "dress shoes"
-            ]
-        }
-        
-        # Expanded accessories dictionary
-        accessories = [
-            "hat", "cap", "beanie", "glasses", "sunglasses", "backpack", "bag", 
-            "handbag", "purse", "wallet", "watch", "bracelet", "necklace", "ring",
-            "earrings", "scarf", "tie", "belt", "headband", "bandana", "mask"
-        ]
-        
-        # Extract gender
         detected_gender = None
         for gender, terms in gender_terms.items():
             if any(f" {term} " in f" {query} " or query.startswith(f"{term} ") or query.endswith(f" {term}") or query == term for term in terms):
                 detected_gender = gender
-                # If gender isn't mentioned in a structured way, add it
-                if not any(term in query for term in ["gender", "male", "female", "woman", "man"]):
-                    query = f"Find a {gender} {query}"
+                logger.info(f"Detected gender '{gender}' in query")
                 break
         
-        # Handle "with" queries more broadly
-        hair_colors = ['blonde', 'blond', 'black', 'brown', 'red', 'white', 'gray', 'grey', 'dark', 'light', 'brunette', 'redhead']
-        hair_styles = ['long', 'short', 'curly', 'straight', 'wavy', 'bald', 'balding', 'buzz cut', 'pixie', 'ponytail', 'bun', 'braided']
+        # Create more comprehensive prompt with clearer examples and structure
+        gemini_prompt = f"""
+You are a computer vision AI assistant that helps convert natural language descriptions into structured JSON format.
+
+TASK: Convert the following query about a person's appearance into a structured JSON object.
+
+QUERY: "{query}"
+
+Extract only the attributes explicitly mentioned or strongly implied in the query.
+Follow these formatting rules:
+1. Include only attributes that are mentioned or strongly implied in the query
+2. Use null for any attributes not mentioned
+3. Format the response as valid, clean JSON with no explanations
+4. For multi-word values, keep spaces (e.g., "light brown" not "lightbrown")
+5. Standardize terms when appropriate (e.g., "male" not "man")
+
+The JSON should ONLY include these attributes if they're mentioned:
+{{
+  "gender": null,         // "male", "female", or "other"
+  "age_group": null,      // "child", "teen", "adult", "senior"
+  "height_estimate": null, // "short", "average", "tall"
+  "build_type": null,     // "thin", "average", "athletic", "heavy"
+  "ethnicity": null,      // ethnicity if mentioned
+  "skin_tone": null,      // "light", "medium", "dark" if mentioned
+  "hair_style": null,     // "short", "medium", "long", "bald", "ponytail", "braided", etc.
+  "hair_color": null,     // hair color if mentioned
+  "facial_features": null, // facial features like "glasses", "beard", "mustache", etc.
+  "clothing_top": null,   // type of top clothing (e.g., "shirt", "jacket", "hoodie")
+  "clothing_top_color": null, // color of top clothing
+  "clothing_top_pattern": null, // pattern of top clothing (e.g., "solid", "striped", "plaid")
+  "clothing_bottom": null, // type of bottom clothing (e.g., "pants", "shorts", "skirt")
+  "clothing_bottom_color": null, // color of bottom clothing
+  "clothing_bottom_pattern": null, // pattern of bottom clothing
+  "footwear": null,       // type of footwear (e.g., "sneakers", "boots", "sandals")
+  "footwear_color": null, // color of footwear
+  "accessories": null,    // accessories (e.g., "backpack", "hat", "sunglasses")
+  "bag_type": null,       // type of bag if carrying (e.g., "backpack", "purse", "suitcase")
+  "bag_color": null,      // color of bag
+  "pose": null,           // pose or activity (e.g., "standing", "walking", "sitting")
+  "location_context": null // context of location (e.g., "indoor", "outdoor", "street")
+}}
+
+Examples:
+1. "man in red shirt" → {{"gender":"male","clothing_top":"shirt","clothing_top_color":"red"}}
+2. "woman with blonde hair wearing glasses" → {{"gender":"female","hair_color":"blonde","facial_features":"glasses"}}
+3. "elderly asian man with a cane" → {{"gender":"male","age_group":"senior","ethnicity":"asian","accessories":"cane"}}
+
+Make sure to only include attributes that are explicitly mentioned or strongly implied in the query.
+DO NOT include attributes just because they seem likely or reasonable.
+Return ONLY the JSON object with no other text.
+"""
+
+        # Perform the API call
+        logger.info("Sending query to Gemini")
+        response = model.generate_content(gemini_prompt)
+        response_text = response.text
         
-        if "with" in query:
-            parts = query.split("with")
-            if len(parts) > 1:
-                after_with = parts[1].strip()
-                
-                # Check for hair color and style patterns
-                for color in hair_colors:
-                    if color in after_with and "hair" in after_with:
-                        query = f"Find a person with {color} hair {parts[0].strip()}"
-                        break
-                
-                for style in hair_styles:
-                    if style in after_with and "hair" in after_with:
-                        query = f"Find a person with {style} hair {parts[0].strip()}"
-                        break
+        # Additional logging for debugging
+        logger.info(f"Raw Gemini response: {response_text[:1000]}")
         
-        # Enhanced handling of "wearing" queries
-        if "wearing" in query:
-            parts = query.split("wearing")
-            if len(parts) > 1:
-                clothing_part = parts[1].strip()
-                
-                # Extract color information
-                found_color = None
-                for color in colors:
-                    if f" {color} " in f" {clothing_part} " or clothing_part.startswith(f"{color} ") or clothing_part.endswith(f" {color}") or clothing_part == color:
-                        found_color = color
-                        break
-                
-                # Extract clothing type information
-                found_type = None
-                clothing_category = None
-                
-                # Check for all clothing categories
-                for category, types in clothing_types.items():
-                    for clothing_type in types:
-                        if f" {clothing_type} " in f" {clothing_part} " or clothing_part.startswith(f"{clothing_type} ") or clothing_part.endswith(f" {clothing_type}") or clothing_part == clothing_type:
-                            found_type = clothing_type
-                            clothing_category = category
-                            break
-                    if found_type:
-                        break
-                
-                # Create more specific structured queries
-                if found_color and found_type:
-                    if clothing_category == "top":
-                        query = f"Find a person wearing a {found_color} {found_type} {parts[0].strip()}"
-                    elif clothing_category == "bottom":
-                        query = f"Find a person wearing {found_color} {found_type} {parts[0].strip()}"
-                    elif clothing_category == "footwear":
-                        query = f"Find a person wearing {found_color} {found_type} {parts[0].strip()}"
-                elif found_color and "shirt" not in clothing_part and "pants" not in clothing_part:
-                    # If only color is mentioned, assume it's a top
-                    query = f"Find a person wearing a {found_color} shirt {parts[0].strip()}"
-                elif found_type:
-                    query = f"Find a person wearing a {found_type} {parts[0].strip()}"
+        # Attempt to extract JSON from the response if wrapped in ``` or other text
+        json_text = response_text.strip()
+        if "```json" in json_text:
+            json_text = json_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_text:
+            json_text = json_text.split("```")[1].split("```")[0].strip()
         
-        # Special handling for accessory queries
-        for accessory in accessories:
-            if f" {accessory} " in f" {query} " or query.startswith(f"{accessory} ") or query.endswith(f" {accessory}") or query == accessory:
-                if "with" not in query:
-                    query = f"Find a person with {accessory} {query}"
-                break
-        
-        # Handle queries about facial hair
-        facial_hair_terms = ['beard', 'mustache', 'moustache', 'goatee', 'stubble', 'clean-shaven', 'clean shaven']
-        for term in facial_hair_terms:
-            if f" {term} " in f" {query} " or query.startswith(f"{term} ") or query.endswith(f" {term}") or query == term:
-                if "facial features" not in query:
-                    query = f"Find a person with facial features including {term} {query}"
-                break
-        
-        # Age-related handling
-        age_terms = {
-            'child': ['child', 'kid', 'young', 'little', 'small', 'toddler', 'baby'],
-            'teen': ['teen', 'teenager', 'adolescent', 'youth'],
-            'adult': ['adult', 'grown-up', 'grown up', 'mature', 'middle-aged', 'middle aged'],
-            'senior': ['senior', 'elderly', 'old', 'older', 'aged', 'retired']
-        }
-        
-        for age_group, terms in age_terms.items():
-            if any(f" {term} " in f" {query} " or query.startswith(f"{term} ") or query.endswith(f" {term}") or query == term for term in terms):
-                if "age_group" not in query and "age" not in query:
-                    query = f"Find a person in age group {age_group} {query}"
-                break
-        
-        # Handle location context
-        location_terms = {
-            'indoor': ['inside', 'indoor', 'indoors', 'in the building', 'in the room'],
-            'outdoor': ['outside', 'outdoor', 'outdoors', 'in the street', 'on the street']
-        }
-        
-        for context, terms in location_terms.items():
-            if any(term in query for term in terms):
-                if "location_context" not in query:
-                    query = f"Find a person in {context} setting {query}"
-                break
-        
-        logger.info(f"Processed query: {query}")
-        
-        # Format the prompt with the processed query
-        prompt = QUERY_PROMPT_TEMPLATE.format(query)
-        
-        # Get response from Gemini
-        response = model.generate_content(prompt)
-        
-        # Clean up the response text by removing markdown formatting
-        response_text = response.text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]  # Remove ```json prefix
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]  # Remove ``` suffix
-        response_text = response_text.strip()
-        
-        # Parse the response as JSON
+        # Parse the JSON
         try:
-            result = json.loads(response_text)
+            result = json.loads(json_text)
+            logger.info(f"Successfully parsed JSON from Gemini response")
             
-            # If we detected a gender but it's not in the result, add it
-            if detected_gender and ('gender' not in result or not result['gender']):
+            # Add detected gender if it wasn't in the response
+            if detected_gender and (result.get('gender') is None or result.get('gender') == ""):
                 result['gender'] = detected_gender
                 logger.info(f"Added detected gender '{detected_gender}' to query result")
+            
+            # Clean up the result - remove null values and empty strings
+            result = {k: v for k, v in result.items() if v is not None and v != ""}
             
             logger.info(f"Structured JSON result: {result}")
             return result
@@ -727,10 +633,20 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
         logger.error(f"Error in calculate_similarity: {e}")
         return 0
 
-def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
+def find_similar_people(user_description: str, top_k=1, include_match_highlights=True, include_camera_location=True, include_rag_response=True) -> List[Dict[str, Any]]:
     """Find similar people based on text description.
     
     Now defaults to only returning the top 1 match.
+    
+    Args:
+        user_description: Natural language description to search for
+        top_k: Number of top matches to return
+        include_match_highlights: Whether to include key attributes that matched
+        include_camera_location: Whether to add camera locations to results
+        include_rag_response: Whether to include a natural language response using Gemini
+        
+    Returns:
+        List of matching people with descriptions and metadata
     """
     try:
         logger.info(f"Starting search for: '{user_description}'")
@@ -797,7 +713,15 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
                 logger.info(f"Using basic fallback query: {basic_query}")
                 query_json = basic_query
             else:
-                return []
+                empty_response = {
+                    "matches": [],
+                    "count": 0,
+                    "message": "Could not understand your search query. Please try again with more specific details.",
+                    "suggestions": ["Try describing clothing colors", "Mention gender (man/woman)", "Describe hair color or style"]
+                }
+                if include_rag_response:
+                    empty_response["rag_response"] = "I couldn't understand your search query. Please try describing the person with more specific details like clothing colors, gender, or hair characteristics."
+                return empty_response
 
         # Log the structured query for debugging
         logger.info(f"Structured query: {json.dumps(query_json, indent=2)}")
@@ -806,7 +730,15 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
         db = load_database()
         if not db or "people" not in db:
             logger.error("Database is empty or invalid")
-            return []
+            empty_response = {
+                "matches": [],
+                "count": 0,
+                "message": "Search database is empty or not available.",
+                "suggestions": ["Try again later", "Check if the database has been initialized"]
+            }
+            if include_rag_response:
+                empty_response["rag_response"] = "I'm sorry, but the database appears to be empty or not accessible right now. Please try again later."
+            return empty_response
         
         logger.info(f"Database loaded with {len(db['people'])} people")
         
@@ -852,7 +784,15 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
         # Add a message if there are critical terms but no matches
         if critical_terms and not similarities:
             logger.info(f"No matches found for critical terms: {critical_terms}")
-            return []
+            empty_response = {
+                "matches": [],
+                "count": 0,
+                "message": f"No matches found for specific criteria: {', '.join(critical_terms.keys())}",
+                "suggestions": ["Try broader terms", "Remove specific requirements like colors or accessories"]
+            }
+            if include_rag_response:
+                empty_response["rag_response"] = f"I couldn't find anyone matching your specific criteria for {', '.join(critical_terms.keys())}. Try broadening your search by removing specific details."
+            return empty_response
         
         # Log how many similarities we found
         logger.info(f"Found {len(similarities)} potential matches before normalization")
@@ -927,49 +867,104 @@ def find_similar_people(user_description: str, top_k=1) -> List[Dict[str, Any]]:
                         query_val = str(query_json[key]).lower()
                         person_val = str(person["description"][key]).lower()
                         
-                        # Check for exact or synonymous matches
+                        # Check if values match or are similar
                         if query_val == person_val:
                             match_highlights.append(f"{key}: {person_val}")
-                        elif key == 'gender':
-                            for gender, variations in gender_variations.items():
-                                if gender in query_val and gender in person_val:
-                                    match_highlights.append(f"gender: {person_val}")
-                                    break
-                        elif key == 'hair_color':
-                            for color, variations in color_variations.items():
-                                if color in query_val and color in person_val:
-                                    match_highlights.append(f"hair color: {person_val}")
-                                    break
-                        elif key == 'clothing_top_color':
-                            for color, variations in color_variations.items():
-                                if color in query_val and color in person_val:
-                                    match_highlights.append(f"top color: {person_val}")
-                                    break
+                        elif query_val in person_val or person_val in query_val:
+                            match_highlights.append(f"{key}: {person_val} (partial match)")
                 
-                match_result = {
+                # Add camera location if requested
+                camera_location = None
+                if include_camera_location:
+                    camera_id = person["metadata"].get("camera_id", "")
+                    camera_location = get_camera_location(camera_id)
+                    logger.info(f"Added camera location '{camera_location}' for camera ID '{camera_id}'")
+                
+                # Build the match object
+                match_obj = {
                     "description": person["description"],
-                    "metadata": person["metadata"],
+                    "metadata": {
+                        **person["metadata"],
+                        "detection_id": person.get("id", ""),
+                    },
                     "similarity": similarity_score,
-                    "highlights": match_highlights[:3]  # Limit to top 3 highlights
+                    "image_data": image_data
                 }
                 
-                # Only add image data if available
-                if image_data:
-                    match_result["image_data"] = image_data
+                # Add camera location if available
+                if camera_location:
+                    match_obj["metadata"]["camera_location"] = camera_location
                 
-                matches.append(match_result)
-                logger.info(f"Added match with similarity: {similarity_score}%")
+                # Add match highlights if requested
+                if include_match_highlights and match_highlights:
+                    match_obj["highlights"] = match_highlights
+                    match_obj["match_details"] = match_details
                 
+                matches.append(match_obj)
             except Exception as e:
-                logger.error(f"Error processing result: {str(e)}")
+                logger.error(f"Error processing match: {e}")
                 continue
         
-        logger.info(f"Returning {len(matches)} final matches")
-        return matches
+        # Build the complete response
+        response = {
+            "matches": matches,
+            "count": len(matches),
+            "message": f"Found {len(matches)} potential matches.",
+            "suggestions": suggested_refinements
+        }
+        
+        # Add RAG-enhanced response if requested
+        if include_rag_response and matches:
+            rag_result = generate_rag_response(user_description, matches)
+            response["rag_response"] = rag_result.get("response", "")
+        
+        return response
+        
     except Exception as e:
-        logger.error(f"Error in find_similar_people: {str(e)}")
-        # Return an empty list on error
-        return []
+        logger.error(f"Error in find_similar_people: {e}")
+        # Return a user-friendly error
+        error_response = {
+            "matches": [],
+            "count": 0,
+            "message": "An error occurred during search. Please try again.",
+            "error": str(e)
+        }
+        if include_rag_response:
+            error_response["rag_response"] = "I'm sorry, but an error occurred while searching. Please try again with a different query."
+        return error_response
+
+# Helper function to get camera location from camera ID
+def get_camera_location(camera_id: str) -> str:
+    """Map camera ID to a human-readable location name."""
+    camera_locations = {
+        "SF-MIS-001": "Mission District - 16th Street",
+        "SF-MIS-002": "Mission District - 24th Street",
+        "SF-MIS-003": "Mission District - Valencia Street",
+        "SF-MIS-004": "Mission District - Dolores Park",
+        "SF-MIS-005": "Mission District - Bryant Street",
+        "SF-MIS-006": "Mission District - Folsom Street", 
+        "SF-MIS-007": "Mission District - Guerrero Street",
+        "SF-MIS-008": "Mission District - South Van Ness Avenue",
+        "SF-MKT-001": "Market Street - Powell Station",
+        "SF-MKT-002": "Market Street - Montgomery Station",
+        "SF-MKT-003": "Market Street - Embarcadero",
+        "SF-MKT-004": "Market Street - UN Plaza",
+        "SF-MKT-005": "Market Street - Van Ness Avenue",
+        "SF-MKT-006": "Market Street - Castro District",
+        "SF-FID-001": "Financial District - California Street",
+        "SF-FID-002": "Financial District - Montgomery Street",
+        "SF-FID-003": "Financial District - Embarcadero Center",
+        "SF-NOB-001": "Nob Hill - California Cable Car Line",
+        "SF-NOB-002": "Nob Hill - Grace Cathedral",
+        "SF-CHI-001": "Chinatown - Grant Avenue",
+        "SF-CHI-002": "Chinatown - Portsmouth Square",
+        "SF-NOR-001": "North Beach - Columbus Avenue",
+        "SF-NOR-002": "North Beach - Washington Square",
+        "SF-FIS-001": "Fisherman's Wharf - Pier 39",
+        "SF-FIS-002": "Fisherman's Wharf - Ghirardelli Square"
+    }
+    
+    return camera_locations.get(camera_id, f"Unknown Location (Camera {camera_id})")
 
 def extract_critical_terms(query: str) -> Dict[str, str]:
     """Extract critical terms from a query that must be matched exactly.
@@ -1146,4 +1141,192 @@ Keep your response concise and focused on helping the user understand the search
         return {
             "response": "I found some matches for your search, but couldn't generate a detailed explanation.",
             "matches": matches
+        }
+
+def direct_database_search(query: str, top_k=5) -> Dict[str, Any]:
+    """
+    Use Gemini to directly search the database with natural language.
+    This function:
+    1. Loads the entire database from ml.json (read-only mode)
+    2. Formats it as a context for Gemini
+    3. Asks Gemini to find the best matches for the query
+    4. Returns structured results with camera locations and detailed explanations
+    
+    Note: The database is accessed in read-only mode from ml.json
+    
+    Args:
+        query: Natural language query string
+        top_k: Maximum number of results to return
+        
+    Returns:
+        Dictionary with matches, count, explanations and suggestions
+    """
+    try:
+        logger.info(f"Starting direct database search with Gemini for: '{query}'")
+        
+        # Load the database from ml.json (read-only)
+        db = load_database()  # This now loads from ml.json
+        if not db or "people" not in db or len(db["people"]) == 0:
+            logger.error("Database is empty or invalid")
+            return {
+                "matches": [],
+                "count": 0,
+                "message": "Search database (ml.json) is empty or not available.",
+                "suggestions": ["Check if ml.json exists and is properly formatted"],
+                "rag_response": "I'm sorry, but the database appears to be empty or not accessible right now. Please ensure ml.json contains valid data."
+            }
+        
+        # Count how many entries we have
+        people_count = len(db["people"])
+        logger.info(f"Loaded database with {people_count} entries")
+        
+        # Format the database entries for Gemini
+        db_entries = []
+        
+        for idx, person in enumerate(db["people"]):
+            if "description" not in person or not isinstance(person["description"], dict):
+                continue
+                
+            # Get metadata
+            metadata = person.get("metadata", {})
+            camera_id = metadata.get("camera_id", "unknown")
+            timestamp = metadata.get("timestamp", "unknown time")
+            
+            # Map camera ID to location
+            camera_location = get_camera_location(camera_id)
+            
+            # Create a formatted entry
+            entry = {
+                "id": person.get("id", f"person_{idx}"),
+                "description": person["description"],
+                "camera_id": camera_id,
+                "camera_location": camera_location,
+                "timestamp": timestamp
+            }
+            
+            db_entries.append(entry)
+        
+        # Limit entries if database is too large
+        if len(db_entries) > 200:
+            logger.warning(f"Database too large ({len(db_entries)} entries), limiting to 200 for Gemini")
+            db_entries = db_entries[:200]
+        
+        # Create a context for Gemini with the database entries
+        database_json = json.dumps(db_entries, indent=2)
+        
+        # Create the prompt for Gemini
+        gemini_prompt = f"""
+You are a powerful search system for surveillance camera footage. 
+Your task is to find people matching a user's description in the database.
+
+USER QUERY: "{query}"
+
+SURVEILLANCE DATABASE (JSON):
+{database_json}
+
+INSTRUCTIONS:
+1. Find the best matches for this query, considering:
+   - Exact attribute matches (e.g., specific clothing items, colors)
+   - Semantic matches (e.g., "man" = "male", "kid" = "child")
+   - Partial matches when no exact match exists
+   - Best overall match of multiple criteria
+
+2. For each match, explain why it matches the query and include:
+   - Camera location
+   - Key attributes that matched
+   - Any notable differences
+   - Similarity score (0-100%)
+
+3. Format your response as structured JSON with these components:
+   - best_matches: Array of up to {top_k} best matching entries
+   - explanations: Object with entry IDs as keys and explanation strings as values
+   - summary: A natural language summary of the search results
+   - suggestions: Array of suggested alternative queries if results are not satisfactory
+
+RESPONSE FORMAT:
+{{
+  "best_matches": [
+    {{
+      "id": "entry_id",
+      "similarity": 92,
+      "description": {{...original description object...}},
+      "camera_id": "camera_id",
+      "camera_location": "Human readable location"
+    }}
+  ],
+  "explanations": {{
+    "entry_id": "This person matches because they have X, Y, and Z attributes that match the query."
+  }},
+  "summary": "I found 3 people matching your description. The best match is a male child wearing a red shirt at Mission District.",
+  "suggestions": ["Try specifying clothing colors", "Include age group (child, teen, adult)"]
+}}
+
+Return ONLY a valid JSON object, no additional text.
+"""
+
+        # Call Gemini for the search
+        logger.info("Sending search request to Gemini with database context")
+        response = model.generate_content(gemini_prompt)
+        
+        # Extract the JSON response
+        result_text = response.text.strip()
+        
+        # Attempt to extract JSON if wrapped in code blocks
+        if "```json" in result_text:
+            result_text = result_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in result_text:
+            result_text = result_text.split("```")[1].split("```")[0].strip()
+            
+        logger.info(f"Received response from Gemini (length: {len(result_text)})")
+        
+        try:
+            result = json.loads(result_text)
+            
+            # Structure the response for the frontend
+            matches = []
+            for match in result.get("best_matches", []):
+                # Format each match entry
+                entry = {
+                    "description": match.get("description", {}),
+                    "metadata": {
+                        "camera_id": match.get("camera_id", "unknown"),
+                        "camera_location": match.get("camera_location", "Unknown location"),
+                        "detection_id": match.get("id", "")
+                    },
+                    "similarity": match.get("similarity", 0),
+                    "explanation": result.get("explanations", {}).get(match.get("id", ""), "")
+                }
+                matches.append(entry)
+                
+            # Build the complete response
+            search_response = {
+                "matches": matches,
+                "count": len(matches),
+                "message": f"Found {len(matches)} potential matches.",
+                "suggestions": result.get("suggestions", []),
+                "rag_response": result.get("summary", "I searched the database for matches to your query.")
+            }
+            
+            logger.info(f"Returning {len(matches)} matches from direct Gemini search")
+            return search_response
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing Gemini response as JSON: {e}")
+            logger.error(f"Raw response: {result_text[:500]}...")
+            return {
+                "matches": [],
+                "count": 0,
+                "message": "Error parsing search results. Please try again.",
+                "error": f"JSON parse error: {str(e)}",
+                "rag_response": "I had trouble understanding the search results. Please try rephrasing your query."
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in direct_database_search: {str(e)}")
+        return {
+            "matches": [],
+            "count": 0,
+            "message": "An error occurred during search. Please try again.",
+            "error": str(e),
+            "rag_response": "I'm sorry, but an error occurred while searching. Please try again with a different query."
         }
