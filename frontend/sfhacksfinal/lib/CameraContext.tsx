@@ -23,15 +23,7 @@ export const cameras: Camera[] = [
     feed_url: "http://localhost:8000/camera/SF-MKT-001/feed",
     image_url: "http://localhost:8000/camera/SF-MKT-001/image"
   },
-  {
-    id: "SF-EMB-002",
-    name: "Embarcadero Plaza",
-    lat: 37.795,
-    lng: -122.394,
-    status: "active",
-    feed_url: "http://localhost:8000/camera/SF-EMB-002/feed",
-    image_url: "http://localhost:8000/camera/SF-EMB-002/image"
-  },
+
   {
     id: "SF-UNS-003",
     name: "Union Square",
@@ -41,15 +33,7 @@ export const cameras: Camera[] = [
     feed_url: "http://localhost:8000/camera/SF-UNS-003/feed",
     image_url: "http://localhost:8000/camera/SF-UNS-003/image"
   },
-  {
-    id: "SF-FER-004",
-    name: "Ferry Building",
-    lat: 37.795,
-    lng: -122.393,
-    status: "active",
-    feed_url: "http://localhost:8000/camera/SF-FER-004/feed",
-    image_url: "http://localhost:8000/camera/SF-FER-004/image"
-  },
+
   {
     id: "SF-CHI-005",
     name: "Chinatown Gate",
