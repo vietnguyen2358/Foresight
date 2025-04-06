@@ -110,14 +110,14 @@ export default function DatabaseSearch() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [databaseData, setDatabaseData] = useState<DatabaseData>({ people: [] });
 
-  // Load people from the JSON data
+  // Load people from MongoDB 
   useEffect(() => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Load data directly from the public/db.json file
-      fetch('/db.json')
+      // Load data from our MongoDB API endpoint for people
+      fetch('/api/mongodb/people')
         .then(response => {
           if (!response.ok) {
             throw new Error(`Failed to fetch database: ${response.statusText}`);
@@ -144,10 +144,14 @@ export default function DatabaseSearch() {
               hair_color: person.description?.hair_color,
               camera_id: cameraId,
               timestamp: person.metadata?.timestamp || new Date().toISOString(),
-              description: JSON.stringify(person.description),
+              description: typeof person.description === 'string' 
+                ? person.description 
+                : JSON.stringify(person.description),
               raw_data: person.description,
-              // Generate a placeholder image URL - in production you'd use real cropped images
-              cropped_image: `/images/placeholder-person.png`
+              // Use the actual image path if available, otherwise use placeholder
+              cropped_image: person.metadata?.image_path 
+                ? `/uploads/${person.metadata.image_path.split('/').pop()}`
+                : `/images/placeholder-person.png`
             };
           });
           
@@ -180,6 +184,72 @@ export default function DatabaseSearch() {
         .catch(error => {
           console.error('Error fetching database:', error);
           setError(`Failed to load database: ${error.message}`);
+          
+          // Fallback to db.json if MongoDB fails
+          console.log('Falling back to db.json...');
+          return fetch('/db.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`Failed to fetch fallback database: ${response.statusText}`);
+              }
+              return response.json();
+            });
+        })
+        .then(fallbackData => {
+          // Only process fallback data if it exists and there was an error
+          if (fallbackData && error) {
+            console.log('Using fallback data from db.json');
+            setError('MongoDB connection failed - using local data instead');
+            
+            // Transform data using the same logic as above
+            const loadedPeople = fallbackData.people.map((person: any) => {
+              const cameraId = person.metadata?.camera_id || 'unknown';
+              const personIdParts = person.id.split('-');
+              const shortId = personIdParts[0] || 'unknown';
+              
+              return {
+                ...person,
+                id: person.id || `${cameraId}:${shortId}`,
+                gender: person.description?.gender || 'unknown',
+                age_group: person.description?.age_group || 'unknown',
+                clothing_top: person.description?.clothing_top || 'unknown',
+                clothing_top_color: person.description?.clothing_top_color,
+                clothing_bottom: person.description?.clothing_bottom,
+                clothing_bottom_color: person.description?.clothing_bottom_color,
+                hair_color: person.description?.hair_color,
+                camera_id: cameraId,
+                timestamp: person.metadata?.timestamp || new Date().toISOString(),
+                description: typeof person.description === 'string' 
+                  ? person.description 
+                  : JSON.stringify(person.description),
+                raw_data: person.description,
+                cropped_image: `/images/placeholder-person.png`
+              };
+            });
+            
+            setPeople(loadedPeople);
+            setFilteredPeople(loadedPeople);
+            setDatabaseData({ people: fallbackData.people });
+            
+            // Extract tags from fallback data
+            const tags = new Set<string>();
+            
+            loadedPeople.forEach((person: Person) => {
+              Object.entries(person.description).forEach(([key, value]) => {
+                if (value && typeof value === 'string') {
+                  tags.add(`${key}:${value}`);
+                }
+              });
+              
+              Object.entries(person.metadata).forEach(([key, value]) => {
+                if (value && typeof value === 'string') {
+                  tags.add(`${key}:${value}`);
+                }
+              });
+            });
+            
+            setAvailableTags(Array.from(tags).sort());
+          }
         })
         .finally(() => {
           setIsLoading(false);
@@ -200,11 +270,16 @@ export default function DatabaseSearch() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(person => {
         // Search in description
-        const description = JSON.stringify(person.description).toLowerCase();
-        if (description.includes(term)) return true;
+        let descriptionText = '';
+        if (typeof person.description === 'string') {
+          descriptionText = person.description.toLowerCase();
+        } else if (person.description && typeof person.description === 'object') {
+          descriptionText = JSON.stringify(person.description).toLowerCase();
+        }
+        if (descriptionText.includes(term)) return true;
         
         // Search in metadata
-        const metadata = JSON.stringify(person.metadata).toLowerCase();
+        const metadata = JSON.stringify(person.metadata || {}).toLowerCase();
         if (metadata.includes(term)) return true;
         
         return false;
@@ -216,7 +291,20 @@ export default function DatabaseSearch() {
       filtered = filtered.filter(person => {
         return selectedTags.every(tag => {
           const [key, value] = tag.split(':');
-          return person.description[key as keyof typeof person.description] === value;
+          let desc: Record<string, any> = {};
+          
+          if (person.description && typeof person.description === 'object') {
+            desc = person.description as Record<string, any>;
+          } else if (typeof person.description === 'string') {
+            try {
+              desc = JSON.parse(person.description);
+            } catch (e) {
+              console.error('Error parsing description:', e);
+              return false;
+            }
+          }
+          
+          return desc[key] === value;
         });
       });
     }
