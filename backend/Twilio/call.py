@@ -35,6 +35,7 @@ async def process_stream(websocket: WebSocket):
     logging.info("WebSocket connection accepted")
     audio_buffer = bytearray()
     full_transcript = ""
+    processing = False  # Flag to track if we're currently processing audio
 
     try:
         while True:
@@ -55,60 +56,87 @@ async def process_stream(websocket: WebSocket):
                     audio_buffer.extend(chunk)
                     logging.debug(f"Added {len(chunk)} bytes to audio buffer. Total size: {len(audio_buffer)}")
 
-                    # Process once we have enough audio
-                    if len(audio_buffer) >= int(ORIGINAL_SAMPLE_RATE * CHUNK_DURATION):
-                        logging.info("Processing audio chunk for transcription")
-                        # Convert μ-law to PCM and resample to 16kHz using pydub
-                        ulaw_audio = AudioSegment(
-                            data=audio_buffer,
-                            sample_width=1,
-                            frame_rate=ORIGINAL_SAMPLE_RATE,
-                            channels=1
-                        ).set_sample_width(2).set_frame_rate(TARGET_SAMPLE_RATE)
+                    # Process once we have enough audio and we're not already processing
+                    if len(audio_buffer) >= int(ORIGINAL_SAMPLE_RATE * CHUNK_DURATION) and not processing:
+                        # Set processing flag to prevent concurrent processing
+                        processing = True
+                        
+                        # Use the lock to ensure only one transcription process runs at a time
+                        async with ws_lock:
+                            try:
+                                logging.info("Processing audio chunk for transcription")
+                                # Convert μ-law to PCM and resample to 16kHz using pydub
+                                ulaw_audio = AudioSegment(
+                                    data=audio_buffer,
+                                    sample_width=1,
+                                    frame_rate=ORIGINAL_SAMPLE_RATE,
+                                    channels=1
+                                ).set_sample_width(2).set_frame_rate(TARGET_SAMPLE_RATE)
 
-                        # Export audio as in-memory WAV
-                        wav_buffer = io.BytesIO()
-                        ulaw_audio.export(wav_buffer, format="wav")
-                        wav_buffer.seek(0)
+                                # Export audio as in-memory WAV
+                                wav_buffer = io.BytesIO()
+                                ulaw_audio.export(wav_buffer, format="wav")
+                                wav_buffer.seek(0)
 
-                        # Transcribe using Groq's Whisper
-                        transcription = client.audio.transcriptions.create(
-                            file=("audio.wav", wav_buffer, "audio/wav"),
-                            model="distil-whisper-large-v3-en",
-                            response_format="text"
-                        )
-
-                        # Clean & append transcription if not empty
-                        transcribed_text = transcription.strip()
-                        if transcribed_text:
-                            full_transcript += " " + transcribed_text
-
-                            # ✅ Send the transcribed text to /search
-                            async with httpx.AsyncClient() as http_client:
-                                response = await http_client.post(
-                                    "http://localhost:8000/search",
-                                    data={"query": full_transcript.strip()}
+                                # Transcribe using Groq's Whisper
+                                logging.info("Sending audio to Groq Whisper for transcription")
+                                transcription = client.audio.transcriptions.create(
+                                    file=("audio.wav", wav_buffer, "audio/wav"),
+                                    model="distil-whisper-large-v3-en",
+                                    response_format="text"
                                 )
-                                search_results = response.json()
+                                logging.info("Received transcription from Groq Whisper")
 
-                            # Send both transcript and search results back to WebSocket
-                            await websocket.send_text(json.dumps({
-                                "event": "media",
-                                "text": full_transcript.strip(),
-                                "search_results": search_results
-                            }))
-                            logging.info(
-                                f"[✓] Transcribed and searched: {transcribed_text}")
-                        else:
-                            logging.warning("[!] Transcription returned empty.")
+                                # Clean & append transcription if not empty
+                                transcribed_text = transcription.strip()
+                                if transcribed_text:
+                                    full_transcript += " " + transcribed_text
+                                    logging.info(f"Updated full transcript: {full_transcript[:100]}...")
 
-                        # Clear buffer for next chunk
-                        audio_buffer.clear()
-                        logging.debug("Audio buffer cleared")
+                                    # Send the transcribed text to /search
+                                    logging.info("Sending transcript to search API")
+                                    async with httpx.AsyncClient() as http_client:
+                                        response = await http_client.post(
+                                            "http://localhost:8000/search",
+                                            data={"query": full_transcript.strip()}
+                                        )
+                                        search_results = response.json()
+                                        logging.info("Received search results")
+
+                                    # Send both transcript and search results back to WebSocket
+                                    message_to_send = json.dumps({
+                                        "event": "media",
+                                        "text": full_transcript.strip(),
+                                        "search_results": search_results
+                                    })
+                                    logging.info(f"Sending WebSocket message: {message_to_send[:100]}...")
+                                    await websocket.send_text(message_to_send)
+                                    logging.info("WebSocket message sent successfully")
+                                    logging.info(f"[✓] Transcribed and searched: {transcribed_text}")
+                                else:
+                                    logging.warning("[!] Transcription returned empty.")
+
+                                # Clear buffer for next chunk
+                                audio_buffer.clear()
+                                logging.debug("Audio buffer cleared")
+                            except Exception as e:
+                                logging.error(f"Error during transcription process: {e}")
+                                # Try to send an error message to the client
+                                try:
+                                    await websocket.send_text(json.dumps({
+                                        "event": "error",
+                                        "message": f"Error during transcription: {str(e)}"
+                                    }))
+                                except:
+                                    logging.error("Failed to send error message to client")
+                            finally:
+                                # Reset processing flag when done
+                                processing = False
                 except base64.binascii.Error as e:
                     logging.error(f"Failed to decode base64 audio data: {e}")
                 except Exception as e:
                     logging.error(f"Error processing audio chunk: {e}")
+                    processing = False  # Reset processing flag on error
             else:
                 logging.warning(f"Received unknown event type: {data.get('event')}")
 
