@@ -18,7 +18,6 @@ import {
   API_BASE_URL,
   checkServerHealth
 } from "@/lib/api"
-import { Detection as ApiDetectionType } from '../lib/api'
 
 // Define local interface to extend PersonDescription
 interface ExtendedPersonDescription extends PersonDescription {
@@ -34,23 +33,6 @@ interface ExtendedPersonDescription extends PersonDescription {
   raw_data?: Record<string, any>;  // Add raw_data field for Gemini output
   description?: string;  // Add description field for AI model output
   timestamp?: string;    // Add timestamp field for when the description was generated
-}
-
-// Define our local Detection interface
-interface Detection {
-  type: string;
-  confidence: number;
-  bbox: number[];
-  timestamp: string;
-  camera_id: string;
-  image?: string;
-  id?: string;
-}
-
-interface SearchResult {
-  similarity: number;
-  description: any;
-  metadata: any;
 }
 
 export default function RightSidebar() {
@@ -82,35 +64,6 @@ export default function RightSidebar() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
   const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const [filteredDetections, setFilteredDetections] = useState<Detection[]>([])
-
-  const cameras = [
-    {
-      id: 'SF-MKT-001',
-      name: 'Market Street Camera',
-      videoSrc: '/videos/market.mp4'
-    },
-    {
-      id: 'SF-PARK-001',
-      name: 'Park Camera',
-      videoSrc: '/videos/sf_park_001.mov'
-    },
-    {
-      id: 'SF-STREET-001',
-      name: 'Street Camera',
-      videoSrc: '/videos/sf_street_001.mov'
-    },
-    {
-      id: 'SF-BUILDING-001',
-      name: 'Building Camera',
-      videoSrc: '/videos/sf_building_001.mov'
-    },
-    {
-      id: 'SF-EXTRA-001',
-      name: 'Extra Camera',
-      videoSrc: '/videos/IMG_8252.mov'
-    }
-  ];
 
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
@@ -125,18 +78,28 @@ export default function RightSidebar() {
         clearInterval(frameExtractionIntervalRef.current);
       }
       
-      // Set initial camera image
-      if (selectedCamera.id === "SF-MKT-001") {
-        // For Market Street camera, we'll use the video player
+      // Set initial camera image based on camera ID
+      const cameraVideoMap: { [key: string]: string } = {
+        "SF-MKT-001": "/videos/market.mp4",
+        "SF-EMB-002": "/videos/sf_street_001.mov",
+        "SF-UNS-003": "/videos/sf_building_001.mov",
+        "SF-FER-004": "/videos/sf_park_001.mov",
+        "SF-CHI-005": "/videos/IMG_8252.mov"
+      };
+
+      if (cameraVideoMap[selectedCamera.id]) {
+        // For cameras with video feeds
         setCameraImage(null);
         setCurrentImageUrl(null);
         setIsVideoPlaying(true);
+        setCameraFeed(cameraVideoMap[selectedCamera.id]);
       } else {
         // For other cameras, use random images
         const initialImageUrl = `https://picsum.photos/800/600?random=${Math.random()}`;
         setCameraImage(initialImageUrl);
         setCurrentImageUrl(initialImageUrl);
         setIsVideoPlaying(false);
+        setCameraFeed(null);
       }
       
       // Start a new interval to process frames
@@ -460,39 +423,34 @@ export default function RightSidebar() {
 
   // Handle search
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) return
     
-    setIsLoading(true);
-    setError(null);
-    
+    setIsLoading(true)
+    setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ description: searchQuery }),
-      });
+      // Use the actual API
+      const result = await searchPeople(searchQuery)
+      console.log('Search results:', result)
       
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.matches && Array.isArray(data.matches)) {
-        setSearchResults(data.matches);
+      if (result.matches && result.matches.length > 0) {
+        setSearchResults(result.matches.map(match => match.description) as ExtendedPersonDescription[])
       } else {
-        console.error('Invalid search results format:', data);
-        setSearchResults([]);
+        setSearchResults([])
+        // Show suggestions if available
+        if (result.suggestions && result.suggestions.length > 0) {
+          setError(result.message || 'No matches found. Try these suggestions:')
+        } else {
+          setError(result.message || 'No matches found')
+        }
       }
     } catch (error) {
-      console.error('Search error:', error);
-      setSearchResults([]);
+      console.error("Search error:", error)
+      setError('Failed to search. Please try again.')
+      setSearchResults([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Handle chat
   const handleChat = async () => {
@@ -599,40 +557,6 @@ export default function RightSidebar() {
     }
   }, [personDescriptions]);
 
-  // Update the useEffect to filter detections by selected camera
-  useEffect(() => {
-    if (selectedCamera) {
-      // Filter detections to only show those from the selected camera
-      const filteredDetections = detections.filter(
-        detection => detection.camera_id === selectedCamera
-      );
-      setFilteredDetections(filteredDetections);
-    } else {
-      setFilteredDetections(detections);
-    }
-  }, [selectedCamera, detections]);
-
-  // Update the handleFrameProcessed function to use the correct types
-  const handleFrameProcessed = (data: any) => {
-    if (data.detections) {
-      // Add camera_id to each detection
-      const detectionsWithCamera = data.detections.map((detection: ApiDetectionType) => {
-        // Create a new Detection object with all required properties
-        return {
-          type: detection.type || 'person',
-          confidence: detection.confidence || 0,
-          bbox: detection.bbox || [],
-          timestamp: detection.timestamp || new Date().toISOString(),
-          camera_id: selectedCamera || 'unknown',
-          image: detection.image,
-          id: detection.id
-        } as Detection;
-      });
-      
-      setDetections(prev => [...prev, ...detectionsWithCamera]);
-    }
-  };
-
   return (
     <div className="w-80 bg-gray-900 border-l border-gray-800 h-screen overflow-y-auto">
       {/* Phone Call Transcription */}
@@ -675,16 +599,13 @@ export default function RightSidebar() {
 
         {selectedCamera ? (
           <div className="space-y-4">
-            {selectedCamera.id === "SF-MKT-001" ? (
-              // Use VideoPlayer for Market Street camera
-              <div className="relative w-full h-64 bg-gray-900 rounded-lg overflow-hidden">
-                <VideoPlayer 
-                  videoSrc={cameras.find(cam => cam.id === selectedCamera)?.videoSrc || ''} 
-                  onFrameExtracted={handleFrameExtracted}
-                  isProcessing={isProcessing}
-                  cameraId={selectedCamera}
-                />
-              </div>
+            {cameraFeed ? (
+              // Use VideoPlayer for cameras with video feeds
+              <VideoPlayer 
+                videoSrc={cameraFeed}
+                onFrameExtracted={handleFrameExtracted}
+                isProcessing={isProcessing}
+              />
             ) : cameraImage ? (
               // Use image for other cameras
               <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
@@ -699,16 +620,16 @@ export default function RightSidebar() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                   </span>
                   LIVE
-        </div>
-      </div>
+                </div>
+              </div>
             ) : (
               <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
                 <p className="text-gray-400">Loading camera feed...</p>
-        </div>
+              </div>
             )}
 
             {/* Processing Frames Section */}
-        <div className="space-y-2">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-white">Recent Detections</h3>
                 <span className="text-xs text-gray-400">{detections.length} people detected</span>
@@ -717,25 +638,25 @@ export default function RightSidebar() {
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {detections.length > 0 ? (
                   detections.map((detection, index) => (
-            <motion.div
-              key={detection.id || `detection-${index}-${detection.timestamp}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+                    <motion.div
+                      key={detection.id || `detection-${index}-${detection.timestamp}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
                       className={`bg-gray-800 rounded-lg p-3 ${detection.type === "Person" ? "cursor-pointer hover:bg-gray-700" : ""}`}
                       onClick={() => detection.type === "Person" && handleDetectionClick(detection)}
-            >
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-white">{detection.type}</span>
-                <span className="text-xs text-gray-400">{detection.timestamp}</span>
-              </div>
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-white">{detection.type}</span>
+                        <span className="text-xs text-gray-400">{detection.timestamp}</span>
+                      </div>
                       <div className="mt-1 flex items-center">
-                <div className="w-full bg-gray-700 rounded-full h-1.5">
-                  <div
+                        <div className="w-full bg-gray-700 rounded-full h-1.5">
+                          <div
                             className="bg-blue-500 h-1.5 rounded-full" 
-                    style={{ width: `${detection.confidence * 100}%` }}
-                  ></div>
-                </div>
+                            style={{ width: `${detection.confidence * 100}%` }}
+                          ></div>
+                        </div>
                         <span className="text-xs text-gray-400 ml-2">{Math.round(detection.confidence * 100)}%</span>
                       </div>
                       <div className="text-xs text-blue-400 mt-1">
@@ -761,8 +682,8 @@ export default function RightSidebar() {
             </div>
           </div>
         ) : (
-          <div>
-            <p className="text-sm text-gray-400 mb-4">Select a camera on the map to view live feed</p>
+          <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
+            <p className="text-gray-400">Select a camera to view feed</p>
           </div>
         )}
       </div>

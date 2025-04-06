@@ -19,7 +19,7 @@ TARGET_CLASS_ID = 0  # person class
 byte_tracker = sv.ByteTrack()
 
 
-def process_image(image: Image.Image, camera_id: str = None):
+def process_image(image: Image.Image):
     """
     Detect people in a single image using YOLOv8.
     Returns list of cropped images and bounding boxes.
@@ -42,8 +42,7 @@ def process_image(image: Image.Image, camera_id: str = None):
                 roi = image.crop((x1, y1, x2, y2))
                 crops.append({
                     "image": roi,
-                    "box": (x1, y1, x2, y2),
-                    "camera_id": camera_id
+                    "box": (x1, y1, x2, y2)
                 })
 
         return crops
@@ -52,15 +51,10 @@ def process_image(image: Image.Image, camera_id: str = None):
         return []
 
 
-def process_video(path: str, camera_id: str = None, every_n_frames=10):
+def process_video(path: str, every_n_frames=10):
     """
     Detect and track people in video using YOLOv8 + ByteTrack.
     Returns list of cropped images per person track.
-    
-    Args:
-        path: Path to the video file
-        camera_id: ID of the camera that recorded the video
-        every_n_frames: Process every nth frame
     """
     try:
         if not os.path.exists(path):
@@ -100,8 +94,7 @@ def process_video(path: str, camera_id: str = None, every_n_frames=10):
                     "track_id": tid,
                     "frame": frame_idx,
                     "image": crop_pil,
-                    "box": (x1, y1, x2, y2),
-                    "camera_id": camera_id
+                    "box": (x1, y1, x2, y2)
                 })
 
             frame_idx += 1

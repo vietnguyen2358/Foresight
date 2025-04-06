@@ -67,7 +67,6 @@ class FrameResponse(BaseModel):
 
 class FrameRequest(BaseModel):
     frame_data: str
-    camera_id: Optional[str] = None
 
 class SearchRequest(BaseModel):
     description: str
@@ -326,10 +325,6 @@ async def shutdown_event():
 @app.post("/process_frame", response_model=FrameResponse)
 async def process_frame(request: FrameRequest):
     try:
-        # Get camera ID from request
-        camera_id = request.camera_id or "unknown"
-        logger.info(f"Processing frame from camera: {camera_id}")
-        
         # Decode base64 image
         frame_data = request.frame_data
         if ',' in frame_data:
@@ -404,7 +399,7 @@ async def process_frame(request: FrameRequest):
                 "confidence": conf,
                 "bbox": [float(x1), float(y1), float(x2), float(y2)],
                 "timestamp": datetime.now().isoformat(),
-                "camera_id": camera_id  # Use the camera ID from the request
+                "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
             })
             
             # Crop person if the crop is valid
@@ -442,7 +437,7 @@ async def process_frame(request: FrameRequest):
                                 "track_id": detection_id,
                                 "frame": -1,  # We don't have frame number in this context
                                 "image": person_pil,
-                                "camera_id": camera_id,  # Use the camera ID from the request
+                                "camera_id": "SF-MKT-001",
                                 "confidence": conf,
                                 "bbox": [float(x1), float(y1), float(x2), float(y2)]
                             }

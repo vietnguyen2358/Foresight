@@ -8,7 +8,6 @@ export interface Camera {
   lat: number
   lng: number
   status: string
-  videoSource?: string
 }
 
 // Mock camera data with real lat/lng coordinates for San Francisco
@@ -19,7 +18,6 @@ export const cameras: Camera[] = [
     lat: 37.783,
     lng: -122.407,
     status: "active",
-    videoSource: "/videos/market_street.mp4"
   },
   {
     id: "SF-EMB-002",
@@ -27,7 +25,6 @@ export const cameras: Camera[] = [
     lat: 37.795,
     lng: -122.394,
     status: "active",
-    videoSource: "/videos/embarcadero.mp4"
   },
   {
     id: "SF-UNS-003",
@@ -35,7 +32,6 @@ export const cameras: Camera[] = [
     lat: 37.788,
     lng: -122.407,
     status: "active",
-    videoSource: "/videos/union_square.mp4"
   },
   {
     id: "SF-FER-004",
@@ -43,7 +39,6 @@ export const cameras: Camera[] = [
     lat: 37.795,
     lng: -122.393,
     status: "active",
-    videoSource: "/videos/ferry_building.mp4"
   },
   {
     id: "SF-CHI-005",
@@ -51,7 +46,6 @@ export const cameras: Camera[] = [
     lat: 37.79,
     lng: -122.405,
     status: "active",
-    videoSource: "/videos/chinatown.mp4"
   },
   {
     id: "SF-MIS-006",
@@ -59,7 +53,6 @@ export const cameras: Camera[] = [
     lat: 37.763,
     lng: -122.419,
     status: "active",
-    videoSource: "/videos/mission.mp4"
   },
   {
     id: "SF-HAI-007",
@@ -67,7 +60,6 @@ export const cameras: Camera[] = [
     lat: 37.77,
     lng: -122.446,
     status: "active",
-    videoSource: "/videos/haight.mp4"
   },
   {
     id: "SF-NOB-008",
@@ -75,7 +67,6 @@ export const cameras: Camera[] = [
     lat: 37.793,
     lng: -122.416,
     status: "active",
-    videoSource: "/videos/nob_hill.mp4"
   },
 ]
 
