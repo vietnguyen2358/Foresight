@@ -18,9 +18,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [useFallback, setUseFallback] = useState(false);
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Log the video source for debugging
+  useEffect(() => {
+    console.log(`VideoPlayer: Loading video source: ${videoSrc} for camera: ${cameraId}`);
+  }, [videoSrc, cameraId]);
+
   // Handle video errors
   const handleVideoError = () => {
-    console.error('Video error occurred');
+    console.error('Video error occurred for camera:', cameraId);
     setError('Error loading video. Using fallback images.');
     setUseFallback(true);
   };
@@ -69,6 +74,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div className="relative w-full h-full">
       <video
         ref={videoRef}
+        src={videoSrc}
         className="w-full h-full object-contain"
         autoPlay
         muted
@@ -87,6 +93,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {cameraId && (
         <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
           Camera: {cameraId}
+        </div>
+      )}
+      {error && (
+        <div className="absolute bottom-2 left-2 bg-red-900/80 text-white text-xs p-2 rounded">
+          {error}
         </div>
       )}
     </div>

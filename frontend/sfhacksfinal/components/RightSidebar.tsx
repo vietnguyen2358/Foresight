@@ -85,11 +85,31 @@ export default function RightSidebar() {
   const [filteredDetections, setFilteredDetections] = useState<Detection[]>([])
 
   const cameras = [
-    { id: "SF-MKT-001", name: "Market Street Camera", videoSrc: "/videos/market.mp4" },
-    { id: "SF-PARK-001", name: "Park Camera", videoSrc: "/videos/sf_park_001.mov" },
-    { id: "SF-STREET-001", name: "Street Camera", videoSrc: "/videos/sf_street_001.mov" },
-    { id: "SF-BUILDING-001", name: "Building Camera", videoSrc: "/videos/sf_building_001.mov" },
-    { id: "SF-EXTRA-001", name: "Extra Camera", videoSrc: "/videos/IMG_8252.mov" }
+    {
+      id: 'SF-MKT-001',
+      name: 'Market Street Camera',
+      videoSrc: '/videos/market.mp4'
+    },
+    {
+      id: 'SF-PARK-001',
+      name: 'Park Camera',
+      videoSrc: '/videos/sf_park_001.mov'
+    },
+    {
+      id: 'SF-STREET-001',
+      name: 'Street Camera',
+      videoSrc: '/videos/sf_street_001.mov'
+    },
+    {
+      id: 'SF-BUILDING-001',
+      name: 'Building Camera',
+      videoSrc: '/videos/sf_building_001.mov'
+    },
+    {
+      id: 'SF-EXTRA-001',
+      name: 'Extra Camera',
+      videoSrc: '/videos/IMG_8252.mov'
+    }
   ];
 
   // Add a useEffect hook that depends on the selectedCamera state
@@ -657,11 +677,14 @@ export default function RightSidebar() {
           <div className="space-y-4">
             {selectedCamera.id === "SF-MKT-001" ? (
               // Use VideoPlayer for Market Street camera
-              <VideoPlayer 
-                videoSrc="/videos/market.mp4" 
-                onFrameExtracted={handleFrameExtracted}
-                isProcessing={isProcessing}
-              />
+              <div className="relative w-full h-64 bg-gray-900 rounded-lg overflow-hidden">
+                <VideoPlayer 
+                  videoSrc={cameras.find(cam => cam.id === selectedCamera)?.videoSrc || ''} 
+                  onFrameExtracted={handleFrameExtracted}
+                  isProcessing={isProcessing}
+                  cameraId={selectedCamera}
+                />
+              </div>
             ) : cameraImage ? (
               // Use image for other cameras
               <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
