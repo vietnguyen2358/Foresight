@@ -91,7 +91,7 @@ export default function Hero() {
             >
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg">
-                  <Link href="/search">Start Searching</Link>
+                  <Link href="/dashboard">Start Searching</Link>
                 </Button>
               </motion.div>
 
