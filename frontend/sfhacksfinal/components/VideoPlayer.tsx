@@ -4,9 +4,10 @@ interface VideoPlayerProps {
   videoSrc: string;
   onFrameExtracted: (frameUrl: string) => void;
   isProcessing: boolean;
+  cameraId?: string;
 }
 
-export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }: VideoPlayerProps) {
+export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing, cameraId }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +278,9 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
       console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
       console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
       console.log(`Frame format: PNG (lossless)`);
+      if (cameraId) {
+        console.log(`Camera ID: ${cameraId}`);
+      }
       
       // Check if the frame URL is valid
       if (!frameUrl || frameUrl.length < 100) {
@@ -359,6 +363,13 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         </span>
         {useFallback ? 'LIVE (Image Feed)' : 'LIVE'}
       </div>
+      
+      {/* Camera ID indicator */}
+      {cameraId && (
+        <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+          Camera: {cameraId}
+        </div>
+      )}
       
       {/* Frame extraction indicator */}
       <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">

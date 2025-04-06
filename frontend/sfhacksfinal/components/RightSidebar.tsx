@@ -79,16 +79,18 @@ export default function RightSidebar() {
       }
       
       // Set initial camera image
-      if (selectedCamera.id === "SF-MKT-001") {
-        // For Market Street camera, we'll use the video player
+      if (selectedCamera.videoSource) {
+        // For cameras with video sources, we'll use the video player
         setCameraImage(null);
         setCurrentImageUrl(null);
+        setCameraFeed(selectedCamera.videoSource);
         setIsVideoPlaying(true);
       } else {
         // For other cameras, use random images
         const initialImageUrl = `https://picsum.photos/800/600?random=${Math.random()}`;
         setCameraImage(initialImageUrl);
         setCurrentImageUrl(initialImageUrl);
+        setCameraFeed(null);
         setIsVideoPlaying(false);
       }
       
@@ -112,9 +114,9 @@ export default function RightSidebar() {
           }
           console.log("Server health check passed");
           
-          // For Market Street camera, we need a frame from the video
+          // For cameras with video sources, we need a frame from the video
           // This will be handled by the VideoPlayer component
-          if (selectedCamera.id === "SF-MKT-001") {
+          if (selectedCamera.videoSource) {
             if (!lastProcessedFrame) {
               console.log("Waiting for video frame...");
               processingRef.current = false;
@@ -124,11 +126,11 @@ export default function RightSidebar() {
             
             // Use the last processed frame
             const frameUrl = lastProcessedFrame;
-            console.log("Processing frame for Market Street camera, frame length:", frameUrl.length);
+            console.log("Processing frame for camera:", selectedCamera.name, "frame length:", frameUrl.length);
             
             // Process the frame with YOLO
             console.log("Sending frame to API for processing...");
-            const response = await fetch(`${API_BASE_URL}/process_frame`, {
+            const response = await fetch(`${API_BASE_URL}/process_frame?camera_id=${selectedCamera.id}`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -169,13 +171,13 @@ export default function RightSidebar() {
             }
           } else {
             // For other cameras, use random images
-            console.log("Using random images for non-Market Street camera");
+            console.log("Using random images for camera without video source");
             const randomImage = `/images/image${Math.floor(Math.random() * 5) + 1}.jpg`;
             console.log("Selected random image:", randomImage);
             
             // Process the random image with YOLO
             console.log("Sending random image to API for processing...");
-            const response = await fetch(`${API_BASE_URL}/process_frame`, {
+            const response = await fetch(`${API_BASE_URL}/process_frame?camera_id=${selectedCamera.id}`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -273,7 +275,10 @@ export default function RightSidebar() {
       // Log the first 100 characters of the frame URL to help with debugging
       console.log("Frame URL preview:", frameUrl.substring(0, 100) + "...");
       
-      const response = await fetch(`${API_BASE_URL}/process_frame`, {
+      // Include camera_id in the request if a camera is selected
+      const cameraIdParam = selectedCamera ? `?camera_id=${selectedCamera.id}` : '';
+      
+      const response = await fetch(`${API_BASE_URL}/process_frame${cameraIdParam}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -677,6 +682,19 @@ export default function RightSidebar() {
           </div>
         )}
       </div>
+
+      {/* Video Player */}
+      {isVideoPlaying && cameraFeed && (
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold mb-2">Live Camera Feed</h3>
+          <VideoPlayer 
+            videoSrc={cameraFeed} 
+            onFrameExtracted={handleFrameExtracted} 
+            isProcessing={isProcessing}
+            cameraId={selectedCamera?.id}
+          />
+        </div>
+      )}
 
       {/* Person Descriptions - Only show when a camera is selected */}
       {selectedCamera && (
