@@ -1,3 +1,4 @@
+import httpx
 import logging
 import os
 import json
@@ -31,18 +32,14 @@ async def process_stream(websocket: WebSocket):
 
     try:
         while True:
-            # Receive and parse media chunk
             message = await websocket.receive_text()
             data = json.loads(message)
 
             if data['event'] == 'media':
-                # Decode base64-encoded μ-law audio from Twilio
                 chunk = base64.b64decode(data['media']['payload'])
                 audio_buffer.extend(chunk)
 
-                # Process once we have enough audio
                 if len(audio_buffer) >= int(ORIGINAL_SAMPLE_RATE * CHUNK_DURATION):
-                    # Convert μ-law to PCM and resample to 16kHz using pydub
                     ulaw_audio = AudioSegment(
                         data=audio_buffer,
                         sample_width=1,
@@ -50,34 +47,62 @@ async def process_stream(websocket: WebSocket):
                         channels=1
                     ).set_sample_width(2).set_frame_rate(TARGET_SAMPLE_RATE)
 
-                    # Export audio as in-memory WAV
                     wav_buffer = io.BytesIO()
                     ulaw_audio.export(wav_buffer, format="wav")
                     wav_buffer.seek(0)
 
-                    # Transcribe using Groq's Whisper (distil-whisper-large-v3-en)
                     transcription = client.audio.transcriptions.create(
                         file=("audio.wav", wav_buffer, "audio/wav"),
                         model="distil-whisper-large-v3-en",
                         response_format="text"
                     )
 
-                    # Clean & append transcription if not empty
                     transcribed_text = transcription.strip()
                     if transcribed_text:
                         full_transcript += " " + transcribed_text
+
+                        # ✅ Send the transcribed text to /search
+                        async with httpx.AsyncClient() as http_client:
+                            response = await http_client.post(
+                                "http://localhost:8000/search",
+                                data={"query": full_transcript.strip()}
+                            )
+                            search_results = response.json()
+
+                        # Send both transcript and search results back to WebSocket
                         await websocket.send_text(json.dumps({
                             "event": "media",
-                            "text": full_transcript.strip()
+                            "text": full_transcript.strip(),
+                            "search_results": search_results
                         }))
-                        logging.info(f"[✓] Transcribed: {transcribed_text}")
+                        logging.info(
+                            f"[✓] Transcribed and searched: {transcribed_text}")
                     else:
                         logging.warning("[!] Transcription returned empty.")
 
-                    # Clear buffer for next chunk
                     audio_buffer.clear()
-
     except WebSocketDisconnect:
         logging.info("WebSocket client disconnected.")
     except Exception as e:
         logging.error(f"[!] Error in /process_stream: {e}")
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            # Acquire lock to block other tasks until this completes
+            async with ws_lock:
+                # Process WebSocket command
+                await websocket.send_text(f"Processing: {data}")
+
+                # Simulate an API call that must finish first
+                await some_async_api_call(data)  # Ensure this is awaited!
+
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        print("Connection closed")
