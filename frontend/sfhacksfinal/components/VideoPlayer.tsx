@@ -13,31 +13,58 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [useFallback, setUseFallback] = useState(false);
   const FRAME_INTERVAL = 5000; // 5 seconds between frame extractions
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Initialize video player or fallback to image
   useEffect(() => {
     const video = videoRef.current;
+
     if (!video) return;
 
-    // Set video properties
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    
-    // Handle video errors
-    const handleError = () => {
-      console.error('Video error:', video.error);
-      setError(`Video playback not supported - using image feed instead`);
+    // Reset state when video source changes
+    setError(null);
+    setUseFallback(false);
+    if (frameIntervalRef.current) {
+      clearInterval(frameIntervalRef.current);
+    }
+
+    // Set up video source
+    video.src = videoSrc;
+    video.load();
+
+    // Handle video end
+    const handleEnded = () => {
+      console.log('Video ended, refreshing...');
+      // Reset video to start
+      video.currentTime = 0;
+      // Reload the video source to ensure fresh start
+      video.load();
+      video.play().catch(err => {
+        console.error('Error replaying video:', err);
+        setError('Error replaying video - using image feed instead');
+        setUseFallback(true);
+        startFallbackFrameExtraction();
+      });
+    };
+
+    // Handle errors
+    const handleError = (e: Event) => {
+      console.error('Video error:', e);
+      setError(`Error loading video: ${videoSrc}`);
       setUseFallback(true);
-      
-      // Start extracting frames from the fallback image
       startFallbackFrameExtraction();
     };
-    
+
     video.addEventListener('error', handleError);
+    video.addEventListener('ended', handleEnded);
     
     // Start playing when loaded
     const handleLoadedData = () => {
+      // Set video properties for full playback
+      video.loop = false; // Disable loop to allow our custom handling
+      video.muted = true; // Mute to allow autoplay
+      video.playsInline = true; // Ensure inline playback on mobile
+      
       video.play()
         .then(() => {
           setError(null);
@@ -53,7 +80,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
           }
           
           frameIntervalRef.current = setInterval(() => {
-            if (!isProcessing) {
+            if (!isProcessing && !isExtracting) {
               console.log('Extracting frame for AI detection...');
               extractFrame();
             } else {
@@ -76,11 +103,113 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     return () => {
       video.removeEventListener('error', handleError);
       video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('ended', handleEnded);
       if (frameIntervalRef.current) {
         clearInterval(frameIntervalRef.current);
       }
     };
   }, [videoSrc, isProcessing]);
+
+  // Extract frame from video
+  const extractFrame = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (!video || !canvas || isProcessing || isExtracting) return;
+    
+    try {
+      setIsExtracting(true);
+      
+      // Check if video is actually ready and has dimensions
+      if (video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) {
+        console.warn("Video not ready for frame extraction, will retry...");
+        setTimeout(() => {
+          setIsExtracting(false);
+          extractFrame();
+        }, 500);
+        return;
+      }
+      
+      // Set canvas dimensions to match video's native resolution
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // Clear canvas first
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error("Could not get canvas context");
+        setError("Failed to extract frame - canvas context unavailable");
+        setIsExtracting(false);
+        return;
+      }
+      
+      // Clear the canvas and use high-quality image rendering
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw the video frame at full resolution
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // First try with PNG for maximum quality
+      let frameUrl = canvas.toDataURL('image/png'); 
+      
+      // Check if the frame URL is valid - if not, try JPEG as fallback
+      if (!frameUrl || frameUrl.length < 100) {
+        console.warn("PNG format failed, trying JPEG...");
+        frameUrl = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
+      }
+      
+      // Log the frame extraction with detailed information
+      console.log(`Frame extracted at ${new Date().toLocaleTimeString()}`);
+      console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
+      console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
+      
+      // Final validation check
+      if (!frameUrl || frameUrl.length < 100) {
+        console.error("Invalid frame URL generated after multiple attempts");
+        setError("Failed to extract frame - invalid data");
+        setIsExtracting(false);
+        return;
+      }
+      
+      // Check if the frame contains actual content (not just a blank frame)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      let nonZeroPixels = 0;
+      const sampleSize = 1000; // Check a sample of pixels for efficiency
+      const stride = Math.max(1, Math.floor(data.length / 4 / sampleSize));
+      
+      // Check if the frame has any non-blank pixels (sampling approach for performance)
+      for (let i = 0; i < data.length; i += 4 * stride) {
+        // Check if the pixel has any significant color or alpha
+        if (data[i] > 10 || data[i + 1] > 10 || data[i + 2] > 10 || data[i + 3] > 10) {
+          nonZeroPixels++;
+          if (nonZeroPixels > 10) { // If we find at least 10 non-blank pixels, consider it valid
+            break;
+          }
+        }
+      }
+      
+      if (nonZeroPixels <= 10) {
+        console.warn("Frame appears to be blank or nearly blank");
+        setError("Extracted frame is blank - waiting for next frame");
+        setIsExtracting(false);
+        return;
+      }
+      
+      // Pass the frame URL to the parent component
+      console.log("Sending frame to parent component for processing");
+      onFrameExtracted(frameUrl);
+    } catch (err) {
+      console.error('Error extracting frame:', err);
+      setError(`Error extracting frame - using image feed instead`);
+      setUseFallback(true);
+      startFallbackFrameExtraction();
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   // Add a separate useEffect to ensure frame extraction starts immediately
   useEffect(() => {
@@ -89,7 +218,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     
     // Use a small timeout to ensure the video is loaded
     const timeoutId = setTimeout(() => {
-      if (!isProcessing) {
+      if (!isProcessing && !isExtracting) {
         extractFrame();
       }
     }, 1000);
@@ -194,7 +323,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
 
       // Set up interval for continuous frame extraction
       frameIntervalRef.current = setInterval(() => {
-        if (!isProcessing) {
+        if (!isProcessing && !isExtracting) {
           console.log('Extracting frame from fallback image for AI detection...');
           const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
           
@@ -246,75 +375,6 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     tryNextImage();
   };
 
-  // Extract frame from video
-  const extractFrame = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    if (!video || !canvas || isProcessing) return;
-    
-    try {
-      // Set canvas dimensions to match video's native resolution
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw current video frame to canvas
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      // Use high-quality image rendering
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      
-      // Draw the video frame at full resolution
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Convert canvas to data URL with maximum quality using PNG format
-      const frameUrl = canvas.toDataURL('image/png'); // PNG for maximum quality
-      
-      // Log the frame extraction with detailed information
-      console.log(`Frame extracted at ${new Date().toLocaleTimeString()}`);
-      console.log(`Frame dimensions: ${canvas.width}x${canvas.height} pixels`);
-      console.log(`Frame size: ${Math.round(frameUrl.length / 1024)} KB`);
-      console.log(`Frame format: PNG (lossless)`);
-      
-      // Check if the frame URL is valid
-      if (!frameUrl || frameUrl.length < 100) {
-        console.error("Invalid frame URL generated");
-        setError("Failed to extract frame - invalid data");
-        return;
-      }
-      
-      // Check if the frame contains actual content (not just a blank frame)
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      let hasContent = false;
-      
-      // Check if the frame has any non-transparent pixels
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 0) { // Alpha channel
-          hasContent = true;
-          break;
-        }
-      }
-      
-      if (!hasContent) {
-        console.warn("Frame appears to be blank or transparent");
-        setError("Extracted frame is blank - waiting for next frame");
-        return;
-      }
-      
-      // Pass the frame URL to the parent component
-      console.log("Sending frame to parent component for processing");
-      onFrameExtracted(frameUrl);
-    } catch (err) {
-      console.error('Error extracting frame:', err);
-      setError(`Error extracting frame - using image feed instead`);
-      setUseFallback(true);
-      startFallbackFrameExtraction();
-    }
-  };
-
   // Manual frame extraction
   const handleManualExtract = () => {
     console.log('Manual frame extraction requested');
@@ -344,12 +404,6 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
       {/* Hidden canvas for frame extraction */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
       
-      {/* Error message */}
-      {error && (
-        <div className="absolute top-0 left-0 right-0 bg-red-900/80 text-white text-xs p-2 rounded-t-lg">
-          {error}
-        </div>
-      )}
       
       {/* Live indicator */}
       <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center">
@@ -360,19 +414,7 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         {useFallback ? 'LIVE (Image Feed)' : 'LIVE'}
       </div>
       
-      {/* Frame extraction indicator */}
-      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-        Frame every 5s
-      </div>
       
-      {/* Manual extract button */}
-      <button 
-        onClick={handleManualExtract}
-        className="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
-        disabled={isProcessing}
-      >
-        {isProcessing ? 'Processing...' : 'Extract Frame'}
-      </button>
     </div>
   );
 } 

@@ -4,16 +4,42 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, User, Bot, Loader2, Maximize2, X } from "lucide-react"
+import { Send, User, Bot, Loader2, Info, Camera as CameraIcon, MapPin } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import { searchPeople, chatWithAI, type Detection, type PersonDescription, API_BASE_URL, checkServerHealth } from "@/lib/api"
+import { API_BASE_URL, checkServerHealth, searchPeople } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { useCamera, type Camera } from "@/lib/CameraContext"
-import type { SearchResult } from "@/lib/api"
+import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+type MatchDescription = {
+  id?: string;
+  timestamp?: string;
+  [key: string]: any;
+};
+
+type MatchMetadata = {
+  camera_id?: string;
+  image_path?: string;
+  [key: string]: any;
+};
+
+type Match = {
+  description: MatchDescription;
+  metadata: MatchMetadata;
+  similarity: number;
+};
 
 type Message = {
   role: "user" | "assistant"
   content: string
+  matches?: Match[]
 }
 
 export default function ChatAgent() {
@@ -21,14 +47,31 @@ export default function ChatAgent() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content:
-        "Hi! I'm Steven the AI assistant. I can help you search for people and chat with you. What would you like to know?",
+      content: "Hi! I can help you search for people. Describe what you're looking for in detail.",
     },
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [searchGuidelines, setSearchGuidelines] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  // Fetch search guidelines on component mount
+  useEffect(() => {
+    const fetchGuidelines = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/search_guidelines`);
+        if (response.ok) {
+          const data = await response.json();
+          setSearchGuidelines(data.guidelines || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch search guidelines:", error);
+      }
+    };
+    
+    fetchGuidelines();
+  }, []);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -52,12 +95,9 @@ export default function ChatAgent() {
     scrollToBottom()
   }, [])
 
-  // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
     if (selectedCamera) {
       console.log("Selected camera changed in ChatAgent:", selectedCamera);
-      
-      // Try to use the zoomToCamera method if available
       setTimeout(() => {
         // @ts-ignore
         if (window.zoomToCamera) {
@@ -71,220 +111,232 @@ export default function ChatAgent() {
     }
   }, [selectedCamera]);
 
-  const formatSearchResults = (results: SearchResult): string => {
-    if (!results.matches || results.matches.length === 0) {
-      return "No matches found in the camera feeds."
-    }
-    
-    const firstMatch = results.matches[0];
-    const description = firstMatch.description;
-    let resultText = `I found a match (${firstMatch.similarity.toFixed(1)}% similar).\n`;
-    
-    if (description.appearance) resultText += `Appearance: ${description.appearance}\n`;
-    if (description.clothing) resultText += `Clothing: ${description.clothing}\n`;
-    if (description.accessories) resultText += `Accessories: ${description.accessories}\n`;
-    if (description.actions) resultText += `Actions: ${description.actions}\n`;
-    if (description.location) resultText += `Location: ${description.location}\n`;
-    if (description.timestamp) resultText += `Last seen: ${new Date(description.timestamp).toLocaleString()}\n`;
-    
-    return resultText;
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
-    const userInput = input.trim();
+    const userMessage = input.trim();
     setInput("");
-    setIsLoading(true);
-
-    const newUserMessage: Message = {
-      role: "user",
-      content: userInput
-    };
-    setMessages(prev => [...prev, newUserMessage]);
-
-    let response: Message;
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
 
     try {
-      // Check if the server is healthy
-      const isHealthy = await checkServerHealth();
-      if (!isHealthy) {
-        throw new Error("Server is not healthy. Please try again later.");
-      }
+      setIsLoading(true);
       
-      const searchKeywords = [
-        "find", "search", "look for", "locate", "where is", "who is",
-        "can you find", "can you locate", "help me find", "looking for",
-        "do you see", "have you seen", "spot", "identify", "track",
-        "person with", "someone with", "guy with", "girl with", "man with", "woman with"
-      ];
-      const isSearchQuery = searchKeywords.some(keyword => 
-        userInput.toLowerCase().includes(keyword)
-      );
-
-      if (isSearchQuery) {
-        console.log("Processing search query:", userInput);
-        const searchResults = await searchPeople(userInput);
-        console.log("Search results:", searchResults);
-        
-        if (searchResults.matches && searchResults.matches.length > 0) {
-          console.log("Found matches:", searchResults.matches.length);
-          const sortedMatches = [...searchResults.matches].sort((a, b) => b.similarity - a.similarity);
-          const firstMatch = sortedMatches[0];
-          console.log("First match:", firstMatch);
-          
-          if (firstMatch && firstMatch.description.camera_id) {
-            console.log("First match has camera ID:", firstMatch.description.camera_id);
-            const camera = cameras.find((c: Camera) => c.id === firstMatch.description.camera_id);
-            console.log("Found camera:", camera);
-            
-            if (camera) {
-              console.log("Setting selected camera:", camera);
-              
-              // Set the selected camera first
-              setSelectedCamera(camera);
-              
-              // Force a re-render to ensure the camera is selected
-              setTimeout(() => {
-                // Try to use the zoomToCamera method if available
-                // @ts-ignore
-                if (window.zoomToCamera) {
-                  console.log("Using zoomToCamera method");
-                  // @ts-ignore
-                  window.zoomToCamera(camera);
-                } else {
-                  console.log("zoomToCamera method not available");
-                }
-              }, 1000);
-              
-              response = {
-                role: "assistant",
-                content: `I found a match on camera ${camera.name}. I've switched to that camera view.\n\n${formatSearchResults(searchResults)}`
-              };
-            } else {
-              console.log("Camera not found in cameras list");
-              response = {
-                role: "assistant",
-                content: formatSearchResults(searchResults)
-              };
-            }
-          } else {
-            console.log("First match does not have a camera ID");
-            response = {
-              role: "assistant",
-              content: formatSearchResults(searchResults)
-            };
-          }
-        } else {
-          console.log("No matches found");
-          response = {
-            role: "assistant",
-            content: "I couldn't find any matches in our camera feeds for your query. Try describing the person differently or check other cameras."
-          };
-        }
-      } else {
-        const aiResponse = await chatWithAI([...messages, newUserMessage]);
-        response = {
+      // Search for people
+      const searchResults = await searchPeople(userMessage);
+      
+      // Add assistant message with search results
+      setMessages((prev) => [
+        ...prev,
+        {
           role: "assistant",
-          content: aiResponse.response
-        };
-      }
+          content: searchResults.rag_response || "I found some matches for your search.",
+          matches: searchResults.matches,
+        },
+      ]);
     } catch (error) {
-      console.error("Error in chat:", error);
-      response = {
-        role: "assistant",
-        content: error instanceof Error ? error.message : "I'm sorry, I encountered an error. Please try again."
-      };
+      console.error("Error searching for people:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I encountered an error while searching. Please try again.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setMessages(prev => [...prev, response]);
-    setIsLoading(false);
+  // Function to render a match card with detailed information
+  const renderMatchCard = (match: Match, index: number) => {
+    const description = match.description || {};
+    const metadata = match.metadata || {};
+    const similarity = match.similarity || 0;
+    
+    // Find camera if available
+    const matchCamera = metadata.camera_id 
+      ? cameras.find((c) => c.id === metadata.camera_id)
+      : null;
+    
+    // Extract unique attributes for badges
+    const uniqueAttributes = Object.entries(description)
+      .filter(([key, value]) => 
+        value && 
+        typeof value === 'string' && 
+        value.trim() !== '' && 
+        !['id', 'timestamp'].includes(key)
+      )
+      .map(([key, value]) => `${key}:${value}`);
+    
+    return (
+      <Card key={index} className="p-4 bg-gray-800/50">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center">
+            <User className="h-4 w-4 text-blue-400 mr-2" />
+            <span className="text-sm font-medium text-white">
+              Match {index + 1} ({similarity.toFixed(1)}% match)
+            </span>
+          </div>
+          {matchCamera && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs text-blue-400 hover:text-blue-300"
+              onClick={() => setSelectedCamera(matchCamera)}
+            >
+              <CameraIcon className="h-3 w-3 mr-1" />
+              View Camera
+            </Button>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2 text-xs text-gray-300 mb-3">
+          {metadata.camera_id && (
+            <div className="flex items-center">
+              <CameraIcon className="h-3 w-3 mr-1 text-gray-400" />
+              <span>{metadata.camera_id}</span>
+            </div>
+          )}
+          {metadata.timestamp && (
+            <div className="flex items-center">
+              <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+              <span>{new Date(metadata.timestamp).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex flex-wrap gap-1 mb-3">
+          {uniqueAttributes.map((attr, i) => (
+            <Badge key={i} variant="outline" className="text-xs">
+              {attr}
+            </Badge>
+          ))}
+        </div>
+        
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="description">
+            <AccordionTrigger>Detailed Description</AccordionTrigger>
+            <AccordionContent>
+              <pre className="text-xs overflow-auto p-2 bg-muted rounded-md">
+                {JSON.stringify(description, null, 2)}
+              </pre>
+            </AccordionContent>
+          </AccordionItem>
+          
+          <AccordionItem value="metadata">
+            <AccordionTrigger>Metadata</AccordionTrigger>
+            <AccordionContent>
+              <pre className="text-xs overflow-auto p-2 bg-muted rounded-md">
+                {JSON.stringify(metadata, null, 2)}
+              </pre>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </Card>
+    );
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-gray-800">
-        <h2 className="text-lg font-semibold text-white">Steven AI Assistant</h2>
-        <p className="text-sm text-gray-400">Steven helps locate missing individuals. Describe who you're looking for to Steven</p>
+    <div className="flex flex-col h-full left-sidebar-content">
+      <div className="p-2 border-b flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Person Search</h2>
+        <div className="relative group">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Info className="h-4 w-4" />
+          </Button>
+          <div className="absolute right-0 top-10 w-80 p-2 bg-popover text-popover-foreground rounded-md shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+            <div className="text-xs">
+              <p className="font-semibold mb-1">Search Tips:</p>
+              <ul className="list-disc pl-2 space-y-1">
+                {searchGuidelines.map((guideline, i) => (
+                  <li key={i}>{guideline}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
-
+      
       <div 
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900"
+        ref={chatContainerRef} 
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        style={{ 
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#4B5563 #1F2937',
+          msOverflowStyle: 'none'
+        }}
       >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            width: 6px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #1F2937;
+          }
+          div::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background-color: #6B7280;
+          }
+        `}</style>
+        
         <AnimatePresence>
           {messages.map((message, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-4`}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className={`flex items-start space-x-2 max-w-[80%] ${message.role === "user" ? "flex-row-reverse space-x-reverse" : ""}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  message.role === "user" ? "bg-blue-600" : "bg-blue-600"
-                }`}>
-                  {message.role === "user" ? <User className="w-5 h-5 text-white" /> : <Bot className="w-15 h-15 text-white" />}
+              <Card className={`p-4 ${
+                message.role === "user" ? "bg-blue-600/60" : "bg-secondary/10"
+              }`}>
+                <div className="flex items-start gap-2">
+                  {message.role === "user" ? (
+                    <User className="h-5 w-5 mt-1 text-white-500" />
+                  ) : (
+                    <Bot className="h-5 w-5 mt-1" />
+                  )}
+                  <div className="flex-1">
+                    <div className="whitespace-pre-wrap">{message.content}</div>
+                    
+                    {message.role === "assistant" && message.matches && message.matches.length > 0 && (
+                      <div className="mt-4">
+                        {message.matches.map((match, i) => renderMatchCard(match, i))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className={`rounded-lg p-3 ${
-                  message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-white"
-                }`}>
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-              </div>
+              </Card>
             </motion.div>
           ))}
         </AnimatePresence>
-        
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="p-3 max-w-[85%] mr-auto bg-gray-800 border-gray-700 text-gray-100">
-              <div className="flex items-start gap-2">
-                <div className="mt-1 p-1 rounded-full bg-gray-700">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-                  <span className="text-sm text-gray-300">Thinking...</span>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-        
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-gray-800 bg-gray-950">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="p-4 border-t">
+        <div className="flex gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question or describe who you're looking for..."
+            placeholder="Describe the person you're looking for in detail..."
             disabled={isLoading}
-            className="flex-1 bg-gray-900 border-gray-800 text-white focus-visible:ring-blue-600"
+            className="border-blue-500 focus:border-blue-600 focus:ring-blue-500"
           />
-          <Button 
-            type="submit" 
-            disabled={isLoading || !input.trim()} 
-            className="bg-blue-600 hover:bg-blue-700 transition-colors"
-          >
+          <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
           </Button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
-  )
+  );
 }
 

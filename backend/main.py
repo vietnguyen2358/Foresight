@@ -18,11 +18,13 @@ from app_init import app
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
-
-from tracker import process_image, process_video
-from embedder import embed_image, embed_text, describe_person, embed_description
-from db import add_person, search_people
-from search import find_similar_people
+import uuid
+import supervision as sv
+import google.generativeai as palm
+from describe import describe_person
+from db import add_person, search_people, reset_database, load_database
+from search import find_similar_people, generate_rag_response
+from amber_alert import check_amber_alert_match
 
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
@@ -34,6 +36,11 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Reset database on startup
+logger.info("Resetting database on startup...")
+reset_database()
+logger.info("Database reset complete")
 
 # Configure Gemini
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
@@ -93,9 +100,14 @@ class FrameResponse(BaseModel):
     description: str
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
     person_crops: List[dict] = Field(default_factory=list)
+    amber_alert: Optional[dict] = None
 
 class FrameRequest(BaseModel):
     frame_data: str
+    camera_id: str = Field(default="SF-MKT-001")
+
+class SearchRequest(BaseModel):
+    description: str
 
 def save_upload_file(upload_file: UploadFile) -> str:
     """Save uploaded file and return the path"""
@@ -116,38 +128,176 @@ async def chat(request: ChatRequest):
     try:
         logger.info("Processing chat request")
         
+        # Load dataset info
+        db = load_database()
+        if not db or "people" not in db:
+            raise ValueError("Database is empty or invalid")
+        
+        total_people = len(db["people"])
+        
+        # Count statistics
+        stats = {
+            "gender": {},
+            "age_group": {},
+            "hair_color": {},
+            "facial_features": {},
+            "clothing_top": {},
+            "clothing_top_color": {},
+            "location_context": {},
+            "cameras": {}  # Add camera statistics
+        }
+        
+        # Track camera details
+        camera_details = {}
+        
+        for person in db["people"]:
+            desc = person["description"]
+            # Track camera statistics
+            camera_id = person.get("metadata", {}).get("camera_id", "unknown")
+            stats["cameras"][camera_id] = stats["cameras"].get(camera_id, 0) + 1
+            
+            # Track camera details
+            if camera_id not in camera_details:
+                camera_details[camera_id] = {
+                    "count": 0,
+                    "last_seen": person.get("metadata", {}).get("timestamp", "unknown"),
+                    "gender_dist": {},
+                    "age_dist": {},
+                    "clothing_dist": {}
+                }
+            
+            camera_details[camera_id]["count"] += 1
+            
+            # Track gender distribution per camera
+            if "gender" in desc:
+                gender = desc["gender"]
+                camera_details[camera_id]["gender_dist"][gender] = camera_details[camera_id]["gender_dist"].get(gender, 0) + 1
+            
+            # Track age distribution per camera
+            if "age_group" in desc:
+                age = desc["age_group"]
+                camera_details[camera_id]["age_dist"][age] = camera_details[camera_id]["age_dist"].get(age, 0) + 1
+            
+            # Track clothing distribution per camera
+            if "clothing_top" in desc:
+                clothing = desc["clothing_top"]
+                camera_details[camera_id]["clothing_dist"][clothing] = camera_details[camera_id]["clothing_dist"].get(clothing, 0) + 1
+            
+            for key in stats:
+                if key != "cameras" and key in desc:
+                    value = desc[key]
+                    if isinstance(value, str):
+                        values = [v.strip() for v in value.split(",")]
+                        for v in values:
+                            stats[key][v] = stats[key].get(v, 0) + 1
+                    else:
+                        stats[key][value] = stats[key].get(value, 0) + 1
+        
+        # Create system prompt with dataset knowledge
+        system_prompt = f"""You are an AI assistant with access to a surveillance camera database containing {total_people} people.
+
+Dataset Statistics:
+- Gender distribution: {', '.join(f'{k}: {v}' for k, v in stats['gender'].items())}
+- Age groups: {', '.join(f'{k}: {v}' for k, v in stats['age_group'].items())}
+- Hair colors: {', '.join(f'{k}: {v}' for k, v in stats['hair_color'].items())}
+- Facial features: {', '.join(f'{k}: {v}' for k, v in stats['facial_features'].items())}
+- Clothing (tops): {', '.join(f'{k}: {v}' for k, v in stats['clothing_top'].items())}
+- Top colors: {', '.join(f'{k}: {v}' for k, v in stats['clothing_top_color'].items())}
+- Locations: {', '.join(f'{k}: {v}' for k, v in stats['location_context'].items())}
+- Camera distribution: {', '.join(f'{k}: {v} detections' for k, v in stats['cameras'].items())}
+
+Camera Details:
+"""
+        
+        # Add detailed camera information
+        for camera_id, details in camera_details.items():
+            system_prompt += f"""
+Camera {camera_id}:
+- Total detections: {details['count']}
+- Last active: {details['last_seen']}
+- Gender distribution: {', '.join(f'{k}: {v}' for k, v in details['gender_dist'].items())}
+- Age distribution: {', '.join(f'{k}: {v}' for k, v in details['age_dist'].items())}
+- Clothing distribution: {', '.join(f'{k}: {v}' for k, v in details['clothing_dist'].items())}
+"""
+        
+        system_prompt += """
+You can help users:
+1. Understand what's in the dataset
+2. Search for specific people using natural language
+3. Analyze patterns and statistics
+4. Answer questions about the data
+5. Provide information about specific cameras and their detections
+
+If the user asks about a specific camera or camera ID, you can tell them:
+- How many detections that camera has made
+- What types of people it has detected
+- When it was last active
+- The gender, age, and clothing distribution of people detected by that camera
+
+If the user wants to search for someone, extract the search criteria and use it to find matches."""
+        
         # Initialize Gemini model
         model = genai.GenerativeModel('gemini-2.0-flash')
         
-        # Start a new chat
+        # Start chat with system prompt
         chat = model.start_chat(history=[])
+        chat.send_message(system_prompt)
         
         # Process each message in the conversation history
         for msg in request.messages:
             if msg.role == "user":
-                # Format the prompt using the template
-                prompt = QUERY_PROMPT_TEMPLATE.format(input=msg.content)
-                
-                # Send the formatted prompt to Gemini
-                response = chat.send_message(prompt)
+                # Check if it's a search request
+                if any(keyword in msg.content.lower() for keyword in ["find", "search", "look for", "where is"]):
+                    # Use the search endpoint
+                    matches = find_similar_people(msg.content)
+                    logger.info(f"Search results: Found {len(matches)} matches")
+                    
+                    if matches and len(matches) > 0:
+                        match_desc = "\n\nI found these matches:\n"
+                        for i, match in enumerate(matches, 1):
+                            # Verify match is a dictionary
+                            if not isinstance(match, dict):
+                                logger.error(f"Match {i} is not a dictionary: {match}")
+                                continue
+                                
+                            desc = match.get("description", {})
+                            similarity = match.get("similarity", 0)
+                            
+                            # Safety check for description
+                            if not isinstance(desc, dict):
+                                logger.error(f"Description is not a dictionary: {desc}")
+                                continue
+                                
+                            match_desc += f"\n{i}. Match ({similarity:.1f}% similarity):\n"
+                            # Extract key attributes
+                            match_attrs = []
+                            for key, value in desc.items():
+                                if value and key not in ["id", "timestamp"]:
+                                    match_attrs.append(f"{key}: {value}")
+                            match_desc += "- " + ", ".join(match_attrs) + "\n"
+                        
+                        response = chat.send_message(msg.content + match_desc)
+                    else:
+                        response = chat.send_message(msg.content + "\n\nI couldn't find any matches in the database.")
+                else:
+                    # Regular chat about the dataset
+                    response = chat.send_message(msg.content)
                 
                 # Store the response in history
                 chat.history.append({"role": "assistant", "parts": [response.text]})
         
-        # Get the last user message
-        last_message = request.messages[-1].content
-        final_prompt = QUERY_PROMPT_TEMPLATE.format(input=last_message)
-        response = chat.send_message(final_prompt)
+        # Get the last response
+        last_response = chat.history[-1]["parts"][0]
         
-        return ChatResponse(response=response.text)
+        return ChatResponse(response=last_response)
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False)):
+async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False), camera_id: str = Form(None)):
     try:
-        logger.info(f"Processing {'video' if is_video else 'image'}: {file.filename}")
+        logger.info(f"Processing {'video' if is_video else 'image'} from camera {camera_id}: {file.filename}")
         
         # Save the uploaded file
         file_path = save_upload_file(file)
@@ -170,14 +320,15 @@ async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False)
                     # Embed the description
                     embedding = embed_description(description)
                     
-                    # Add to database with image
+                    # Add to database with image and camera_id
                     add_person(
                         embedding=embedding,
                         description_json=description,
                         metadata={
                             "track_id": person.get("track_id", -1),
                             "frame": person.get("frame", -1),
-                            "image": person["image"]
+                            "image": person["image"],
+                            "camera_id": camera_id
                         }
                     )
                     
@@ -203,141 +354,43 @@ async def upload_file(file: UploadFile = File(...), is_video: bool = Form(False)
 
 
 @app.post("/search")
-async def search_person(query: str = Form(...)):
+async def search_person(request: SearchRequest):
     try:
-        logger.info(f"Searching for: {query}")
+        logger.info(f"Searching for: {request.description}")
         
-        # Search for similar people
-        matches = find_similar_people(query)
+        # Search for similar people using the JSON database
+        matches = find_similar_people(request.description)
+        logger.info(f"Search returned {len(matches)} matches")
+        
         if not matches:
+            logger.info("No matches found")
             return {
-                "query": query,
                 "matches": [],
                 "message": "No matches found",
                 "suggestions": [
                     "Try using more general terms",
                     "Include fewer specific details",
                     "Check for typos in your search",
-                    "Try searching for a different person",
-                    "Visit /search_guidelines for tips on writing effective queries"
+                    "Try searching for a different person"
                 ]
             }
         
-        # Process each match to include image data and similarity percentage
-        processed_matches = []
-        for idx, match in enumerate(matches):
-            try:
-                # Create a visualization of the match
-                description = match["description"]
-                metadata = match["metadata"]
-                similarity = match.get("similarity", 0)
-                
-                # Create a blank image if no image data is available
-                if match.get("image_data"):
-                    # Convert base64 image to OpenCV format
-                    img_data = base64.b64decode(match["image_data"])
-                    nparr = np.frombuffer(img_data, np.uint8)
-                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                else:
-                    # Create a blank image with text
-                    img = np.zeros((600, 800, 3), dtype=np.uint8)
-                    img.fill(255)  # White background
-                
-                # Add match information to the image
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.7
-                thickness = 2
-                color = (0, 128, 0)  # Dark green
-                
-                # Add similarity score
-                similarity_text = f"Match: {similarity:.1f}%"
-                cv2.putText(img, similarity_text, (10, 30), font, font_scale, color, thickness)
-                
-                # Add description details
-                y_offset = 70
-                line_height = 25
-                
-                # Basic information
-                basic_details = [
-                    f"Gender: {description.get('gender', 'N/A')}",
-                    f"Age: {description.get('age_group', 'N/A')}",
-                    f"Ethnicity: {description.get('ethnicity', 'N/A')}",
-                    f"Skin Tone: {description.get('skin_tone', 'N/A')}"
-                ]
-                
-                # Hair details
-                hair_details = [
-                    f"Hair Style: {description.get('hair_style', 'N/A')}",
-                    f"Hair Color: {description.get('hair_color', 'N/A')}",
-                    f"Facial Features: {description.get('facial_features', 'N/A')}"
-                ]
-                
-                # Clothing details
-                clothing_details = [
-                    f"Top: {description.get('clothing_top', 'N/A')}",
-                    f"Top Color: {description.get('clothing_top_color', 'N/A')}",
-                    f"Top Pattern: {description.get('clothing_top_pattern', 'N/A')}",
-                    f"Bottom: {description.get('clothing_bottom', 'N/A')}",
-                    f"Bottom Color: {description.get('clothing_bottom_color', 'N/A')}",
-                    f"Bottom Pattern: {description.get('clothing_bottom_pattern', 'N/A')}"
-                ]
-                
-                # Footwear and accessories
-                accessories_details = [
-                    f"Footwear: {description.get('footwear', 'N/A')}",
-                    f"Footwear Color: {description.get('footwear_color', 'N/A')}",
-                    f"Accessories: {description.get('accessories', 'N/A')}",
-                    f"Bag Type: {description.get('bag_type', 'N/A')}",
-                    f"Bag Color: {description.get('bag_color', 'N/A')}"
-                ]
-                
-                # Context
-                context_details = [
-                    f"Pose: {description.get('pose', 'N/A')}",
-                    f"Location: {description.get('location_context', 'N/A')}"
-                ]
-                
-                # Draw all details
-                all_details = basic_details + hair_details + clothing_details + accessories_details + context_details
-                
-                for line in all_details:
-                    cv2.putText(img, line, (10, y_offset), font, font_scale, (0, 0, 0), thickness)
-                    y_offset += line_height
-                
-                # Show the image in a window
-                window_name = f"Match {idx + 1} - {similarity:.1f}% Similar"
-                cv2.imshow(window_name, img)
-                cv2.moveWindow(window_name, idx * 850, 0)  # Position windows side by side
-                
-                # Convert back to base64 for sending to client
-                _, buffer = cv2.imencode('.jpg', img)
-                img_base64 = base64.b64encode(buffer).decode('utf-8')
-                
-                # Add to processed matches
-                processed_match = {
-                    "description": description,
-                    "similarity": similarity,
-                    "similarity_percentage": f"{similarity:.1f}%",
-                    "processed_image": img_base64
-                }
-                processed_matches.append(processed_match)
-                
-            except Exception as e:
-                logger.error(f"Error processing match: {str(e)}")
-                continue
+        # Log match details for debugging
+        for i, match in enumerate(matches):
+            logger.info(f"Match {i+1}: Similarity {match['similarity']}%")
+            logger.info(f"Description: {match['description']}")
+            logger.info(f"Metadata: {match['metadata']}")
         
-        # Wait for a key press (1ms) to keep windows open
-        cv2.waitKey(1)
+        # Generate RAG-enhanced response using Gemini
+        rag_result = generate_rag_response(request.description, matches)
         
         return {
-            "query": query,
-            "matches": processed_matches,
-            "count": len(processed_matches)
+            "matches": matches,
+            "count": len(matches),
+            "rag_response": rag_result["response"] if isinstance(rag_result, dict) and "response" in rag_result else "I found some matches for your search."
         }
     except Exception as e:
         logger.error(f"Error in search endpoint: {str(e)}")
-        # Clean up OpenCV windows in case of error
-        cv2.destroyAllWindows()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -459,14 +512,13 @@ async def process_frame(request: FrameRequest):
             logger.info(f"Processing person detection with confidence {conf:.2f} at coordinates [{x1}, {y1}, {x2}, {y2}]")
             logger.info(f"Detection size: {x2-x1}x{y2-y1} pixels")
             
-            # Add to detections list
+            # Add to detections list with camera_id from request
             detections.append({
-                "id": detection_id,
                 "type": "person",
                 "confidence": conf,
                 "bbox": [float(x1), float(y1), float(x2), float(y2)],
                 "timestamp": datetime.now().isoformat(),
-                "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
+                "camera_id": request.camera_id
             })
             
             # Crop person if the crop is valid
@@ -496,6 +548,21 @@ async def process_frame(request: FrameRequest):
                     try:
                         person_description = describe_person(person_pil)
                         logger.info(f"Generated description for person: {person_description}")
+                        
+                        # Add to database with image and camera_id from request
+                        add_person(
+                            description_json=person_description,
+                            metadata={
+                                "track_id": detection_id,
+                                "frame": -1,  # We don't have frame number in this context
+                                "image": person_pil,
+                                "camera_id": request.camera_id,
+                                "confidence": conf,
+                                "bbox": [float(x1), float(y1), float(x2), float(y2)]
+                            }
+                        )
+                        logger.info(f"Added person to database with ID: {detection_id}")
+                        
                     except Exception as desc_error:
                         logger.error(f"Error generating description: {str(desc_error)}")
                         person_description = {"error": f"Description generation failed: {str(desc_error)}"}
@@ -546,11 +613,23 @@ async def process_frame(request: FrameRequest):
         # Debug: Log the response being sent
         logger.info(f"Sending response with {len(detections)} detections and {len(person_crops)} person crops")
         
+        # Check for amber alert matches for each person description
+        amber_alert_match = None
+        for person_crop in person_crops:
+            if "description" in person_crop and isinstance(person_crop["description"], dict):
+                # Check if this person matches any active amber alerts
+                match_result = check_amber_alert_match(person_crop["description"])
+                if match_result:
+                    logger.info(f"Found amber alert match: {match_result}")
+                    amber_alert_match = match_result
+                    break
+        
         return FrameResponse(
             detections=detections,
             description=description_str,
             timestamp=datetime.now().isoformat(),
-            person_crops=person_crops
+            person_crops=person_crops,
+            amber_alert=amber_alert_match
         )
         
     except Exception as e:
@@ -566,4 +645,4 @@ async def health_check():
 
 if __name__ == "__main__":
     logger.info("Starting server...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

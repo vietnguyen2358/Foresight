@@ -1,0 +1,22 @@
+{
+  "active": true,
+  "alerts": [
+    {
+      "id": "amber-001",
+      "timestamp": "2023-06-15T14:30:00.000Z",
+      "location": "San Francisco Market Street",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_style": "short",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "location_context": "outdoor",
+        "height_estimate": "short"
+      },
+      "alert_message": "AMBER ALERT: Missing child wearing black jacket and black pants. Last seen on Market Street."
+    }
+  ]
+} 

@@ -48,18 +48,73 @@ export interface PersonDescription {
   };
 }
 
+export interface Match {
+  description: {
+    gender?: string;
+    age_group?: string;
+    ethnicity?: string;
+    skin_tone?: string;
+    hair_style?: string;
+    hair_color?: string;
+    facial_features?: string;
+    clothing_top?: string;
+    clothing_top_color?: string;
+    clothing_top_pattern?: string;
+    clothing_bottom?: string;
+    clothing_bottom_color?: string;
+    clothing_bottom_pattern?: string;
+    accessories?: string;
+    bag_type?: string;
+    bag_color?: string;
+    location_context?: string;
+    pose?: string;
+    [key: string]: any;
+  };
+  metadata: {
+    timestamp?: string;
+    camera_id?: string;
+    location?: string;
+    image_path?: string;
+    [key: string]: any;
+  };
+  similarity: number;
+  image?: string;
+  image_data?: string;
+  highlights?: string[];
+}
+
 export interface SearchResult {
-  query: string;
-  matches: Array<{
-    description: PersonDescription;
-    similarity: number;
-  }>;
+  matches: Match[];
+  count?: number;
   message?: string;
   suggestions?: string[];
+  rag_response?: string;
 }
 
 export interface ChatResponse {
   response: string;
+}
+
+export interface FrameResponse {
+  detections: Detection[];
+  description: string;
+  timestamp: string;
+  person_crops: {
+    id: string;
+    crop: string;
+    description: any;
+  }[];
+  amber_alert?: {
+    match: boolean;
+    alert: {
+      id: string;
+      timestamp: string;
+      location: string;
+      description: any;
+      alert_message: string;
+    };
+    score: number;
+  };
 }
 
 // API functions
@@ -210,61 +265,86 @@ export function uploadImageStream(
   return () => controller.abort();
 }
 
-export async function searchPeople(query: string): Promise<SearchResult> {
-  const formData = new FormData();
-  formData.append('query', query);
-  
+export async function searchPeople(description: string): Promise<SearchResult> {
   try {
-    console.log(`Searching for: ${query}`);
+    console.log("Searching for people with description:", description);
     
     const response = await fetch(`${API_BASE_URL}/search`, {
       method: 'POST',
-      body: formData,
       headers: {
-        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ description }),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Search error:', response.status, errorText);
-      throw new Error(`Search failed: ${response.status} ${errorText}`);
+      console.error("Search API error:", response.status, errorText);
+      throw new Error(`Search request failed: ${response.status} ${errorText}`);
     }
-    
+
     const data = await response.json();
-    console.log('Search results:', data);
+    console.log("Search API response:", data);
     
-    // Debug image paths
-    if (data.matches && Array.isArray(data.matches)) {
-      data.matches.forEach((match: { description: PersonDescription; similarity: number }, index: number) => {
-        if (match.description && match.description.image) {
-          console.log(`Match ${index} image path:`, match.description.image);
-          console.log(`Full image URL would be:`, `${API_BASE_URL}/${match.description.image}`);
-        }
-      });
+    if (!data || !Array.isArray(data.matches)) {
+      console.error("Invalid response format from search API");
+      return { matches: [] };
     }
     
-    return data;
+    // Process the matches
+    const matches = data.matches.map((match: any) => ({
+      description: match.description || {},
+      metadata: match.metadata || {},
+      similarity: match.similarity || 0,
+      image: match.metadata?.image_path ? `${API_BASE_URL}/${match.metadata.image_path}` : undefined,
+      image_data: match.image_data,
+      highlights: match.highlights || []
+    }));
+    
+    return {
+      matches,
+      count: data.count,
+      message: data.message,
+      suggestions: data.suggestions,
+      rag_response: data.rag_response
+    };
   } catch (error) {
-    console.error('Search error:', error);
-    throw error;
+    console.error("Error in searchPeople:", error);
+    return { matches: [] };
   }
 }
 
 export async function chatWithAI(messages: { role: string; content: string }[]): Promise<ChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ messages }),
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to chat with AI');
+  try {
+    console.log("Sending chat request to backend:", messages);
+    
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Chat API error:", response.status, errorText);
+      throw new Error(`Failed to chat with AI: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Chat API response:", data);
+    
+    if (!data || !data.response) {
+      console.error("Invalid chat response format:", data);
+      throw new Error("Invalid response format from chat API");
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in chatWithAI:", error);
+    throw error;
   }
-  
-  return response.json();
 }
 
 // Mock data for development

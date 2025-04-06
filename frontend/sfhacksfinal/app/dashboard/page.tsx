@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import MapWrapper from "@/components/MapWrapper"
 import ChatAgent from "@/components/ChatAgent"
-import SearchSection from "@/components/SearchSection"
+import DatabaseSearch from "@/components/DatabaseSearch"
 import { MapPin, Search } from "lucide-react"
 import RightSidebar from "@/components/RightSidebar"
 
@@ -11,9 +11,12 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("map")
   const [mapKey, setMapKey] = useState(1)
   const [isFullscreen, setIsFullscreen] = useState(false)
-   useEffect(() => {
+  const leftSidebarRef = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
     window.scrollTo(0, 0)
   }, []) 
+  
   useEffect(() => {
     if (activeTab === "map") {
       const timer = setTimeout(() => {
@@ -22,14 +25,20 @@ export default function Dashboard() {
       return () => clearTimeout(timer)
     }
   }, [activeTab])
+  
+  // Removed scroll locking for the main page and left sidebar
+  
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-black">
-
-      <div className="w-80 bg-gray-950 border-r border-gray-800 h-[calc(100vh-4rem)]">
+      <div 
+        ref={leftSidebarRef}
+        className="w-80 bg-gray-950 border-r border-gray-800 h-[calc(100vh-4rem)] overflow-auto"
+      >
         <ChatAgent />
       </div>
+      
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         <div className="bg-gray-950 border-b border-gray-800 px-4 py-2 flex z-20">
           <div className="flex bg-gray-900 border border-gray-800 rounded-md h-10 overflow-hidden w-full">
             <button
@@ -58,7 +67,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative">
           {activeTab === "map" && (
             <div className="absolute inset-0">
               <MapWrapper mapKey={mapKey} />
@@ -66,8 +75,8 @@ export default function Dashboard() {
           )}
 
           {activeTab === "search" && (
-            <div className="h-full w-full">
-              <SearchSection />
+            <div className="h-full w-full overflow-auto">
+              <DatabaseSearch />
             </div>
           )}
         </div>
@@ -75,7 +84,7 @@ export default function Dashboard() {
 
       {/* Right Sidebar - Only visible on dashboard */}
       {!isFullscreen && (
-        <div className="w-80 bg-gray-950 border-l border-gray-800 h-[calc(100vh-4rem)] z-10">
+        <div className="w-80 bg-gray-950 border-l border-gray-800 h-[calc(100vh-4rem)] z-10 overflow-y-auto right-sidebar">
           <RightSidebar />
         </div>
       )}
