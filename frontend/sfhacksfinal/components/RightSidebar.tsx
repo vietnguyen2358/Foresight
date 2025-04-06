@@ -70,6 +70,11 @@ export default function RightSidebar() {
     if (selectedCamera) {
       console.log("Selected camera changed in RightSidebar:", selectedCamera);
       
+      // Clear detections and descriptions when camera changes
+      setDetections([]);
+      setPersonDescriptions([]);
+      setLastProcessedFrame(null);
+      
       // Clear any existing intervals
       if (frameIntervalRef.current) {
         clearInterval(frameIntervalRef.current);
@@ -183,6 +188,29 @@ export default function RightSidebar() {
             const randomImage = `/images/image${Math.floor(Math.random() * 5) + 1}.jpg`;
             console.log("Selected random image:", randomImage);
             
+            // Create a canvas to convert the image to base64
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.crossOrigin = "anonymous"; // Enable CORS for the image
+            
+            // Wait for the image to load
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = randomImage;
+            });
+            
+            // Set canvas dimensions to match image
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            // Draw image to canvas
+            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64
+            const frameData = canvas.toDataURL('image/jpeg');
+            
             // Process the random image with YOLO
             console.log("Sending random image to API for processing...");
             const response = await fetch(`${API_BASE_URL}/process_frame`, {
@@ -191,7 +219,7 @@ export default function RightSidebar() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                frame_data: randomImage
+                frame_data: frameData
               }),
             });
             
