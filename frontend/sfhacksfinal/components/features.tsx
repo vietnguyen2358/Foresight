@@ -234,7 +234,7 @@ export default function ProblemStats() {
                     <div className="text-2xl font-bold text-white">
                       <AnimatedCounter value={40} suffix="%" />
                     </div>
-                    <div className="text-xs text-gray-300">Decline Since 1997</div>
+                    <div className="text-xs text-gray-300">Increase Since 1997</div>
                   </div>
                 </div>
               </div>
