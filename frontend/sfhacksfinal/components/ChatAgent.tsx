@@ -16,6 +16,13 @@ type Message = {
   content: string
 }
 
+// Add type declaration for window.zoomToCamera
+declare global {
+  interface Window {
+    zoomToCamera?: (cameraId: string) => void;
+  }
+}
+
 export default function ChatAgent() {
   const { selectedCamera, setSelectedCamera, cameras } = useCamera()
   const [messages, setMessages] = useState<Message[]>([
@@ -73,79 +80,98 @@ export default function ChatAgent() {
 
   const formatSearchResults = (results: SearchResult): string => {
     if (!results.matches || results.matches.length === 0) {
-      return "No matches found in the camera feeds."
+      return "❌ No matches found in the camera feeds. Try describing the person differently or with fewer details."
     }
     
     const firstMatch = results.matches[0];
     const description = firstMatch.description;
     const cameraId = firstMatch.camera_id;
-    let resultText = `I found a match (${firstMatch.similarity.toFixed(1)}% similar).\n`;
+    const similarity = (firstMatch.similarity * 100).toFixed(1);
+    
+    let resultText = `🎯 Match Found (${similarity}% similarity)\n\n`;
     
     // Add camera information if available
     if (cameraId) {
-      resultText += `Location: Camera ${cameraId}\n`;
+      resultText += `📍 Location: Camera ${cameraId}\n\n`;
     }
     
-    // Add description details
-    if (description.gender) resultText += `Gender: ${description.gender}\n`;
-    if (description.age_group) resultText += `Age: ${description.age_group}\n`;
-    if (description.clothing_top) resultText += `Top: ${description.clothing_top}\n`;
-    if (description.clothing_bottom) resultText += `Bottom: ${description.clothing_bottom}\n`;
-    if (description.accessories) resultText += `Accessories: ${description.accessories}\n`;
-    if (description.location_context) resultText += `Location Context: ${description.location_context}\n`;
-    if (description.timestamp) resultText += `Last seen: ${new Date(description.timestamp).toLocaleString()}\n`;
+    // Add description details with emojis for better visibility
+    if (description.gender) resultText += `👤 Gender: ${description.gender}\n`;
+    if (description.age_group) resultText += `👥 Age: ${description.age_group}\n`;
+    if (description.clothing_top) resultText += `👕 Top: ${description.clothing_top}\n`;
+    if (description.clothing_bottom) resultText += `👖 Bottom: ${description.clothing_bottom}\n`;
+    if (description.accessories) resultText += `👜 Accessories: ${description.accessories}\n`;
+    if (description.location_context) resultText += `🌍 Location Context: ${description.location_context}\n`;
+    if (description.timestamp) resultText += `⏰ Last seen: ${new Date(description.timestamp).toLocaleString()}\n`;
+    
+    // Add a note about camera switching if applicable
+    if (cameraId) {
+      resultText += `\n✅ I've switched to Camera ${cameraId} to show you this person.`;
+    }
     
     return resultText;
   }
 
-  const handleSearchResults = async (searchResults: SearchResult) => {
-    if (searchResults.matches && searchResults.matches.length > 0) {
-      const firstMatch = searchResults.matches[0];
-      const cameraId = firstMatch.camera_id;
-      
-      // Dispatch search results event for RightSidebar to handle
-      const searchEvent = new CustomEvent('searchResults', { detail: searchResults });
-      window.dispatchEvent(searchEvent);
-      
-      if (cameraId) {
-        // Find the camera in the list
-        const camera = cameras.find((c: Camera) => c.id === cameraId);
-        if (camera) {
-          // Set the selected camera
-          setSelectedCamera(camera);
-          
-          // Add a message about switching cameras
-          setMessages(prev => [...prev, {
-            role: "assistant" as const,
-            content: `I've found the person on Camera ${cameraId}. I've switched to that camera view for you.\n\n${formatSearchResults(searchResults)}`
-          }]);
-          
-          // Scroll to the camera view
-          setTimeout(() => {
-            const cameraElement = document.getElementById(`camera-${cameraId}`);
-            if (cameraElement) {
-              cameraElement.scrollIntoView({ behavior: 'smooth' });
-            }
-          }, 500);
-        } else {
-          setMessages(prev => [...prev, {
-            role: "assistant" as const,
-            content: formatSearchResults(searchResults)
-          }]);
-        }
-      } else {
-        setMessages(prev => [...prev, {
-          role: "assistant" as const,
-          content: formatSearchResults(searchResults)
-        }]);
-      }
-    } else {
+  const handleSearchResults = async (results: any) => {
+    if (!results || !results.matches || results.matches.length === 0) {
       setMessages(prev => [...prev, {
-        role: "assistant" as const,
-        content: "I couldn't find any matches in our camera feeds for your query. Try describing the person differently."
+        role: 'assistant',
+        content: 'I couldn\'t find any matches for your search. Please try describing the person differently.'
       }]);
+      return;
     }
-  }
+
+    // Get the first match's camera ID
+    const match = results.matches[0];
+    const cameraId = match.camera_id;
+
+    if (!cameraId) {
+      console.error('No camera ID found in search results');
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'I found a match, but I couldn\'t determine which camera they were seen on. Please try searching again.'
+      }]);
+      return;
+    }
+
+    // Dispatch search results event
+    const searchEvent = new CustomEvent('searchResults', {
+      detail: { results }
+    });
+    window.dispatchEvent(searchEvent);
+
+    // Find the camera in the list
+    const camera = cameras.find(c => c.id === cameraId);
+    if (!camera) {
+      console.error(`Camera ${cameraId} not found in camera list`);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `I found a match on camera ${cameraId}, but I couldn't switch to that view. The person was last seen at ${match.location || 'an unknown location'}.`
+      }]);
+      return;
+    }
+
+    // Set the selected camera
+    setSelectedCamera(camera);
+
+    // Format and display the search results
+    const formattedResults = formatSearchResults(results);
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: formattedResults
+    }]);
+
+    // Try to zoom to the camera location
+    try {
+      if (window.zoomToCamera && typeof window.zoomToCamera === 'function') {
+        window.zoomToCamera(cameraId);
+      } else {
+        console.warn('zoomToCamera function not available');
+      }
+    } catch (error) {
+      console.error('Error zooming to camera:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,14 +184,27 @@ export default function ChatAgent() {
     try {
       setIsLoading(true);
 
-      // Check if it's a search query
-      const searchKeywords = ["find", "search", "look for", "show", "who", "wearing", "person", "people"];
+      // Check if it's a search query - expanded keywords for better detection
+      const searchKeywords = [
+        "find", "search", "look for", "show", "who", "wearing", "person", "people",
+        "locate", "where is", "can you find", "help me find", "looking for",
+        "describe", "identify", "spot", "see", "detect", "recognize"
+      ];
       const isSearchQuery = searchKeywords.some(keyword => input.toLowerCase().includes(keyword));
 
       if (isSearchQuery) {
         console.log("Processing search query:", input);
+        // Always use the /search endpoint for people searches
         const searchResults = await searchPeople(input);
         console.log("Search results:", searchResults);
+        
+        // Add a message indicating we're searching
+        setMessages(prev => [...prev, {
+          role: "assistant" as const,
+          content: "🔍 Searching for people matching your description..."
+        }]);
+        
+        // Process the search results
         await handleSearchResults(searchResults);
       } else {
         const aiResponse = await chatWithAI([...messages, newUserMessage]);

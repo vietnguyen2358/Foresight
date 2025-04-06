@@ -1,7 +1,7 @@
 // API service for backend communication
 
 // API base URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
 // Log the API base URL for debugging
 console.log("API_BASE_URL:", API_BASE_URL);
@@ -347,4 +347,26 @@ export const mockPersonDescriptions: PersonDescription[] = [
     timestamp: new Date().toLocaleTimeString(),
     image: "https://picsum.photos/seed/person2/200/150"
   }
-]; 
+];
+
+// Get the cropped image of a detected person
+export const getPersonImage = async (personId: string): Promise<string> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/person_image/${personId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get person image: ${response.statusText}`);
+    }
+    
+    // Convert the image to a data URL
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error getting person image:', error);
+    throw error;
+  }
+}; 

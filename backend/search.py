@@ -71,25 +71,42 @@ def find_similar_people(user_description: str, top_k=1):
             print("⚠️ Could not parse query into structured JSON")
             return []
 
-        # Search database directly with the description
-        matches = search_people(user_description, n=top_k)
+        # Search database with the structured JSON query
+        matches = search_people(json_query, n=top_k)
         
         # Process matches
         processed_matches = []
         for match in matches:
             try:
+                # Calculate additional similarity based on structured attributes
+                description = match["description"]
+                similarity = match.get("similarity", 0)
+                
+                # Boost similarity if key attributes match exactly
+                if json_query.get("gender") and description.get("gender") == json_query["gender"]:
+                    similarity += 0.2
+                if json_query.get("age_group") and description.get("age_group") == json_query["age_group"]:
+                    similarity += 0.15
+                if json_query.get("hair_color") and description.get("hair_color") == json_query["hair_color"]:
+                    similarity += 0.1
+                if json_query.get("clothing_top_color") and description.get("clothing_top_color") == json_query["clothing_top_color"]:
+                    similarity += 0.1
+                
+                # Cap similarity at 1.0
+                similarity = min(similarity, 1.0)
+                
                 processed_matches.append({
-                    "description": match["description"],
+                    "description": description,
                     "metadata": match.get("metadata", {}),
-                    "similarity": match.get("similarity", 0)
+                    "similarity": similarity
                 })
             except Exception as e:
                 print(f"⚠️ Error processing match: {e}")
                 continue
 
-        # Sort by similarity and return the best match
+        # Sort by similarity and return the best matches
         processed_matches.sort(key=lambda x: x["similarity"], reverse=True)
-        return processed_matches[:1]  # Return only the highest match
+        return processed_matches[:top_k]
         
     except Exception as e:
         print(f"⚠️ Error in find_similar_people: {e}")

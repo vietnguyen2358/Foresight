@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getPersonImage } from "@/lib/api";
 
 interface VideoPlayerProps {
   videoSrc: string;
@@ -13,6 +14,32 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [useFallback, setUseFallback] = useState(false);
   const FRAME_INTERVAL = 5000; // 5 seconds between frame extractions
+
+  // Add a state for person images
+  const [personImages, setPersonImages] = useState<Record<string, string>>({});
+
+  // Add a function to load person images
+  const loadPersonImage = async (personId: string) => {
+    try {
+      // Use the API_BASE_URL from the environment or default to localhost
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const imageUrl = `${apiBaseUrl}/person_image/${personId}`;
+      
+      // Test if the image exists before setting it
+      const response = await fetch(imageUrl, { method: 'HEAD' });
+      if (response.ok) {
+        setPersonImages(prev => ({
+          ...prev,
+          [personId]: imageUrl
+        }));
+        console.log(`Successfully loaded image for person ${personId}`);
+      } else {
+        console.error(`Failed to load image for person ${personId}: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error(`Error loading image for person ${personId}:`, error);
+    }
+  };
 
   // Initialize video player or fallback to image
   useEffect(() => {
@@ -282,11 +309,23 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         }
       }
       
-      
-      
       // Pass the frame URL to the parent component
       console.log("Sending frame to parent component for processing");
       onFrameExtracted(frameUrl);
+
+      // If the frame contains detections, load the person images
+      if (frameUrl.includes('detection')) {
+        try {
+          const detections = JSON.parse(frameUrl.split('detection:')[1]);
+          detections.forEach((detection: any) => {
+            if (detection.id && !personImages[detection.id]) {
+              loadPersonImage(detection.id);
+            }
+          });
+        } catch (error) {
+          console.error('Error parsing detections:', error);
+        }
+      }
     } catch (err) {
       console.error('Error extracting frame:', err);
       setError(`Error extracting frame - using image feed instead`);
@@ -301,28 +340,57 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
     extractFrame();
   };
 
+  // Add the handleVideoError function
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error('Video error:', e);
+    setError('Failed to load video. Switching to fallback image.');
+    setUseFallback(true);
+  };
+
   return (
-    <div className="relative w-full">
-      {!useFallback && (
-        <video
-          ref={videoRef}
-          src={videoSrc}
-          className="w-full h-full object-cover rounded-lg"
-          style={{ maxHeight: '300px' }}
-        />
+    <div className="relative w-full h-full">
+      {useFallback ? (
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <img 
+            src="/images/fallback.jpg" 
+            alt="Fallback" 
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            onError={handleVideoError}
+          />
+          
+          {/* Hidden canvas for frame extraction */}
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          
+          {/* Display person images */}
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-black bg-opacity-50 flex overflow-x-auto">
+            {Object.entries(personImages).map(([id, imageUrl]) => (
+              <div key={id} className="flex-shrink-0 mr-2">
+                <img 
+                  src={imageUrl} 
+                  alt={`Person ${id}`} 
+                  className="w-16 h-16 object-cover rounded-full border border-white"
+                  onError={(e) => {
+                    console.error(`Error loading image for person ${id}`);
+                    e.currentTarget.src = '/images/fallback-person.jpg';
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </>
       )}
-      
-      {useFallback && (
-        <img
-          src="/images/image.jpg"
-          alt="Camera feed"
-          className="w-full h-full object-cover rounded-lg"
-          style={{ maxHeight: '300px' }}
-        />
-      )}
-      
-      {/* Hidden canvas for frame extraction */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
       
       {/* Error message */}
       {error && (
@@ -330,7 +398,13 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
           {error}
         </div>
       )}
-      
+
+      {isProcessing && (
+        <div className="absolute top-0 right-0 m-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+          Processing...
+        </div>
+      )}
+
       {/* Live indicator */}
       <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center">
         <span className="relative flex h-2 w-2 mr-1">
@@ -339,8 +413,6 @@ export default function VideoPlayer({ videoSrc, onFrameExtracted, isProcessing }
         </span>
         {useFallback ? 'LIVE (Image Feed)' : 'LIVE'}
       </div>
-      
-      
     </div>
   );
 } 

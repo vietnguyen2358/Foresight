@@ -1,7 +1,7 @@
 # main.py
 
 from fastapi import File, UploadFile, Form, HTTPException, Request, FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from typing import List, Optional
 from PIL import Image
 import uvicorn
@@ -24,7 +24,7 @@ from contextlib import asynccontextmanager
 
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
-from db import add_person, search_people
+from db import add_person, search_people, get_person_image
 from search import find_similar_people
 
 from fastapi.websockets import WebSocketDisconnect
@@ -46,7 +46,9 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # Setup directories
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+DETECTED_PEOPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "detected_people")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(DETECTED_PEOPLE_DIR, exist_ok=True)
 
 # Load YOLO model
 yolo_model = YOLO("yolo11n.pt")
@@ -75,11 +77,15 @@ async def lifespan(app: FastAPI):
 
 # Update the app to use the lifespan context manager
 app = FastAPI(title="Person Detection and Search API", lifespan=lifespan)
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
+    expose_headers=["Content-Disposition"]  # Needed for file downloads
 )
 
 # Define models for chat
@@ -101,6 +107,7 @@ class FrameResponse(BaseModel):
 
 class FrameRequest(BaseModel):
     frame_data: str
+    camera_id: str = Field(default="unknown")
 
 def save_upload_file(upload_file: UploadFile) -> str:
     """Save uploaded file and return the path"""
@@ -290,6 +297,9 @@ async def search_person(query: str = Form(...)):
             description = best_match["description"]
             metadata = best_match.get("metadata", {})
             
+            # Get camera ID from metadata or description
+            camera_id = metadata.get("camera_id") or description.get("camera_id")
+            
             # Create a visualization image
             img = np.zeros((600, 800, 3), dtype=np.uint8)
             img.fill(255)  # White background
@@ -375,7 +385,7 @@ async def search_person(query: str = Form(...)):
                 "similarity": similarity,
                 "similarity_percentage": f"{similarity:.1f}%",
                 "image_data": img_base64,
-                "camera_id": metadata.get("camera_id", "Unknown")  # Include camera ID from metadata
+                "camera_id": camera_id  # Use the camera ID we found
             }
             
             # Add confidence level message
@@ -392,7 +402,7 @@ async def search_person(query: str = Form(...)):
                 "matches": [processed_match],
                 "count": 1,
                 "confidence_message": confidence_message,
-                "camera_id": metadata.get("camera_id", "Unknown")  # Include camera ID at top level too
+                "camera_id": camera_id  # Include camera ID at top level too
             }
             
         except Exception as e:
@@ -474,6 +484,7 @@ async def process_frame(request: FrameRequest):
             raise ValueError("Failed to decode image data")
             
         logger.info(f"Successfully decoded frame with shape: {frame.shape}")
+        logger.info(f"Processing frame from camera: {request.camera_id}")
         
         # Run YOLO detection
         results = yolo_model(frame)[0]
@@ -556,18 +567,42 @@ async def process_frame(request: FrameRequest):
                         person_description = describe_person(person_pil)
                         logger.info(f"Generated description for person: {person_description}")
                         
-                        # Save the person to the database
-                        add_person(
-                            description_json=person_description,
-                            metadata={
-                                "detection_id": detection_id,
-                                "confidence": conf,
-                                "timestamp": datetime.now().isoformat(),
-                                "camera_id": "SF-MKT-001",
-                                "bbox": [float(x1), float(y1), float(x2), float(y2)]
-                            }
-                        )
-                        logger.info(f"Added person to database with ID {detection_id}")
+                        # Convert crop to base64 for frontend display
+                        _, buffer = cv2.imencode('.jpg', person_crop)
+                        crop_base64 = base64.b64encode(buffer).decode('utf-8')
+                        
+                        # Save the cropped image to the database
+                        try:
+                            # Create a data URL for the cropped image
+                            crop_data_url = f"data:image/jpeg;base64,{crop_base64}"
+                            
+                            # Add the person to the database with the cropped image
+                            person_id = add_person(
+                                description_json=person_description,
+                                metadata={
+                                    "detection_id": detection_id,
+                                    "confidence": conf,
+                                    "timestamp": datetime.now().isoformat(),
+                                    "camera_id": request.camera_id,
+                                    "bbox": [float(x1), float(y1), float(x2), float(y2)]
+                                },
+                                crop_image=crop_data_url
+                            )
+                            
+                            # Add the person ID to the detection
+                            if person_id:
+                                detection_id = person_id
+                                logger.info(f"Updated detection ID to person ID: {detection_id}")
+                        except Exception as save_error:
+                            logger.error(f"Error saving person to database: {str(save_error)}")
+                        
+                        # Add to person crops list
+                        person_crops.append({
+                            "id": detection_id,
+                            "crop": crop_base64,
+                            "description": person_description
+                        })
+                        logger.info(f"Added person crop with ID {detection_id}")
                         
                         # Add to detections list with description
                         detections.append({
@@ -576,7 +611,7 @@ async def process_frame(request: FrameRequest):
                             "confidence": conf,
                             "bbox": [float(x1), float(y1), float(x2), float(y2)],
                             "timestamp": datetime.now().isoformat(),
-                            "camera_id": "SF-MKT-001",  # You can make this dynamic based on the request
+                            "camera_id": request.camera_id,
                             "description": person_description  # Add the description to the detection
                         })
                     except Exception as desc_error:
@@ -590,20 +625,8 @@ async def process_frame(request: FrameRequest):
                             "confidence": conf,
                             "bbox": [float(x1), float(y1), float(x2), float(y2)],
                             "timestamp": datetime.now().isoformat(),
-                            "camera_id": "SF-MKT-001"  # You can make this dynamic based on the request
+                            "camera_id": request.camera_id
                         })
-                    
-                    # Convert crop to base64 for frontend display
-                    _, buffer = cv2.imencode('.jpg', person_crop)
-                    crop_base64 = base64.b64encode(buffer).decode('utf-8')
-                    
-                    # Add to person crops list
-                    person_crops.append({
-                        "id": detection_id,
-                        "crop": crop_base64,
-                        "description": person_description
-                    })
-                    logger.info(f"Added person crop with ID {detection_id}")
                 except Exception as crop_error:
                     logger.error(f"Error cropping person: {str(crop_error)}")
                     # Continue processing other detections
@@ -654,7 +677,33 @@ async def process_frame(request: FrameRequest):
 # Add health check endpoint
 @app.get("/health")
 async def health_check():
+    """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+@app.get("/person_image/{person_id}")
+async def get_person_image(person_id: str):
+    try:
+        # Get the person from the database
+        person = db.get_person(person_id)
+        if not person:
+            raise HTTPException(status_code=404, detail="Person not found")
+        
+        # Get the image path from the person's data
+        image_path = person.get("image_path")
+        if not image_path:
+            raise HTTPException(status_code=404, detail="No image found for this person")
+        
+        # Check if the image exists
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail="Image file not found")
+        
+        # Return the image file
+        return FileResponse(image_path)
+        
+    except Exception as e:
+        logger.error(f"Error retrieving person image: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

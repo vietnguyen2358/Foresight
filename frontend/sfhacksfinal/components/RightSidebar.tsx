@@ -16,7 +16,8 @@ import {
   ChatResponse,
   uploadImageStream,
   API_BASE_URL,
-  checkServerHealth
+  checkServerHealth,
+  getPersonImage
 } from "@/lib/api"
 
 // Define local interface to extend PersonDescription
@@ -70,6 +71,7 @@ export default function RightSidebar() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
   const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [personImages, setPersonImages] = useState<Record<string, string>>({})
 
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
@@ -295,36 +297,26 @@ export default function RightSidebar() {
   
   // Process a frame with YOLO
   const processFrame = async (frameUrl: string) => {
-    if (isProcessing) return;
+    if (!selectedCamera) {
+      console.log("No camera selected, skipping frame processing");
+      return;
+    }
+    
+    setIsProcessing(true);
+    setError(null);
     
     try {
-      setIsProcessing(true);
-      setError(null);
+      console.log(`Processing frame from camera ${selectedCamera.id}: ${frameUrl}`);
       
-      // Check if the server is healthy
-      console.log("Checking server health...");
-      const isHealthy = await checkServerHealth();
-      if (!isHealthy) {
-        throw new Error("Server is not healthy - please check the backend server");
-      }
-      console.log("Server health check passed");
+      // Create form data with the frame URL and camera ID
+      const formData = new FormData();
+      formData.append('frame_url', frameUrl);
+      formData.append('camera_id', selectedCamera.id);
       
-      // Process the frame with YOLO
-      console.log("Sending frame to API for processing...");
-      console.log("Frame URL length:", frameUrl.length);
-      
-      // Log the first 100 characters of the frame URL to help with debugging
-      console.log("Frame URL preview:", frameUrl.substring(0, 100) + "...");
-      
+      // Send the frame to the backend for processing
       const response = await fetch(`${API_BASE_URL}/process_frame`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          frame_data: frameUrl,
-          camera_id: selectedCamera?.id || "unknown" // Add camera_id to the request
-        }),
+        method: 'POST',
+        body: formData
       });
       
       if (!response.ok) {
@@ -348,7 +340,7 @@ export default function RightSidebar() {
         // Ensure each detection has the correct camera_id
         const detectionsWithCamera = data.detections.map((detection: Detection) => ({
           ...detection,
-          camera_id: selectedCamera?.id || detection.camera_id || "unknown"
+          camera_id: selectedCamera.id // Always use the selected camera ID
         }));
         
         setDetections(detectionsWithCamera);
@@ -360,84 +352,21 @@ export default function RightSidebar() {
       if (data.person_crops && data.person_crops.length > 0) {
         console.log("Processing person crops:", data.person_crops.length);
         
-        const newPersonDescriptions: ExtendedPersonDescription[] = data.person_crops.map((crop: any) => {
-          // Parse the description if it's a string
-          let parsedDescription = crop.description;
-          let structuredData: Record<string, any> = {};
-          
-          if (typeof crop.description === 'string') {
-            try {
-              // Try to parse as JSON
-              parsedDescription = JSON.parse(crop.description);
-            } catch (e) {
-              // If not JSON, use as is
-              console.log("Description is not JSON, using as string");
-            }
-          }
-          
-          // If it's an object, extract structured data
-          if (typeof parsedDescription === 'object' && parsedDescription !== null) {
-            structuredData = parsedDescription;
-          }
-          
-          return {
-            id: crop.id,
-            description: typeof parsedDescription === 'string' ? parsedDescription : JSON.stringify(parsedDescription),
-            timestamp: data.timestamp || new Date().toISOString(),
-            camera_id: selectedCamera?.id || crop.camera_id || "unknown",
-            cropped_image: `data:image/jpeg;base64,${crop.crop}`,
-            raw_data: structuredData
-          };
-        });
+        const newPersonDescriptions: ExtendedPersonDescription[] = data.person_crops.map((crop: any) => ({
+          ...crop,
+          camera_id: selectedCamera.id, // Always use the selected camera ID
+          timestamp: new Date().toISOString()
+        }));
         
-        console.log("Setting person descriptions:", newPersonDescriptions);
-        setPersonDescriptions(newPersonDescriptions);
-      } else if (data.description) {
-        // Fallback to the general description if no person crops
-        console.log("No person crops found, using general description:", data.description);
-        
-        // Parse the description string into structured data if possible
-        let parsedDescription: ExtendedPersonDescription = {
-          id: `general_${Date.now()}`,
-          description: data.description,
-          timestamp: data.timestamp || new Date().toISOString(),
-          camera_id: selectedCamera?.id || "SF-MKT-001"
-        };
-        
-        // Try to extract structured data from the description
-        try {
-          // Check if the description is in a format like "Gender: male. Age Group: adult."
-          const descriptionParts = data.description.split('. ');
-          const structuredData: Record<string, string> = {};
-          
-          descriptionParts.forEach((part: string) => {
-            const [key, value] = part.split(': ');
-            if (key && value) {
-              // Convert key from "Title Case" to "snake_case"
-              const snakeKey = key.toLowerCase().replace(/\s+/g, '_');
-              structuredData[snakeKey] = value;
-            }
-          });
-          
-          // Add structured data to the description object
-          parsedDescription = {
-            ...parsedDescription,
-            ...structuredData,
-            raw_data: structuredData
-          };
-        } catch (parseError) {
-          console.error("Error parsing description:", parseError);
-          // If parsing fails, just use the raw description
-        }
-        
-        setPersonDescriptions([parsedDescription]);
-      } else {
-        console.log("No descriptions found in the response");
-        // Keep existing descriptions if no new ones are available
+        setPersonDescriptions(prev => [...newPersonDescriptions, ...prev]);
       }
+      
+      // Update the last processed frame
+      setLastProcessedFrame(frameUrl);
+      
     } catch (error) {
       console.error("Error processing frame:", error);
-      setError(error instanceof Error ? error.message : "Failed to process frame");
+      setError(error instanceof Error ? error.message : "Unknown error processing frame");
     } finally {
       setIsProcessing(false);
     }
@@ -670,6 +599,56 @@ export default function RightSidebar() {
     return text
   }
 
+  // Add a function to load person images
+  const loadPersonImage = async (personId: string) => {
+    try {
+      // Use the API_BASE_URL from the environment or default to localhost
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const imageUrl = `${apiBaseUrl}/person_image/${personId}`;
+      
+      // Use GET request to fetch the image
+      const response = await fetch(imageUrl);
+      
+      if (response.ok) {
+        // Convert the response to a blob and create an object URL
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        
+        setPersonImages(prev => ({
+          ...prev,
+          [personId]: objectUrl
+        }));
+        console.log(`Successfully loaded image for person ${personId}`);
+      } else {
+        console.error(`Failed to load image for person ${personId}: ${response.status} ${response.statusText}`);
+        // Set a placeholder image or handle the error case
+        setPersonImages(prev => ({
+          ...prev,
+          [personId]: '/images/placeholder-person.png' // Make sure this placeholder image exists
+        }));
+      }
+    } catch (error) {
+      console.error(`Error loading image for person ${personId}:`, error);
+      // Set a placeholder image on error
+      setPersonImages(prev => ({
+        ...prev,
+        [personId]: '/images/placeholder-person.png' // Make sure this placeholder image exists
+      }));
+    }
+  };
+
+  // Update the useEffect that processes frames to load person images
+  useEffect(() => {
+    if (detections.length > 0) {
+      // Load images for all detected people
+      detections.forEach(detection => {
+        if (detection.id && !personImages[detection.id]) {
+          loadPersonImage(detection.id);
+        }
+      });
+    }
+  }, [detections]);
+
   return (
     <div className="w-80 bg-gray-900 border-l border-gray-800 h-screen overflow-y-auto">
       {/* Phone Call Transcription */}
@@ -808,91 +787,84 @@ export default function RightSidebar() {
                     }
                     // Otherwise sort by timestamp (newest first)
                     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-                  }).map((detection) => (
-                    <motion.div
-                      key={detection.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className={`bg-gray-800 rounded-lg p-3 ${detection.type === "Person" ? "cursor-pointer hover:bg-gray-700" : ""} ${
-                        searchMatch && searchMatch.match.id === detection.id ? "border-2 border-green-500 bg-gray-700 shadow-lg shadow-green-500/20" : ""
+                  }).map((detection, index) => (
+                    <div 
+                      key={detection.id || index} 
+                      className={`p-4 rounded-lg mb-3 ${
+                        searchQuery && 
+                        detection.description && 
+                        typeof detection.description === 'string' && 
+                        detection.description.toLowerCase().includes(searchQuery.toLowerCase())
+                          ? 'bg-green-900/20 border border-green-500/30' 
+                          : 'bg-gray-900/20 border border-gray-700/30'
                       }`}
-                      onClick={() => detection.type === "Person" && handleDetectionClick(detection)}
                     >
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-white">{detection.type}</span>
-                        <span className="text-xs text-gray-400">{detection.timestamp}</span>
-                      </div>
-                      
-                      {searchMatch && searchMatch.match.id === detection.id && (
-                        <div className="mt-1 mb-2 bg-green-900/30 text-green-400 text-xs px-2 py-1 rounded-full inline-block">
-                          Match for: "{searchMatch.query}" ({(searchMatch.similarity * 100).toFixed(1)}% similarity)
-                        </div>
-                      )}
-                      
-                      <div className="mt-2 text-xs text-gray-300 space-y-1">
-                        <div className="flex items-center">
-                          <span className="text-blue-400 mr-2">Confidence:</span>
-                          <span>{(detection.confidence * 100).toFixed(1)}%</span>
-                        </div>
-                        
-                        {detection.bbox && (
-                          <div className="flex items-center">
-                            <span className="text-blue-400 mr-2">Location:</span>
-                            <span>[{detection.bbox.map(coord => coord.toFixed(0)).join(', ')}]</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center">
-                          <span className="text-blue-400 mr-2">Camera:</span>
-                          <span>{detection.camera_id || selectedCamera?.id || 'Unknown'}</span>
-                        </div>
-                        
-                        {detection.description && (
-                          <div className="mt-2 pt-2 border-t border-gray-700">
-                            <span className="text-blue-400 block mb-1">Description:</span>
-                            <div className="text-gray-300 space-y-1">
-                              {typeof detection.description === 'string' ? (
-                                <p className="whitespace-pre-line">{detection.description}</p>
-                              ) : (
-                                Object.entries(detection.description).map(([key, value]) => (
-                                  value && (
-                                    <p key={key}>
-                                      <span className="text-blue-400">{key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span> {value}
-                                    </p>
-                                  )
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Display cropped image if available */}
-                        {personDescriptions.find(p => p.id === detection.id)?.cropped_image && (
-                          <div className="mt-2 pt-2 border-t border-gray-700">
-                            <span className="text-blue-400 block mb-1">Person Image:</span>
-                            <div className="relative w-full h-32 overflow-hidden rounded-md bg-gray-900 flex items-center justify-center">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0 mr-3">
+                          {detection.id ? (
+                            <div className="w-16 h-16 overflow-hidden rounded-full border border-gray-700/30">
                               <img 
-                                src={personDescriptions.find(p => p.id === detection.id)?.cropped_image} 
+                                src={personDescriptions.find(p => p.id === detection.id)?.cropped_image || (lastProcessedFrame || '')}
                                 alt={`Person ${detection.id}`}
-                                className="w-full h-full object-contain"
-                                style={{ maxWidth: '100%', maxHeight: '100%' }}
+                                className="w-full h-full object-cover object-center"
+                                style={{
+                                  aspectRatio: '1/1',
+                                  objectFit: 'cover',
+                                  objectPosition: 'center'
+                                }}
                               />
                             </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {detection.image && (
-                        <div className="mt-2 rounded overflow-hidden">
-                          <img 
-                            src={detection.image} 
-                            alt={`${detection.type} detection`} 
-                            className="w-full h-20 object-cover"
-                          />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-800/50 rounded-full flex items-center justify-center border border-gray-700/30">
+                              <span className="text-gray-400 text-xs">No image</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </motion.div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-medium text-gray-200">
+                                {detection.type.charAt(0).toUpperCase() + detection.type.slice(1)} Detection
+                              </h3>
+                              <p className="text-sm text-gray-400">
+                                {new Date(detection.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-300 border border-blue-700/30">
+                                {Math.round(detection.confidence * 100)}% confidence
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-2 text-sm text-gray-300">
+                            {detection.bbox && (
+                              <p>Location: {detection.bbox.join(', ')}</p>
+                            )}
+                            <p>Camera: {detection.camera_id}</p>
+                            
+                            {detection.description && (
+                              <div className="mt-2 pt-2 border-t border-gray-700/30">
+                                <p className="font-medium text-blue-400">Description:</p>
+                                {typeof detection.description === 'string' ? (
+                                  <p className="text-gray-300">{detection.description}</p>
+                                ) : (
+                                  <div className="mt-1">
+                                    {Object.entries(detection.description).map(([key, value]) => (
+                                      value && (
+                                        <p key={key} className="text-gray-300">
+                                          <span className="font-medium text-blue-400">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span> {value}
+                                        </p>
+                                      )
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 ) : (
                   <div className="bg-gray-800 rounded-lg p-3">

@@ -1,7 +1,91 @@
 {
   "people": [
     {
-      "id": "fc22fd9d-bdfd-4e2d-ad2f-ad385b8400e9",
+      "id": "1a01b1b0-c4b0-4738-aa38-8b2266319509",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "long",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "accessories": "hat",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.6683028340339661,
+        "timestamp": "2025-04-05T16:33:29.075824",
+        "camera_id": "unknown",
+        "bbox": [
+          446.0,
+          254.0,
+          527.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:33:29.076407",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/1a01b1b0-c4b0-4738-aa38-8b2266319509/person.jpg"
+    },
+    {
+      "id": "b25c3472-f8eb-413e-b5b2-5a07a4d22d24",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "red",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.38383910059928894,
+        "timestamp": "2025-04-05T16:33:30.349815",
+        "camera_id": "unknown",
+        "bbox": [
+          376.0,
+          225.0,
+          427.0,
+          280.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:33:30.350172",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/b25c3472-f8eb-413e-b5b2-5a07a4d22d24/person.jpg"
+    },
+    {
+      "id": "b693fa32-c47f-43c8-8bb9-94374fb42d2f",
+      "description": {
+        "age_group": "adult",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.32351937890052795,
+        "timestamp": "2025-04-05T16:33:31.574723",
+        "camera_id": "unknown",
+        "bbox": [
+          389.0,
+          224.0,
+          427.0,
+          265.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:33:31.575024",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/b693fa32-c47f-43c8-8bb9-94374fb42d2f/person.jpg"
+    },
+    {
+      "id": "e5dc971a-f5ac-4105-8d3b-159e9de5f491",
       "description": {
         "gender": "male",
         "age_group": "adult",
@@ -10,185 +94,119 @@
         "facial_features": "beard, glasses",
         "clothing_top": "jacket",
         "clothing_top_color": "black",
-        "clothing_top_pattern": "solid",
-        "clothing_bottom": "unknown",
-        "pose": "sitting",
+        "clothing_bottom": "jeans",
+        "pose": "standing",
         "location_context": "indoor"
       },
       "metadata": {
         "detection_id": "person_0",
-        "confidence": 0.827250599861145,
-        "timestamp": "2025-04-05T16:04:47.395689",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.6736580729484558,
+        "timestamp": "2025-04-05T16:33:42.262838",
+        "camera_id": "unknown",
         "bbox": [
-          444.0,
+          443.0,
           254.0,
-          532.0,
-          358.0
+          526.0,
+          359.0
         ]
       },
-      "timestamp": "2025-04-05T16:04:47.395755"
+      "timestamp": "2025-04-05T16:33:42.263772",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e5dc971a-f5ac-4105-8d3b-159e9de5f491/person.jpg"
     },
     {
-      "id": "767a85a8-dd13-4e21-ac8e-bc8f0db7e9dc",
+      "id": "20c77099-dc7c-45d4-8ab7-b24c2d260d03",
       "description": {
-        "gender": "male",
-        "age_group": "adult",
+        "gender": "other",
+        "age_group": "child",
+        "skin_tone": "dark",
         "hair_style": "short",
-        "hair_color": "brown",
-        "clothing_top": "t-shirt",
-        "clothing_top_color": "black",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
         "clothing_bottom": "jeans",
         "clothing_bottom_color": "blue",
-        "pose": "standing",
-        "location_context": "outdoor"
+        "pose": "walking",
+        "location_context": "indoor"
       },
       "metadata": {
         "detection_id": "person_1",
-        "confidence": 0.3125093877315521,
-        "timestamp": "2025-04-05T16:04:48.818470",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:33:43.287416",
+        "camera_id": "unknown",
         "bbox": [
-          498.0,
-          213.0,
-          517.0,
-          239.0
+          376.0,
+          225.0,
+          428.0,
+          280.0
         ]
       },
-      "timestamp": "2025-04-05T16:04:48.818588"
+      "timestamp": "2025-04-05T16:33:43.287928",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/20c77099-dc7c-45d4-8ab7-b24c2d260d03/person.jpg"
     },
     {
-      "id": "609dbf0c-7a20-4ec9-a536-91b6c11e4c10",
+      "id": "9a5259af-e723-46ff-9dfb-5144ad71bc60",
       "description": {
-        "gender": "male",
+        "gender": "other",
+        "age_group": "child",
+        "hair_style": "curly",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "bag_type": "backpack",
+        "bag_color": "yellow",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:33:44.281565",
+        "camera_id": "unknown",
+        "bbox": [
+          387.0,
+          224.0,
+          428.0,
+          266.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:33:44.282532",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/9a5259af-e723-46ff-9dfb-5144ad71bc60/person.jpg"
+    },
+    {
+      "id": "fb776330-8804-4095-9cd4-435ab8fc1591",
+      "description": {
+        "gender": "other",
         "age_group": "adult",
         "hair_style": "short",
-        "hair_color": "black",
+        "hair_color": "brown",
         "clothing_top": "shirt",
         "clothing_top_color": "white",
         "pose": "sitting",
         "location_context": "indoor"
       },
       "metadata": {
-        "detection_id": "person_2",
-        "confidence": 0.3028565049171448,
-        "timestamp": "2025-04-05T16:04:49.883571",
-        "camera_id": "SF-MKT-001",
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:33:45.067807",
+        "camera_id": "unknown",
         "bbox": [
-          522.0,
-          217.0,
-          550.0,
+          515.0,
+          214.0,
+          547.0,
           246.0
         ]
       },
-      "timestamp": "2025-04-05T16:04:49.883632"
+      "timestamp": "2025-04-05T16:33:45.068182",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/fb776330-8804-4095-9cd4-435ab8fc1591/person.jpg"
     },
     {
-      "id": "6fe315a9-3418-422e-ba9c-3c9f66681979",
+      "id": "e95209d5-3535-4eef-915d-e451250eec93",
       "description": {
         "gender": "male",
         "age_group": "adult",
-        "hair_style": "short",
-        "hair_color": "black",
-        "clothing_top": "t-shirt",
-        "clothing_top_color": "yellow",
-        "clothing_bottom": "pants",
-        "clothing_bottom_color": "blue",
-        "pose": "walking",
-        "location_context": "outdoor"
-      },
-      "metadata": {
-        "detection_id": "person_3",
-        "confidence": 0.3010760247707367,
-        "timestamp": "2025-04-05T16:04:51.072813",
-        "camera_id": "SF-MKT-001",
-        "bbox": [
-          393.0,
-          227.0,
-          427.0,
-          282.0
-        ]
-      },
-      "timestamp": "2025-04-05T16:04:51.072880"
-    },
-    {
-      "id": "3c9dd104-d276-482e-a7d3-dc6e10cc7ad6",
-      "description": {
-        "gender": "other",
-        "age_group": "adult",
-        "clothing_top": "shirt",
-        "clothing_top_color": "black",
-        "clothing_bottom": "pants",
-        "clothing_bottom_color": "black",
-        "pose": "walking",
-        "location_context": "outdoor"
-      },
-      "metadata": {
-        "detection_id": "person_0",
-        "confidence": 0.4441016614437103,
-        "timestamp": "2025-04-05T16:05:04.074952",
-        "camera_id": "SF-MKT-001",
-        "bbox": [
-          20.0,
-          328.0,
-          32.0,
-          355.0
-        ]
-      },
-      "timestamp": "2025-04-05T16:05:04.075182"
-    },
-    {
-      "id": "8fbe4df2-5596-4b41-bd90-d5b6de80c97a",
-      "description": {
-        "gender": "male",
-        "age_group": "adult",
-        "hair_style": "short",
-        "clothing_top": "shirt",
-        "clothing_bottom": "pants",
-        "pose": "walking",
-        "location_context": "outdoor"
-      },
-      "metadata": {
-        "detection_id": "person_1",
-        "confidence": 0.3891545534133911,
-        "timestamp": "2025-04-05T16:05:05.116166",
-        "camera_id": "SF-MKT-001",
-        "bbox": [
-          20.0,
-          328.0,
-          38.0,
-          354.0
-        ]
-      },
-      "timestamp": "2025-04-05T16:05:05.116228"
-    },
-    {
-      "id": "6f7b66fc-f937-4089-b663-0ffc1024d113",
-      "description": {
-        "gender": "other",
-        "age_group": "adult",
-        "location_context": "outdoor"
-      },
-      "metadata": {
-        "detection_id": "person_2",
-        "confidence": 0.36796751618385315,
-        "timestamp": "2025-04-05T16:05:06.425945",
-        "camera_id": "SF-MKT-001",
-        "bbox": [
-          28.0,
-          328.0,
-          40.0,
-          354.0
-        ]
-      },
-      "timestamp": "2025-04-05T16:05:06.426015"
-    },
-    {
-      "id": "c8d20b08-ecb7-4e39-9bb0-d212c39f7500",
-      "description": {
-        "gender": "male",
-        "age_group": "adult",
-        "hair_style": "curly",
+        "hair_style": "long",
         "hair_color": "black",
         "facial_features": "beard",
         "clothing_top": "jacket",
@@ -199,9 +217,9 @@
       },
       "metadata": {
         "detection_id": "person_0",
-        "confidence": 0.8197153806686401,
-        "timestamp": "2025-04-05T16:05:40.644676",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.8197271227836609,
+        "timestamp": "2025-04-05T16:33:47.068119",
+        "camera_id": "unknown",
         "bbox": [
           444.0,
           254.0,
@@ -209,10 +227,11 @@
           358.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:40.644789"
+      "timestamp": "2025-04-05T16:33:47.068737",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e95209d5-3535-4eef-915d-e451250eec93/person.jpg"
     },
     {
-      "id": "3b0b946c-21d8-4d64-9a74-7acc9df07129",
+      "id": "a14eec25-518c-4312-a1f4-7ef76095ac2b",
       "description": {
         "gender": "male",
         "age_group": "adult",
@@ -221,14 +240,14 @@
         "clothing_top": "shirt",
         "clothing_top_color": "green",
         "clothing_bottom": "jeans",
-        "clothing_bottom_color": "blue",
+        "pose": "sitting",
         "location_context": "indoor"
       },
       "metadata": {
         "detection_id": "person_1",
-        "confidence": 0.40095055103302,
-        "timestamp": "2025-04-05T16:05:41.468270",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.4009559452533722,
+        "timestamp": "2025-04-05T16:33:47.993121",
+        "camera_id": "unknown",
         "bbox": [
           522.0,
           216.0,
@@ -236,25 +255,26 @@
           248.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:41.468315"
+      "timestamp": "2025-04-05T16:33:47.993625",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/a14eec25-518c-4312-a1f4-7ef76095ac2b/person.jpg"
     },
     {
-      "id": "5391ab89-fe95-4a12-92d1-9a231921b218",
+      "id": "6523bff8-f0e3-4b25-89cf-500def128782",
       "description": {
-        "gender": "male",
+        "gender": "other",
         "age_group": "adult",
         "hair_color": "black",
         "clothing_top": "jacket",
         "clothing_top_color": "black",
-        "clothing_bottom": "jeans",
-        "clothing_bottom_color": "blue",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
         "location_context": "outdoor"
       },
       "metadata": {
         "detection_id": "person_2",
-        "confidence": 0.3981463611125946,
-        "timestamp": "2025-04-05T16:05:42.371572",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.39815014600753784,
+        "timestamp": "2025-04-05T16:33:48.833358",
+        "camera_id": "unknown",
         "bbox": [
           497.0,
           213.0,
@@ -262,23 +282,56 @@
           241.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:42.371615"
+      "timestamp": "2025-04-05T16:33:48.833700",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/6523bff8-f0e3-4b25-89cf-500def128782/person.jpg"
     },
     {
-      "id": "bede23bb-9490-44b8-bdac-bc7f2b584b1e",
+      "id": "f13e4d7d-3835-4555-a331-7990742bc9b4",
       "description": {
-        "gender": "female",
+        "gender": "other",
         "age_group": "adult",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "red",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.37341833114624023,
+        "timestamp": "2025-04-05T16:33:49.733682",
+        "camera_id": "unknown",
+        "bbox": [
+          391.0,
+          227.0,
+          429.0,
+          284.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:33:49.734007",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/f13e4d7d-3835-4555-a331-7990742bc9b4/person.jpg"
+    },
+    {
+      "id": "6944a31b-75ce-48d2-b9a8-3eb79c1abc46",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
         "clothing_top": "shirt",
         "clothing_top_color": "white",
         "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
         "location_context": "indoor"
       },
       "metadata": {
         "detection_id": "person_4",
-        "confidence": 0.2912150025367737,
-        "timestamp": "2025-04-05T16:05:44.238364",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.29121169447898865,
+        "timestamp": "2025-04-05T16:33:50.627262",
+        "camera_id": "unknown",
         "bbox": [
           471.0,
           195.0,
@@ -286,24 +339,27 @@
           231.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:44.238408"
+      "timestamp": "2025-04-05T16:33:50.627642",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/6944a31b-75ce-48d2-b9a8-3eb79c1abc46/person.jpg"
     },
     {
-      "id": "5bf04329-3c75-4aa2-9e0b-de24126c79fa",
+      "id": "7a616d70-61a6-4a4d-839f-35e1eb867b84",
       "description": {
         "gender": "male",
         "age_group": "adult",
         "hair_style": "short",
         "clothing_top": "shirt",
-        "clothing_top_color": "gray",
-        "clothing_bottom": "pants",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "sitting",
         "location_context": "indoor"
       },
       "metadata": {
         "detection_id": "person_5",
-        "confidence": 0.28159648180007935,
-        "timestamp": "2025-04-05T16:05:45.144453",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.2815984785556793,
+        "timestamp": "2025-04-05T16:33:51.492215",
+        "camera_id": "unknown",
         "bbox": [
           503.0,
           193.0,
@@ -311,23 +367,24 @@
           217.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:45.144510"
+      "timestamp": "2025-04-05T16:33:51.492605",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/7a616d70-61a6-4a4d-839f-35e1eb867b84/person.jpg"
     },
     {
-      "id": "e1286e55-9abe-4a25-9d5c-7a85254d0a9b",
+      "id": "149e49cf-ac85-4d28-9145-39b6b767e7e5",
       "description": {
         "age_group": "adult",
-        "hair_color": "brown",
-        "clothing_top": "jacket",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
         "clothing_top_color": "yellow",
-        "pose": "walking",
+        "clothing_top_pattern": "solid",
         "location_context": "outdoor"
       },
       "metadata": {
         "detection_id": "person_6",
-        "confidence": 0.26377683877944946,
-        "timestamp": "2025-04-05T16:05:45.926835",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.2637843191623688,
+        "timestamp": "2025-04-05T16:33:52.269271",
+        "camera_id": "unknown",
         "bbox": [
           393.0,
           227.0,
@@ -335,117 +392,740 @@
           265.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:45.926896"
+      "timestamp": "2025-04-05T16:33:52.269674",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/149e49cf-ac85-4d28-9145-39b6b767e7e5/person.jpg"
     },
     {
-      "id": "13e3e01a-be41-41ae-b500-390d81be8ebf",
+      "id": "5e7a47a8-2b72-45f2-b217-f3a42d18a32d",
       "description": {
         "gender": "other",
-        "age_group": "adult",
-        "clothing_top": "jacket",
-        "clothing_top_color": "black",
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:33:55.263361",
+        "camera_id": "unknown",
+        "bbox": [
+          376.0,
+          225.0,
+          428.0,
+          280.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:33:55.263786",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/5e7a47a8-2b72-45f2-b217-f3a42d18a32d/person.jpg"
+    },
+    {
+      "id": "d922cf0c-63ab-49c5-aa64-8da0e85719d1",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
         "clothing_bottom": "pants",
-        "clothing_bottom_color": "black",
+        "accessories": "bag",
+        "bag_type": "backpack",
+        "bag_color": "yellow",
         "pose": "walking",
         "location_context": "outdoor"
       },
       "metadata": {
-        "detection_id": "person_0",
-        "confidence": 0.41447287797927856,
-        "timestamp": "2025-04-05T16:05:49.745825",
-        "camera_id": "SF-MKT-001",
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:33:56.321427",
+        "camera_id": "unknown",
         "bbox": [
-          21.0,
-          327.0,
-          32.0,
-          354.0
+          387.0,
+          224.0,
+          428.0,
+          266.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:49.745884"
+      "timestamp": "2025-04-05T16:33:56.321958",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/d922cf0c-63ab-49c5-aa64-8da0e85719d1/person.jpg"
     },
     {
-      "id": "df57dfa6-b12d-4378-a367-ec7dcdac7d0d",
+      "id": "78d080ea-ea11-479b-bfb1-59c8d87ded19",
       "description": {
         "gender": "other",
-        "age_group": "adult",
+        "age_group": "teen",
+        "hair_style": "short",
         "hair_color": "brown",
-        "clothing_top_color": "black",
-        "clothing_bottom_color": "black"
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "location_context": "indoor"
       },
       "metadata": {
-        "detection_id": "person_1",
-        "confidence": 0.38228437304496765,
-        "timestamp": "2025-04-05T16:05:50.897430",
-        "camera_id": "SF-MKT-001",
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:33:57.135034",
+        "camera_id": "unknown",
         "bbox": [
-          32.0,
-          328.0,
-          40.0,
-          353.0
+          515.0,
+          214.0,
+          547.0,
+          246.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:50.897484"
+      "timestamp": "2025-04-05T16:33:57.135448",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/78d080ea-ea11-479b-bfb1-59c8d87ded19/person.jpg"
     },
     {
-      "id": "d2a618a9-dd50-4683-86b2-0fdc6a04b9a5",
+      "id": "ebb36b44-630a-4cd0-8ce8-f6ab10858ba8",
       "description": {
         "gender": "male",
         "age_group": "adult",
         "hair_style": "short",
         "hair_color": "black",
+        "facial_features": "beard",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.6736580729484558,
+        "timestamp": "2025-04-05T16:38:10.762276",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          526.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:10.762896",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/ebb36b44-630a-4cd0-8ce8-f6ab10858ba8/person.jpg"
+    },
+    {
+      "id": "0334dc23-3266-45ed-a52c-3d1fd68f869d",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_style": "short",
+        "hair_color": "black",
         "clothing_top": "t-shirt",
-        "clothing_top_color": "white",
-        "clothing_top_pattern": "solid",
-        "clothing_bottom": "pants",
-        "clothing_bottom_color": "brown",
-        "clothing_bottom_pattern": "solid",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
         "pose": "walking",
         "location_context": "outdoor"
       },
       "metadata": {
-        "detection_id": "person_0",
-        "confidence": 0.8179170489311218,
-        "timestamp": "2025-04-05T16:05:54.873551",
-        "camera_id": "SF-MKT-001",
+        "detection_id": "person_1",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:38:11.744592",
+        "camera_id": "unknown",
         "bbox": [
-          485.0,
-          328.0,
-          538.0,
-          416.0
+          376.0,
+          225.0,
+          428.0,
+          280.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:54.873646"
+      "timestamp": "2025-04-05T16:38:11.745167",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/0334dc23-3266-45ed-a52c-3d1fd68f869d/person.jpg"
     },
     {
-      "id": "6621af08-e191-41ff-9e7e-243e5fa3959f",
+      "id": "b73bb410-59fe-43c1-b90f-25936c9f9f93",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "curly",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:38:12.805762",
+        "camera_id": "unknown",
+        "bbox": [
+          387.0,
+          224.0,
+          428.0,
+          266.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:12.806098",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/b73bb410-59fe-43c1-b90f-25936c9f9f93/person.jpg"
+    },
+    {
+      "id": "9b44db33-8154-40bc-a6f2-0b4c017c3071",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:38:13.651184",
+        "camera_id": "unknown",
+        "bbox": [
+          515.0,
+          214.0,
+          547.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:13.651802",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/9b44db33-8154-40bc-a6f2-0b4c017c3071/person.jpg"
+    },
+    {
+      "id": "8c9e3188-5432-48cf-8a94-63da8526e0fa",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "bald",
+        "hair_color": "black",
+        "facial_features": "beard",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8224676847457886,
+        "timestamp": "2025-04-05T16:38:15.776302",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:15.776762",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/8c9e3188-5432-48cf-8a94-63da8526e0fa/person.jpg"
+    },
+    {
+      "id": "f40ff4cb-630d-4ef3-8b06-b8dd5e1d88d9",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.41427236795425415,
+        "timestamp": "2025-04-05T16:38:17.013899",
+        "camera_id": "unknown",
+        "bbox": [
+          470.0,
+          194.0,
+          495.0,
+          232.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:17.014316",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/f40ff4cb-630d-4ef3-8b06-b8dd5e1d88d9/person.jpg"
+    },
+    {
+      "id": "2cd9cee5-ca93-4144-9f20-fd20fa8b1e10",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "floral",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3734130859375,
+        "timestamp": "2025-04-05T16:38:18.298876",
+        "camera_id": "unknown",
+        "bbox": [
+          391.0,
+          227.0,
+          429.0,
+          285.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:18.299347",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/2cd9cee5-ca93-4144-9f20-fd20fa8b1e10/person.jpg"
+    },
+    {
+      "id": "a04aec8f-6e59-4e13-be35-175c1ecb794c",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.35041531920433044,
+        "timestamp": "2025-04-05T16:38:19.263819",
+        "camera_id": "unknown",
+        "bbox": [
+          503.0,
+          193.0,
+          515.0,
+          217.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:19.264453",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/a04aec8f-6e59-4e13-be35-175c1ecb794c/person.jpg"
+    },
+    {
+      "id": "e18e1a35-316b-452f-94b5-f40b27946e4d",
+      "description": {
+        "location_context": "indoor",
+        "clothing_top": "shirt",
+        "clothing_top_color": "purple"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.3449030816555023,
+        "timestamp": "2025-04-05T16:38:20.133729",
+        "camera_id": "unknown",
+        "bbox": [
+          497.0,
+          213.0,
+          517.0,
+          240.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:20.134179",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e18e1a35-316b-452f-94b5-f40b27946e4d/person.jpg"
+    },
+    {
+      "id": "8d31abd3-94f3-4636-b972-9f7d4f2045b8",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.30016642808914185,
+        "timestamp": "2025-04-05T16:38:21.228317",
+        "camera_id": "unknown",
+        "bbox": [
+          417.0,
+          255.0,
+          474.0,
+          318.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:21.229199",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/8d31abd3-94f3-4636-b972-9f7d4f2045b8/person.jpg"
+    },
+    {
+      "id": "c4b2ff22-13df-45fb-8ec0-ba4885aa5917",
       "description": {
         "gender": "male",
         "age_group": "adult",
         "hair_style": "short",
         "hair_color": "black",
         "clothing_top": "shirt",
-        "clothing_top_color": "beige",
+        "clothing_top_color": "white",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_6",
+        "confidence": 0.2945907413959503,
+        "timestamp": "2025-04-05T16:38:22.319948",
+        "camera_id": "unknown",
+        "bbox": [
+          522.0,
+          216.0,
+          550.0,
+          248.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:22.320492",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/c4b2ff22-13df-45fb-8ec0-ba4885aa5917/person.jpg"
+    },
+    {
+      "id": "e81e8ecb-0cb8-4e27-938d-524f3532d479",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
         "clothing_bottom": "pants",
-        "clothing_bottom_color": "beige",
+        "clothing_bottom_color": "black",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_7",
+        "confidence": 0.2768627405166626,
+        "timestamp": "2025-04-05T16:38:23.581812",
+        "camera_id": "unknown",
+        "bbox": [
+          0.0,
+          203.0,
+          15.0,
+          224.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:23.582262",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e81e8ecb-0cb8-4e27-938d-524f3532d479/person.jpg"
+    },
+    {
+      "id": "2cb4b797-7fd5-4a99-abd1-1b315e18805e",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "skin_tone": "medium",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_8",
+        "confidence": 0.2724246680736542,
+        "timestamp": "2025-04-05T16:38:24.845327",
+        "camera_id": "unknown",
+        "bbox": [
+          393.0,
+          228.0,
+          429.0,
+          265.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:24.845688",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/2cb4b797-7fd5-4a99-abd1-1b315e18805e/person.jpg"
+    },
+    {
+      "id": "aee1bf13-b80e-4645-9223-1e9842a46cdf",
+      "description": {
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.6219262480735779,
+        "timestamp": "2025-04-05T16:38:27.421988",
+        "camera_id": "unknown",
+        "bbox": [
+          9.0,
+          332.0,
+          24.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:27.423227",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/aee1bf13-b80e-4645-9223-1e9842a46cdf/person.jpg"
+    },
+    {
+      "id": "52b6258b-ac74-45a0-a9ad-460ff5b9cb48",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
         "pose": "walking",
         "location_context": "outdoor"
       },
       "metadata": {
         "detection_id": "person_1",
-        "confidence": 0.7592208981513977,
-        "timestamp": "2025-04-05T16:05:56.165892",
-        "camera_id": "SF-MKT-001",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:38:45.526747",
+        "camera_id": "unknown",
         "bbox": [
-          294.0,
-          314.0,
-          323.0,
-          392.0
+          376.0,
+          225.0,
+          428.0,
+          280.0
         ]
       },
-      "timestamp": "2025-04-05T16:05:56.165998"
+      "timestamp": "2025-04-05T16:38:45.527304",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/52b6258b-ac74-45a0-a9ad-460ff5b9cb48/person.jpg"
     },
     {
-      "id": "22e06860-d683-4a96-bd87-df0306c7391c",
+      "id": "5be6f5a0-7256-46b0-85a5-2ed81d07b714",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_style": "curly",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "accessories": "bag",
+        "bag_type": "backpack",
+        "bag_color": "yellow",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:38:46.615045",
+        "camera_id": "unknown",
+        "bbox": [
+          387.0,
+          224.0,
+          428.0,
+          266.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:46.615441",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/5be6f5a0-7256-46b0-85a5-2ed81d07b714/person.jpg"
+    },
+    {
+      "id": "c7aba548-bdcd-4e52-8ab5-961859a2d6f7",
+      "description": {
+        "gender": "male",
+        "age_group": "teen",
+        "hair_style": "short",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:38:47.304049",
+        "camera_id": "unknown",
+        "bbox": [
+          515.0,
+          214.0,
+          547.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:47.304413",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/c7aba548-bdcd-4e52-8ab5-961859a2d6f7/person.jpg"
+    },
+    {
+      "id": "5fbbc7a0-a656-4fa0-92e6-9b05b4c8b121",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "clothing_bottom_pattern": "solid",
+        "footwear": "sneakers",
+        "footwear_color": "black",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8417741060256958,
+        "timestamp": "2025-04-05T16:38:49.705759",
+        "camera_id": "unknown",
+        "bbox": [
+          574.0,
+          276.0,
+          632.0,
+          409.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:49.706654",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/5fbbc7a0-a656-4fa0-92e6-9b05b4c8b121/person.jpg"
+    },
+    {
+      "id": "4a480117-d59b-4bbc-b847-554144958a1a",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "red",
+        "clothing_bottom_pattern": "solid",
+        "footwear": "sneakers",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.818085253238678,
+        "timestamp": "2025-04-05T16:38:51.127133",
+        "camera_id": "unknown",
+        "bbox": [
+          683.0,
+          270.0,
+          734.0,
+          395.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:51.127638",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/4a480117-d59b-4bbc-b847-554144958a1a/person.jpg"
+    },
+    {
+      "id": "4badffaf-0ced-4251-a7c6-22728e25cd87",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "jacket",
+        "clothing_top_color": "blue",
+        "clothing_bottom": "shorts",
+        "clothing_bottom_color": "white",
+        "footwear": "sneakers",
+        "footwear_color": "white",
+        "accessories": "bag",
+        "bag_type": "shoulder bag",
+        "bag_color": "orange",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.7708902955055237,
+        "timestamp": "2025-04-05T16:38:52.754443",
+        "camera_id": "unknown",
+        "bbox": [
+          481.0,
+          277.0,
+          515.0,
+          380.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:52.755350",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/4badffaf-0ced-4251-a7c6-22728e25cd87/person.jpg"
+    },
+    {
+      "id": "ea7c9c39-1995-4b12-83c0-e405b63c27e5",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "unknown",
+        "clothing_top_color": "red",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "red",
+        "clothing_bottom_pattern": "solid",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.7364634275436401,
+        "timestamp": "2025-04-05T16:38:54.181511",
+        "camera_id": "unknown",
+        "bbox": [
+          609.0,
+          273.0,
+          648.0,
+          389.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:54.181935",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/ea7c9c39-1995-4b12-83c0-e405b63c27e5/person.jpg"
+    },
+    {
+      "id": "9336112c-061a-445a-aa58-e1f0f2f5d041",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "clothing_bottom_pattern": "solid",
+        "footwear": "sneakers",
+        "pose": "standing",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.7160088419914246,
+        "timestamp": "2025-04-05T16:38:55.758987",
+        "camera_id": "unknown",
+        "bbox": [
+          530.0,
+          282.0,
+          560.0,
+          363.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:55.759491",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/9336112c-061a-445a-aa58-e1f0f2f5d041/person.jpg"
+    },
+    {
+      "id": "c4e93b53-001c-4523-a532-fbdf8f5a85c5",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "red",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.6933390498161316,
+        "timestamp": "2025-04-05T16:38:57.066588",
+        "camera_id": "unknown",
+        "bbox": [
+          640.0,
+          273.0,
+          675.0,
+          378.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:38:57.067002",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/c4e93b53-001c-4523-a532-fbdf8f5a85c5/person.jpg"
+    },
+    {
+      "id": "4b16b907-0e2b-4362-9023-8a2dd74ec212",
       "description": {
         "gender": "other",
         "age_group": "adult",
@@ -457,15 +1137,15 @@
         "clothing_bottom": "pants",
         "clothing_bottom_color": "black",
         "clothing_bottom_pattern": "solid",
-        "footwear_color": "black",
+        "footwear": "sneakers",
         "pose": "walking",
         "location_context": "outdoor"
       },
       "metadata": {
         "detection_id": "person_0",
         "confidence": 0.8440864682197571,
-        "timestamp": "2025-04-05T16:06:15.469144",
-        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-05T16:38:59.842833",
+        "camera_id": "unknown",
         "bbox": [
           616.0,
           277.0,
@@ -473,10 +1153,11 @@
           410.0
         ]
       },
-      "timestamp": "2025-04-05T16:06:15.469349"
+      "timestamp": "2025-04-05T16:38:59.843355",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/4b16b907-0e2b-4362-9023-8a2dd74ec212/person.jpg"
     },
     {
-      "id": "8ce3d9ce-11bf-4277-ac58-64789751915a",
+      "id": "ba58a5a1-21d9-43c8-8752-1f65a34d3035",
       "description": {
         "gender": "other",
         "age_group": "adult",
@@ -484,7 +1165,6 @@
         "hair_color": "black",
         "clothing_top": "t-shirt",
         "clothing_top_color": "black",
-        "clothing_top_pattern": "solid",
         "clothing_bottom": "pants",
         "clothing_bottom_color": "red",
         "clothing_bottom_pattern": "solid",
@@ -494,8 +1174,8 @@
       "metadata": {
         "detection_id": "person_1",
         "confidence": 0.802046000957489,
-        "timestamp": "2025-04-05T16:06:16.984943",
-        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-05T16:39:00.826368",
+        "camera_id": "unknown",
         "bbox": [
           704.0,
           271.0,
@@ -503,20 +1183,21 @@
           395.0
         ]
       },
-      "timestamp": "2025-04-05T16:06:16.985029"
+      "timestamp": "2025-04-05T16:39:00.826880",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/ba58a5a1-21d9-43c8-8752-1f65a34d3035/person.jpg"
     },
     {
-      "id": "477fb228-2096-41e2-891b-a5ac31bb72ec",
+      "id": "d3018f72-dd07-4aa0-a29d-b8e2510b234d",
       "description": {
         "gender": "other",
         "age_group": "adult",
         "hair_style": "short",
-        "hair_color": "brown",
+        "hair_color": "unknown",
         "clothing_top": "jacket",
         "clothing_top_color": "blue",
         "clothing_top_pattern": "solid",
         "clothing_bottom": "shorts",
-        "clothing_bottom_color": "white",
+        "clothing_bottom_color": "unknown",
         "footwear": "sneakers",
         "footwear_color": "white",
         "accessories": "hat",
@@ -528,8 +1209,8 @@
       "metadata": {
         "detection_id": "person_2",
         "confidence": 0.7495133280754089,
-        "timestamp": "2025-04-05T16:06:18.727164",
-        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-05T16:39:02.158909",
+        "camera_id": "unknown",
         "bbox": [
           499.0,
           279.0,
@@ -537,20 +1218,20 @@
           383.0
         ]
       },
-      "timestamp": "2025-04-05T16:06:18.727267"
+      "timestamp": "2025-04-05T16:39:02.159310",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/d3018f72-dd07-4aa0-a29d-b8e2510b234d/person.jpg"
     },
     {
-      "id": "dedd07e5-7b38-4dd3-8767-94381bf62ec7",
+      "id": "47ffcedd-5569-4a75-9793-9f6002387ca1",
       "description": {
         "gender": "other",
         "age_group": "adult",
         "hair_style": "long",
+        "hair_color": "black",
         "clothing_top": "jacket",
         "clothing_top_color": "black",
-        "clothing_top_pattern": "solid",
-        "clothing_bottom": "jeans",
+        "clothing_bottom": "pants",
         "clothing_bottom_color": "blue",
-        "clothing_bottom_pattern": "solid",
         "accessories": "hat",
         "pose": "standing",
         "location_context": "outdoor"
@@ -558,8 +1239,8 @@
       "metadata": {
         "detection_id": "person_3",
         "confidence": 0.7291911840438843,
-        "timestamp": "2025-04-05T16:06:20.132220",
-        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-05T16:39:03.209227",
+        "camera_id": "unknown",
         "bbox": [
           548.0,
           282.0,
@@ -567,10 +1248,11 @@
           366.0
         ]
       },
-      "timestamp": "2025-04-05T16:06:20.132300"
+      "timestamp": "2025-04-05T16:39:03.209851",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/47ffcedd-5569-4a75-9793-9f6002387ca1/person.jpg"
     },
     {
-      "id": "a4460837-f8ef-4c54-acf6-7a7fb4221e9b",
+      "id": "cfb0ef6b-b688-46b4-a5cd-1c82eba0e57f",
       "description": {
         "gender": "female",
         "age_group": "adult",
@@ -585,8 +1267,8 @@
       "metadata": {
         "detection_id": "person_4",
         "confidence": 0.6601723432540894,
-        "timestamp": "2025-04-05T16:06:21.432007",
-        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-05T16:39:04.105683",
+        "camera_id": "unknown",
         "bbox": [
           670.0,
           275.0,
@@ -594,13 +1276,15 @@
           384.0
         ]
       },
-      "timestamp": "2025-04-05T16:06:21.432086"
+      "timestamp": "2025-04-05T16:39:04.106286",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/cfb0ef6b-b688-46b4-a5cd-1c82eba0e57f/person.jpg"
     },
     {
-      "id": "33b31512-e332-402d-958b-548dda88716c",
+      "id": "df046cdb-421c-4e97-9c2a-9e402612a441",
       "description": {
         "gender": "other",
         "age_group": "adult",
+        "hair_style": "short",
         "hair_color": "black",
         "clothing_top": "hoodie",
         "clothing_top_color": "red",
@@ -608,13 +1292,14 @@
         "clothing_bottom": "pants",
         "clothing_bottom_color": "red",
         "clothing_bottom_pattern": "solid",
+        "pose": "standing",
         "location_context": "outdoor"
       },
       "metadata": {
         "detection_id": "person_5",
         "confidence": 0.6486027836799622,
-        "timestamp": "2025-04-05T16:06:22.818550",
-        "camera_id": "SF-MKT-001",
+        "timestamp": "2025-04-05T16:39:05.238600",
+        "camera_id": "unknown",
         "bbox": [
           646.0,
           271.0,
@@ -622,7 +1307,1497 @@
           389.0
         ]
       },
-      "timestamp": "2025-04-05T16:06:22.818623"
+      "timestamp": "2025-04-05T16:39:05.239019",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/df046cdb-421c-4e97-9c2a-9e402612a441/person.jpg"
+    },
+    {
+      "id": "33612238-e56f-46a9-855a-a3020e660ba4",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "sitting",
+        "location_context": "indoor",
+        "accessories": "hat"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.6736580729484558,
+        "timestamp": "2025-04-05T16:43:44.281463",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          526.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:44.282083",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/33612238-e56f-46a9-855a-a3020e660ba4/person.jpg"
+    },
+    {
+      "id": "ac2fbbd4-e076-42ca-a335-4f96db138160",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "jacket",
+        "clothing_top_color": "white",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:43:47.041817",
+        "camera_id": "unknown",
+        "bbox": [
+          515.0,
+          214.0,
+          547.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:47.043020",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/ac2fbbd4-e076-42ca-a335-4f96db138160/person.jpg"
+    },
+    {
+      "id": "d721b996-cb52-4cb6-9b17-0bd8e31957c3",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "covered",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom_color": "black",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8224676847457886,
+        "timestamp": "2025-04-05T16:43:48.900290",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:48.900886",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/d721b996-cb52-4cb6-9b17-0bd8e31957c3/person.jpg"
+    },
+    {
+      "id": "c275fdf4-99c3-4ff2-8d23-bc16496b4d85",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.41427236795425415,
+        "timestamp": "2025-04-05T16:43:49.710030",
+        "camera_id": "unknown",
+        "bbox": [
+          470.0,
+          194.0,
+          495.0,
+          232.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:49.710472",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/c275fdf4-99c3-4ff2-8d23-bc16496b4d85/person.jpg"
+    },
+    {
+      "id": "e8ac8a65-9d40-40ea-9249-cf27f9517791",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "footwear": "sneakers",
+        "footwear_color": "white",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3734130859375,
+        "timestamp": "2025-04-05T16:43:50.759413",
+        "camera_id": "unknown",
+        "bbox": [
+          391.0,
+          227.0,
+          429.0,
+          285.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:50.760024",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e8ac8a65-9d40-40ea-9249-cf27f9517791/person.jpg"
+    },
+    {
+      "id": "af715c23-856e-40d0-aa6f-01a6bc9ac9cd",
+      "description": {
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.35041531920433044,
+        "timestamp": "2025-04-05T16:43:51.328509",
+        "camera_id": "unknown",
+        "bbox": [
+          503.0,
+          193.0,
+          515.0,
+          217.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:51.328951",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/af715c23-856e-40d0-aa6f-01a6bc9ac9cd/person.jpg"
+    },
+    {
+      "id": "572de73d-6fcb-4d24-a5cb-095ed63eb4c7",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "clothing_top": "shirt",
+        "clothing_top_color": "purple",
+        "clothing_bottom": "jeans",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.3449030816555023,
+        "timestamp": "2025-04-05T16:43:52.060449",
+        "camera_id": "unknown",
+        "bbox": [
+          497.0,
+          213.0,
+          517.0,
+          240.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:52.060905",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/572de73d-6fcb-4d24-a5cb-095ed63eb4c7/person.jpg"
+    },
+    {
+      "id": "e08f778a-58fe-4e1f-93fd-9a767facf947",
+      "description": {
+        "gender": "male",
+        "age_group": "teen",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.30016642808914185,
+        "timestamp": "2025-04-05T16:43:52.943269",
+        "camera_id": "unknown",
+        "bbox": [
+          417.0,
+          255.0,
+          474.0,
+          318.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:52.943911",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e08f778a-58fe-4e1f-93fd-9a767facf947/person.jpg"
+    },
+    {
+      "id": "9f7942e0-e8d5-48d4-932b-356b8a063bcc",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_6",
+        "confidence": 0.2945907413959503,
+        "timestamp": "2025-04-05T16:43:53.734453",
+        "camera_id": "unknown",
+        "bbox": [
+          522.0,
+          216.0,
+          550.0,
+          248.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:53.734927",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/9f7942e0-e8d5-48d4-932b-356b8a063bcc/person.jpg"
+    },
+    {
+      "id": "486051ba-9d63-477a-858e-7d859db903d6",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_7",
+        "confidence": 0.2768627405166626,
+        "timestamp": "2025-04-05T16:43:54.709277",
+        "camera_id": "unknown",
+        "bbox": [
+          0.0,
+          203.0,
+          15.0,
+          224.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:54.709725",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/486051ba-9d63-477a-858e-7d859db903d6/person.jpg"
+    },
+    {
+      "id": "2bcefa7c-debc-44d2-b2c8-25cb7d56ba10",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "skin_tone": "medium",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_8",
+        "confidence": 0.2724246680736542,
+        "timestamp": "2025-04-05T16:43:55.577781",
+        "camera_id": "unknown",
+        "bbox": [
+          393.0,
+          228.0,
+          429.0,
+          265.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:43:55.578412",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/2bcefa7c-debc-44d2-b2c8-25cb7d56ba10/person.jpg"
+    },
+    {
+      "id": "0d874727-0b86-40df-8164-f005c76ab1bb",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "gray",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.6736580729484558,
+        "timestamp": "2025-04-05T16:44:05.621799",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          526.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:05.631643",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/0d874727-0b86-40df-8164-f005c76ab1bb/person.jpg"
+    },
+    {
+      "id": "0e8db7fc-dffc-48b2-b05c-12659c3fb5b1",
+      "description": {
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:44:06.510946",
+        "camera_id": "unknown",
+        "bbox": [
+          376.0,
+          225.0,
+          428.0,
+          280.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:06.511585",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/0e8db7fc-dffc-48b2-b05c-12659c3fb5b1/person.jpg"
+    },
+    {
+      "id": "72bc0b9e-c554-4838-a5ad-d209d068f514",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "red",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "accessories": "bag",
+        "bag_type": "backpack",
+        "bag_color": "yellow",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:44:07.725308",
+        "camera_id": "unknown",
+        "bbox": [
+          387.0,
+          224.0,
+          428.0,
+          266.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:07.725804",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/72bc0b9e-c554-4838-a5ad-d209d068f514/person.jpg"
+    },
+    {
+      "id": "d557a78a-2f44-49d6-8714-2131ed567cd6",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "bald",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "gray",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8224676847457886,
+        "timestamp": "2025-04-05T16:44:10.403649",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:10.404303",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/d557a78a-2f44-49d6-8714-2131ed567cd6/person.jpg"
+    },
+    {
+      "id": "07c59cb8-0c60-4ae9-b570-5c45bb0fb2e9",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.41427236795425415,
+        "timestamp": "2025-04-05T16:44:11.309805",
+        "camera_id": "unknown",
+        "bbox": [
+          470.0,
+          194.0,
+          495.0,
+          232.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:11.310226",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/07c59cb8-0c60-4ae9-b570-5c45bb0fb2e9/person.jpg"
+    },
+    {
+      "id": "1e34c015-13b5-48fb-8742-6f276176db48",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3734130859375,
+        "timestamp": "2025-04-05T16:44:12.198044",
+        "camera_id": "unknown",
+        "bbox": [
+          391.0,
+          227.0,
+          429.0,
+          285.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:12.198579",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/1e34c015-13b5-48fb-8742-6f276176db48/person.jpg"
+    },
+    {
+      "id": "74faf613-e0ac-4e44-8744-d5cc3a1e3fb6",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "purple",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.3449030816555023,
+        "timestamp": "2025-04-05T16:44:13.765659",
+        "camera_id": "unknown",
+        "bbox": [
+          497.0,
+          213.0,
+          517.0,
+          240.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:13.766323",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/74faf613-e0ac-4e44-8744-d5cc3a1e3fb6/person.jpg"
+    },
+    {
+      "id": "3b7ca8dc-f200-4385-9298-a517c2160566",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.30016642808914185,
+        "timestamp": "2025-04-05T16:44:14.661340",
+        "camera_id": "unknown",
+        "bbox": [
+          417.0,
+          255.0,
+          474.0,
+          318.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:14.661862",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/3b7ca8dc-f200-4385-9298-a517c2160566/person.jpg"
+    },
+    {
+      "id": "709f38e0-1854-4996-9c60-2fe6dfbb66c0",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_bottom": "jeans",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_7",
+        "confidence": 0.2768627405166626,
+        "timestamp": "2025-04-05T16:44:16.313890",
+        "camera_id": "unknown",
+        "bbox": [
+          0.0,
+          203.0,
+          15.0,
+          224.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:16.314518",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/709f38e0-1854-4996-9c60-2fe6dfbb66c0/person.jpg"
+    },
+    {
+      "id": "9e8883c5-a562-48ed-afde-69a1b9016072",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_8",
+        "confidence": 0.2724246680736542,
+        "timestamp": "2025-04-05T16:44:17.098534",
+        "camera_id": "unknown",
+        "bbox": [
+          393.0,
+          228.0,
+          429.0,
+          265.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:44:17.099004",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/9e8883c5-a562-48ed-afde-69a1b9016072/person.jpg"
+    },
+    {
+      "id": "b8f71774-70e6-4166-ab5d-b5d769bf57e3",
+      "description": {
+        "gender": "male",
+        "age_group": "child",
+        "skin_tone": "dark",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:45:19.457728",
+        "camera_id": "unknown",
+        "bbox": [
+          376.0,
+          225.0,
+          428.0,
+          280.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:19.458429",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/b8f71774-70e6-4166-ab5d-b5d769bf57e3/person.jpg"
+    },
+    {
+      "id": "f1a3125f-0910-4e79-af5d-5dbc69f3d947",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:45:21.271245",
+        "camera_id": "unknown",
+        "bbox": [
+          515.0,
+          214.0,
+          547.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:21.271933",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/f1a3125f-0910-4e79-af5d-5dbc69f3d947/person.jpg"
+    },
+    {
+      "id": "c944ab67-109f-4046-8b9a-6d8172670a2e",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "dark",
+        "accessories": "hat",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8224676847457886,
+        "timestamp": "2025-04-05T16:45:23.329553",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:23.330090",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/c944ab67-109f-4046-8b9a-6d8172670a2e/person.jpg"
+    },
+    {
+      "id": "074a5ddc-105d-4822-8af2-49df404edb7e",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "purple",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.3449030816555023,
+        "timestamp": "2025-04-05T16:45:26.692891",
+        "camera_id": "unknown",
+        "bbox": [
+          497.0,
+          213.0,
+          517.0,
+          240.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:26.693536",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/074a5ddc-105d-4822-8af2-49df404edb7e/person.jpg"
+    },
+    {
+      "id": "ea6176de-1d9e-4179-a712-75c3bfea40de",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.30016642808914185,
+        "timestamp": "2025-04-05T16:45:27.513344",
+        "camera_id": "unknown",
+        "bbox": [
+          417.0,
+          255.0,
+          474.0,
+          318.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:27.513816",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/ea6176de-1d9e-4179-a712-75c3bfea40de/person.jpg"
+    },
+    {
+      "id": "3959282b-dd3b-49ad-b60d-db31d1a0d029",
+      "description": {
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "black",
+        "clothing_bottom": "jeans",
+        "pose": "standing",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_7",
+        "confidence": 0.2768627405166626,
+        "timestamp": "2025-04-05T16:45:29.164047",
+        "camera_id": "unknown",
+        "bbox": [
+          0.0,
+          203.0,
+          15.0,
+          224.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:29.164717",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/3959282b-dd3b-49ad-b60d-db31d1a0d029/person.jpg"
+    },
+    {
+      "id": "ee0d305b-b757-410b-bbba-de1ed1f803df",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "skin_tone": "medium",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_8",
+        "confidence": 0.2724246680736542,
+        "timestamp": "2025-04-05T16:45:30.058022",
+        "camera_id": "unknown",
+        "bbox": [
+          393.0,
+          228.0,
+          429.0,
+          265.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:45:30.058670",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/ee0d305b-b757-410b-bbba-de1ed1f803df/person.jpg"
+    },
+    {
+      "id": "b8fa57b2-2157-48bf-b2f0-0cbfe80a43ce",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "jacket",
+        "clothing_top_color": "beige",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "beige",
+        "clothing_bottom_pattern": "solid",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8173357844352722,
+        "timestamp": "2025-04-05T16:47:31.817573",
+        "camera_id": "unknown",
+        "bbox": [
+          336.0,
+          297.0,
+          369.0,
+          367.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:47:31.818285",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/b8fa57b2-2157-48bf-b2f0-0cbfe80a43ce/person.jpg"
+    },
+    {
+      "id": "b94d83ef-eeca-4ef1-9aeb-cf031b0ae60d",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "khaki",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.6633236408233643,
+        "timestamp": "2025-04-05T16:47:32.929409",
+        "camera_id": "unknown",
+        "bbox": [
+          488.0,
+          319.0,
+          535.0,
+          396.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:47:32.929940",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/b94d83ef-eeca-4ef1-9aeb-cf031b0ae60d/person.jpg"
+    },
+    {
+      "id": "7cd94460-670b-4d98-bdd1-d98347758802",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "white",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "khaki",
+        "clothing_bottom_pattern": "solid",
+        "footwear": "sneakers",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8023290634155273,
+        "timestamp": "2025-04-05T16:47:36.023419",
+        "camera_id": "unknown",
+        "bbox": [
+          484.0,
+          329.0,
+          537.0,
+          414.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:47:36.023930",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/7cd94460-670b-4d98-bdd1-d98347758802/person.jpg"
+    },
+    {
+      "id": "7cc7e01d-ff2a-45ce-a4a5-bc0b2cc026f2",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "skin_tone": "light",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "beige",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "beige",
+        "clothing_bottom_pattern": "solid",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.7722682356834412,
+        "timestamp": "2025-04-05T16:47:37.551803",
+        "camera_id": "unknown",
+        "bbox": [
+          299.0,
+          311.0,
+          326.0,
+          389.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:47:37.552467",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/7cc7e01d-ff2a-45ce-a4a5-bc0b2cc026f2/person.jpg"
+    },
+    {
+      "id": "14234401-7e66-4c79-80f5-3fb19e2e32fe",
+      "description": {
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:51:35.703666",
+        "camera_id": "unknown",
+        "bbox": [
+          376.0,
+          225.0,
+          428.0,
+          280.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:35.704393",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/14234401-7e66-4c79-80f5-3fb19e2e32fe/person.jpg"
+    },
+    {
+      "id": "d15d60df-706c-4649-8d71-e1e05c30a579",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom_color": "red",
+        "accessories": "bag",
+        "bag_type": "backpack",
+        "bag_color": "yellow",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:51:36.827137",
+        "camera_id": "unknown",
+        "bbox": [
+          387.0,
+          224.0,
+          428.0,
+          266.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:36.832702",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/d15d60df-706c-4649-8d71-e1e05c30a579/person.jpg"
+    },
+    {
+      "id": "67de5313-db2b-40eb-aa48-85ed2ad5d3ba",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom_color": "black",
+        "footwear": "unknown",
+        "accessories": "hat",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.8283064365386963,
+        "timestamp": "2025-04-05T16:51:39.699128",
+        "camera_id": "unknown",
+        "bbox": [
+          443.0,
+          254.0,
+          532.0,
+          358.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:39.699711",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/67de5313-db2b-40eb-aa48-85ed2ad5d3ba/person.jpg"
+    },
+    {
+      "id": "dab9733f-9373-44af-a822-ef3d42ae6604",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "gray",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "gray",
+        "pose": "standing",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.3889167010784149,
+        "timestamp": "2025-04-05T16:51:42.093533",
+        "camera_id": "unknown",
+        "bbox": [
+          503.0,
+          193.0,
+          515.0,
+          217.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:42.093991",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/dab9733f-9373-44af-a822-ef3d42ae6604/person.jpg"
+    },
+    {
+      "id": "81b593c6-be8f-451a-8e6f-e42ee0b9e574",
+      "description": {
+        "age_group": "adult",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3316987156867981,
+        "timestamp": "2025-04-05T16:51:42.905980",
+        "camera_id": "unknown",
+        "bbox": [
+          391.0,
+          227.0,
+          429.0,
+          285.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:42.906744",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/81b593c6-be8f-451a-8e6f-e42ee0b9e574/person.jpg"
+    },
+    {
+      "id": "451dc98d-f3d1-44ef-9196-756117c2c262",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.2969065010547638,
+        "timestamp": "2025-04-05T16:51:43.763569",
+        "camera_id": "unknown",
+        "bbox": [
+          469.0,
+          195.0,
+          488.0,
+          231.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:43.764061",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/451dc98d-f3d1-44ef-9196-756117c2c262/person.jpg"
+    },
+    {
+      "id": "fa18fef7-5016-4f31-a2b5-8b75d26176c8",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "dark",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.28813406825065613,
+        "timestamp": "2025-04-05T16:51:44.634094",
+        "camera_id": "unknown",
+        "bbox": [
+          522.0,
+          216.0,
+          550.0,
+          247.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:44.634606",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/fa18fef7-5016-4f31-a2b5-8b75d26176c8/person.jpg"
+    },
+    {
+      "id": "7e95195c-b06f-45ce-81bb-78fb236a0273",
+      "description": {
+        "gender": "other",
+        "age_group": "adult",
+        "hair_style": "short",
+        "clothing_top": "shirt",
+        "clothing_top_color": "gray",
+        "clothing_bottom": "pants",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.2862759232521057,
+        "timestamp": "2025-04-05T16:51:45.625453",
+        "camera_id": "unknown",
+        "bbox": [
+          497.0,
+          213.0,
+          517.0,
+          240.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:45.625949",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/7e95195c-b06f-45ce-81bb-78fb236a0273/person.jpg"
+    },
+    {
+      "id": "bbd22edc-ef89-4510-a7a8-9b2aca70edab",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "hair_style": "long",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_6",
+        "confidence": 0.26289278268814087,
+        "timestamp": "2025-04-05T16:51:46.397260",
+        "camera_id": "unknown",
+        "bbox": [
+          0.0,
+          203.0,
+          15.0,
+          220.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:51:46.397794",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/bbd22edc-ef89-4510-a7a8-9b2aca70edab/person.jpg"
+    },
+    {
+      "id": "8f0ff973-75e1-4d38-9937-fcbbb7826c76",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.39909738302230835,
+        "timestamp": "2025-04-05T16:58:12.786738",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          376.0,
+          225.0,
+          428.0,
+          280.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:12.787450",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/8f0ff973-75e1-4d38-9937-fcbbb7826c76/person.jpg"
+    },
+    {
+      "id": "add93ed0-1869-4a1c-9819-81e94a3bfbb0",
+      "description": {
+        "gender": "other",
+        "age_group": "child",
+        "hair_style": "curly",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "yellow",
+        "clothing_bottom": "pants",
+        "bag_type": "backpack",
+        "bag_color": "orange",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.3255893886089325,
+        "timestamp": "2025-04-05T16:58:13.840658",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          387.0,
+          224.0,
+          428.0,
+          266.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:13.841236",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/add93ed0-1869-4a1c-9819-81e94a3bfbb0/person.jpg"
+    },
+    {
+      "id": "1e0876d6-f885-4657-81db-bef3f2ac7c6c",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "jeans",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T16:58:14.657111",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          515.0,
+          214.0,
+          547.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:14.657865",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/1e0876d6-f885-4657-81db-bef3f2ac7c6c/person.jpg"
+    },
+    {
+      "id": "91ac8668-6477-4bc3-963e-71b93e395a07",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "long",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "hoodie",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.7771795988082886,
+        "timestamp": "2025-04-05T16:58:16.897766",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          446.0,
+          254.0,
+          530.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:16.898805",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/91ac8668-6477-4bc3-963e-71b93e395a07/person.jpg"
+    },
+    {
+      "id": "62f4b81a-198b-4390-a131-dbc6aad9d2cd",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.3834468424320221,
+        "timestamp": "2025-04-05T16:58:18.142165",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          521.0,
+          218.0,
+          547.0,
+          247.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:18.142628",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/62f4b81a-198b-4390-a131-dbc6aad9d2cd/person.jpg"
+    },
+    {
+      "id": "29698eac-4eae-4eca-8f5e-1328279ce1b4",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "skin_tone": "dark",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "tank top",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_2",
+        "confidence": 0.36429667472839355,
+        "timestamp": "2025-04-05T16:58:19.365151",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          392.0,
+          226.0,
+          427.0,
+          276.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:19.365699",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/29698eac-4eae-4eca-8f5e-1328279ce1b4/person.jpg"
+    },
+    {
+      "id": "4f3c356b-0440-4771-ae4b-b696e9198825",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "hair_style": "long",
+        "hair_color": "black",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_4",
+        "confidence": 0.28032186627388,
+        "timestamp": "2025-04-05T16:58:21.538165",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          458.0,
+          194.0,
+          474.0,
+          218.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:21.538647",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/4f3c356b-0440-4771-ae4b-b696e9198825/person.jpg"
+    },
+    {
+      "id": "e8884534-12cf-4096-a3de-9caee91b70de",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "pants",
+        "clothing_bottom_color": "black",
+        "pose": "standing",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_5",
+        "confidence": 0.27111896872520447,
+        "timestamp": "2025-04-05T16:58:22.851121",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          458.0,
+          194.0,
+          474.0,
+          227.0
+        ]
+      },
+      "timestamp": "2025-04-05T16:58:22.851684",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/e8884534-12cf-4096-a3de-9caee91b70de/person.jpg"
+    },
+    {
+      "id": "0f4a66cc-6b5d-4e9c-974e-735762b822b7",
+      "description": {
+        "gender": "male",
+        "age_group": "teen",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "white",
+        "clothing_bottom": "jeans",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.27733784914016724,
+        "timestamp": "2025-04-05T17:06:18.901535",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          515.0,
+          214.0,
+          547.0,
+          246.0
+        ]
+      },
+      "timestamp": "2025-04-05T17:06:18.902180",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/0f4a66cc-6b5d-4e9c-974e-735762b822b7/person.jpg"
+    },
+    {
+      "id": "fe5c4971-d233-43d9-91bb-463877a464a1",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "black",
+        "facial_features": "beard, glasses",
+        "clothing_top": "jacket",
+        "clothing_top_color": "black",
+        "clothing_bottom": "pants",
+        "pose": "sitting",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_0",
+        "confidence": 0.7916731834411621,
+        "timestamp": "2025-04-05T17:06:21.263816",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          448.0,
+          253.0,
+          529.0,
+          359.0
+        ]
+      },
+      "timestamp": "2025-04-05T17:06:21.264718",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/fe5c4971-d233-43d9-91bb-463877a464a1/person.jpg"
+    },
+    {
+      "id": "2a811c54-66c3-43ba-921c-9c9874270cd8",
+      "description": {
+        "gender": "male",
+        "age_group": "adult",
+        "skin_tone": "dark",
+        "hair_style": "short",
+        "hair_color": "black",
+        "clothing_top": "t-shirt",
+        "clothing_top_color": "yellow",
+        "clothing_top_pattern": "solid",
+        "clothing_bottom": "jeans",
+        "clothing_bottom_color": "blue",
+        "pose": "walking",
+        "location_context": "outdoor"
+      },
+      "metadata": {
+        "detection_id": "person_1",
+        "confidence": 0.3950657546520233,
+        "timestamp": "2025-04-05T17:06:22.696615",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          391.0,
+          226.0,
+          427.0,
+          275.0
+        ]
+      },
+      "timestamp": "2025-04-05T17:06:22.697100",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/2a811c54-66c3-43ba-921c-9c9874270cd8/person.jpg"
+    },
+    {
+      "id": "5ac1d9ba-36d1-4c84-a57a-4a386b03b558",
+      "description": {
+        "gender": "female",
+        "age_group": "adult",
+        "hair_style": "short",
+        "hair_color": "brown",
+        "clothing_top": "shirt",
+        "clothing_top_color": "green",
+        "location_context": "indoor"
+      },
+      "metadata": {
+        "detection_id": "person_3",
+        "confidence": 0.3105297088623047,
+        "timestamp": "2025-04-05T17:06:24.769914",
+        "camera_id": "SF-MKT-001",
+        "bbox": [
+          488.0,
+          212.0,
+          512.0,
+          239.0
+        ]
+      },
+      "timestamp": "2025-04-05T17:06:24.770463",
+      "image_path": "/Users/mizan/WatchDog-1/backend/detected_people/5ac1d9ba-36d1-4c84-a57a-4a386b03b558/person.jpg"
     }
   ]
 }

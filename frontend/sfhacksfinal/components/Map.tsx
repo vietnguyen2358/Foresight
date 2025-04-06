@@ -504,41 +504,73 @@ export default function Map() {
       window.zoomToCamera = (camera: typeof cameras[0]) => {
         console.log("Zooming to camera:", camera);
         if (mapRef.current) {
-          // Smooth zoom to camera location
-          mapRef.current.flyTo({
-            center: [camera.lng, camera.lat],
-            zoom: 15,
-            duration: 2000
+          // Smooth zoom to camera location with a closer zoom level
+          mapRef.current.flyTo([camera.lat, camera.lng], 19, {
+            animate: true,
+            duration: 2000,
+            easeLinearity: 0.25
           });
           
-          // Update marker styles
+          // Update marker styles with a more prominent indicator
           markersRef.current.forEach(marker => {
             const markerLatLng = marker.getLatLng();
             if (markerLatLng.lat === camera.lat && markerLatLng.lng === camera.lng) {
               marker.setIcon(L.divIcon({
-                className: 'custom-marker',
+                className: 'custom-marker selected-camera',
                 html: `
                   <div class="relative">
-                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg ring-4 ring-blue-400 ring-opacity-50">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
                         <circle cx="12" cy="13" r="3"></circle>
                       </svg>
                     </div>
-                    <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                      <span class="relative flex h-2 w-2">
+                    <div class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                      <span class="relative flex h-3 w-3">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                       </span>
                     </div>
                   </div>
                 `,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16],
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
               }));
               
-              // Add a popup to the marker
-              marker.bindPopup(`<strong>${camera.name}</strong><br>Camera ID: ${camera.id}`).openPopup();
+              // Add a popup with more detailed information
+              marker.bindPopup(`
+                <div class="p-2">
+                  <strong class="text-lg">${camera.name}</strong><br>
+                  <span class="text-sm text-gray-600">Camera ID: ${camera.id}</span><br>
+                  <span class="text-sm text-red-500">● LIVE</span>
+                </div>
+              `).openPopup();
+              
+              // Add a pulsing circle around the marker
+              const pulseCircle = L.circle([camera.lat, camera.lng], {
+                radius: 20,
+                color: '#3b82f6',
+                weight: 2,
+                opacity: 0.5,
+                fillOpacity: 0.2,
+                className: 'camera-pulse'
+              }).addTo(mapRef.current);
+              
+              // Animate the pulse
+              let radius = 20;
+              const pulseInterval = setInterval(() => {
+                radius += 2;
+                pulseCircle.setRadius(radius);
+                pulseCircle.setStyle({
+                  opacity: Math.max(0, 0.5 - radius / 100),
+                  fillOpacity: Math.max(0, 0.2 - radius / 100)
+                });
+                
+                if (radius > 100) {
+                  clearInterval(pulseInterval);
+                  pulseCircle.remove();
+                }
+              }, 50);
             }
           });
           

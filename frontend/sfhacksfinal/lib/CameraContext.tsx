@@ -90,16 +90,20 @@ export function CameraProvider({ children }: { children: ReactNode }) {
       console.log(`Camera selected: ${camera.name} (${camera.id}) at [${camera.lat}, ${camera.lng}]`);
       
       // Try to use the zoomToCamera method if available
-      setTimeout(() => {
+      const tryZoomToCamera = () => {
         // @ts-ignore
         if (window.zoomToCamera) {
           console.log("Using zoomToCamera method from CameraContext");
           // @ts-ignore
           window.zoomToCamera(camera);
         } else {
-          console.log("zoomToCamera method not available from CameraContext");
+          console.log("zoomToCamera method not available, retrying in 500ms");
+          setTimeout(tryZoomToCamera, 500);
         }
-      }, 500);
+      };
+      
+      // Start trying to zoom to camera
+      tryZoomToCamera();
     } else {
       console.log("Camera selection cleared");
     }

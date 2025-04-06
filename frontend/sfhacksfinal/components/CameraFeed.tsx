@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
+import { useCamera } from '../lib/CameraContext';
 
 interface Detection {
   label: string;
@@ -18,8 +19,9 @@ export function CameraFeed() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [detections, setDetections] = useState<Detection[]>([]);
-  const [description, setDescription] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  const [description, setDescription] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const { selectedCamera } = useCamera();
 
   const startCamera = async () => {
     try {
@@ -67,7 +69,10 @@ export function CameraFeed() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ frame_data: frameData }),
+        body: JSON.stringify({ 
+          frame_data: frameData,
+          camera_id: selectedCamera?.id || "unknown"
+        }),
       });
 
       if (!response.ok) {
