@@ -61,6 +61,23 @@ def query_to_structured_json(query: str) -> Dict[str, Any]:
         # Preprocess the query to better handle clothing color queries
         query = query.lower()
         
+        # Handle gender-specific queries
+        gender_terms = {
+            'female': ['female', 'woman', 'girl', 'lady', 'women', 'girls', 'ladies', 'she', 'her'],
+            'male': ['male', 'man', 'boy', 'guy', 'men', 'boys', 'guys', 'he', 'him', 'his']
+        }
+        
+        # Check for gender terms in the query
+        detected_gender = None
+        for gender, terms in gender_terms.items():
+            if any(term in query for term in terms):
+                detected_gender = gender
+                # If the query doesn't explicitly mention gender in the structured format,
+                # add it to ensure proper filtering
+                if "gender" not in query:
+                    query = f"Find a {gender} {query}"
+                break
+        
         # Handle "wearing" queries
         if "wearing" in query:
             # Extract color after "wearing"
@@ -98,12 +115,17 @@ def query_to_structured_json(query: str) -> Dict[str, Any]:
         # Parse the response as JSON
         try:
             result = json.loads(response_text)
-            logger.info(f"Parsed query JSON: {result}")
-            return result
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse Gemini response as JSON: {response_text}")
-            return {}
             
+            # If we detected a gender but it's not in the result, add it
+            if detected_gender and ('gender' not in result or not result['gender']):
+                result['gender'] = detected_gender
+                logger.info(f"Added detected gender '{detected_gender}' to query result")
+            
+            return result
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON response: {e}")
+            logger.error(f"Response text: {response_text}")
+            return {}
     except Exception as e:
         logger.error(f"Error in query_to_structured_json: {e}")
         return {}
@@ -113,7 +135,7 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
     try:
         # Define weights for different attributes
         weights = {
-            'gender': 1.5,
+            'gender': 2.0,  # Increased weight for gender to ensure strict matching
             'age_group': 1.2,
             'hair_color': 1.2,
             'hair_style': 1.0,
@@ -139,6 +161,13 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
             'brown': ['brown', 'tan']
         }
         
+        # Gender variations mapping
+        gender_variations = {
+            'female': ['female', 'woman', 'girl', 'lady', 'women', 'girls', 'ladies'],
+            'male': ['male', 'man', 'boy', 'guy', 'men', 'boys', 'guys'],
+            'other': ['other', 'non-binary', 'nonbinary', 'transgender', 'trans']
+        }
+        
         weighted_matches = 0
         weighted_total = 0
         
@@ -151,8 +180,37 @@ def calculate_similarity(query_json: Dict[str, Any], person_json: Dict[str, Any]
                 query_val = str(query_json[key]).lower()
                 person_val = str(person_json[key]).lower()
                 
+                # Special handling for gender - strict matching
+                if key == 'gender':
+                    # Check for exact match first
+                    if query_val == person_val:
+                        weighted_matches += weight
+                        logger.info(f"Exact match on gender: {query_val} = {person_val}")
+                    else:
+                        # Check for variations
+                        query_genders = set([query_val])
+                        person_genders = set([person_val])
+                        
+                        # Add variations
+                        for base_gender, variations in gender_variations.items():
+                            if base_gender in query_val:
+                                query_genders.update(variations)
+                            if base_gender in person_val:
+                                person_genders.update(variations)
+                        
+                        # Check for intersection
+                        if query_genders & person_genders:
+                            weighted_matches += weight
+                            logger.info(f"Match on gender with variations: {query_genders} ~ {person_genders}")
+                        else:
+                            # No match for gender - this is critical, so we don't add partial matches
+                            logger.info(f"No match on gender: {query_val} != {person_val}")
+                            # For gender, we want to heavily penalize non-matches
+                            # This ensures that if someone searches for "female", they only get female results
+                            return 0.0  # Return 0 similarity if gender doesn't match
+                
                 # Special handling for clothing colors
-                if key in ['clothing_top_color', 'clothing_bottom_color']:
+                elif key in ['clothing_top_color', 'clothing_bottom_color']:
                     # Check for color variations
                     query_colors = set()
                     person_colors = set()
