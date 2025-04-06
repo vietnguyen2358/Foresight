@@ -65,6 +65,20 @@ export default function ProblemStats() {
     },
   }
 
+  const [dots, setDots] = useState<Array<{ size: number; x: string; y: string; duration: number; delay: number }>>([])
+
+  // Generate dots only on client-side to avoid hydration mismatch
+  useEffect(() => {
+    const newDots = Array.from({ length: 24 }).map(() => ({
+      size: Math.random() * 10 + 5,
+      x: `${Math.random() * 100}%`,
+      y: `${Math.random() * 100}%`,
+      duration: Math.random() * 3 + 2,
+      delay: Math.random() * 2,
+    }))
+    setDots(newDots)
+  }, [])
+
   return (
     <div className="bg-gray-950 py-24 relative overflow-hidden">
       {/* Background elements */}
@@ -110,27 +124,30 @@ export default function ProblemStats() {
           >
             <div className="relative h-[500px] rounded-lg overflow-hidden border border-gray-800 shadow-2xl bg-gradient-to-br from-gray-900 via-blue-900/30 to-black">
               {/* Abstract data visualization */}
+              {/* Abstract data visualization */}
+              {/* Abstract data visualization */}
+
               <div className="absolute inset-0">
-                {/* Animated dots pattern */}
-                {Array.from({ length: 24 }).map((_, i) => (
+                {/* Animated dots pattern - now using pre-generated values */}
+                {dots.map((dot, i) => (
                   <motion.div
                     key={i}
                     className="absolute rounded-full bg-blue-500/20"
                     style={{
-                      width: Math.random() * 10 + 5,
-                      height: Math.random() * 10 + 5,
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
+                      width: dot.size,
+                      height: dot.size,
+                      left: dot.x,
+                      top: dot.y,
                     }}
                     animate={{
                       opacity: [0.1, 0.5, 0.1],
                       scale: [1, 1.5, 1],
                     }}
                     transition={{
-                      duration: Math.random() * 3 + 2,
+                      duration: dot.duration,
                       repeat: Number.POSITIVE_INFINITY,
                       repeatType: "reverse",
-                      delay: Math.random() * 2,
+                      delay: dot.delay,
                     }}
                   />
                 ))}
