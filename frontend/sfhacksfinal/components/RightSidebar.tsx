@@ -43,18 +43,14 @@ interface ExtendedPersonDescription extends PersonDescription {
 
 export default function RightSidebar() {
   const { selectedCamera, setSelectedCamera } = useCamera()
-  const [transcription, setTranscription] = useState([
-    { id: 1, speaker: "Operator", text: "911, what's your emergency?", timestamp: "10:30:15" },
-    { id: 2, speaker: "Caller", text: "There's a suspicious person near the park.", timestamp: "10:30:20" },
-    { id: 3, speaker: "Operator", text: "Can you describe what they look like?", timestamp: "10:30:25" },
-  ])
-  const [currentTranscription, setCurrentTranscription] = useState<string>("")
+  const [transcription, setTranscription] = useState('')
+  const [currentTranscription, setCurrentTranscription] = useState('')
   const [detections, setDetections] = useState<Detection[]>([])
   const [personDescriptions, setPersonDescriptions] = useState<ExtendedPersonDescription[]>([])
   const [cameraImage, setCameraImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<any>(null)
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([])
   const [chatInput, setChatInput] = useState("")
   const [selectedDetection, setSelectedDetection] = useState<Detection | null>(null)
@@ -70,45 +66,67 @@ export default function RightSidebar() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [lastProcessedFrame, setLastProcessedFrame] = useState<string | null>(null)
   const frameExtractionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [isCallActive, setIsCallActive] = useState(false)
+  const [lastFetchTime, setLastFetchTime] = useState(0)
 
-  // Initialize WebSocket connection
-  useEffect(() => {
-    // Connect to WebSocket when component mounts
-    connectWebSocket();
-    
-    // Add event listener for media events (transcription and search results)
-    const removeMediaListener = addWebSocketEventListener('media', (data) => {
-      console.log('Received media event:', data);
+  // Function to fetch transcription from the file
+  const fetchTranscription = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/transcription`)
+      const data = await response.json()
       
-      // Update transcription
-      if (data.text) {
-        setCurrentTranscription(data.text);
+      if (data.transcription) {
+        setTranscription(data.transcription)
+        setCurrentTranscription(data.transcription)
         
-        // Add to transcription history
-        const timestamp = new Date().toLocaleTimeString();
-        setTranscription(prev => [
-          ...prev, 
-          { 
-            id: prev.length + 1, 
-            speaker: "Caller", 
-            text: data.text, 
-            timestamp 
-          }
-        ]);
+        if (data.search_results) {
+          setSearchResults(data.search_results)
+        }
+        
+        setLastFetchTime(Date.now())
       }
-      
-      // Update search results
-      if (data.search_results) {
-        setSearchResults(data.search_results.matches || []);
-      }
-    });
+    } catch (error) {
+      console.error('Error fetching transcription:', error)
+    }
+  }
+  
+  // Set up WebSocket connection and polling for transcription
+  useEffect(() => {
+    // Connect to WebSocket
+    connectWebSocket()
     
-    // Clean up on unmount
+    // Add event listener for WebSocket connection status
+    const removeConnectedListener = addWebSocketEventListener('connected', () => {
+      setIsCallActive(true)
+    })
+    
+    const removeDisconnectedListener = addWebSocketEventListener('disconnected', () => {
+      setIsCallActive(false)
+    })
+    
+    const removeStatusListener = addWebSocketEventListener('status', (data) => {
+      if (data.message === 'Transcription updated') {
+        // Fetch the updated transcription
+        fetchTranscription()
+      }
+    })
+    
+    // Set up polling for transcription updates
+    const pollInterval = setInterval(() => {
+      if (isWebSocketConnected()) {
+        fetchTranscription()
+      }
+    }, 2000) // Poll every 2 seconds
+    
+    // Clean up
     return () => {
-      removeMediaListener();
-      disconnectWebSocket();
-    };
-  }, []);
+      disconnectWebSocket()
+      removeConnectedListener()
+      removeDisconnectedListener()
+      removeStatusListener()
+      clearInterval(pollInterval)
+    }
+  }, [])
 
   // Add a useEffect hook that depends on the selectedCamera state
   useEffect(() => {
@@ -601,21 +619,25 @@ export default function RightSidebar() {
           <h2 className="text-lg font-semibold text-white">Live Call Transcription</h2>
         </div>
         <div className="space-y-3">
-          {transcription.map((entry) => (
+          {transcription ? (
             <motion.div
-              key={entry.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
               className="bg-gray-800 rounded-lg p-3"
             >
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium text-blue-400">{entry.speaker}</span>
-                <span className="text-xs text-gray-400">{entry.timestamp}</span>
-              </div>
-              <p className="text-sm text-gray-300">{entry.text}</p>
+              <p className="text-sm text-gray-300">{transcription}</p>
             </motion.div>
-          ))}
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-gray-800 rounded-lg p-3"
+            >
+              <p className="text-sm text-gray-300">{isCallActive ? 'Listening...' : 'No active call'}</p>
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -869,10 +891,10 @@ export default function RightSidebar() {
                 </ul>
               )}
             </div>
-          ) : searchResults.length > 0 ? (
+          ) : searchResults && searchResults.matches && searchResults.matches.length > 0 ? (
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-white">Results</h3>
-              {searchResults.map((result, index) => (
+              {searchResults.matches.map((result, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}

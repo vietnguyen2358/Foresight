@@ -10,7 +10,7 @@ import { searchPeople, chatWithAI, type Detection, type PersonDescription, API_B
 import { motion, AnimatePresence } from "framer-motion"
 import { useCamera, type Camera } from "@/lib/CameraContext"
 import type { SearchResult } from "@/lib/api"
-import { connectWebSocket, addWebSocketEventListener, isWebSocketConnected } from "@/lib/websocket"
+import { connectWebSocket, disconnectWebSocket, addWebSocketEventListener, isWebSocketConnected } from "@/lib/websocket"
 
 type Message = {
   role: "user" | "assistant"
@@ -31,6 +31,10 @@ export default function ChatAgent() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const [isWebSocketReady, setIsWebSocketReady] = useState(false)
+  const [transcription, setTranscription] = useState('');
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -73,65 +77,63 @@ export default function ChatAgent() {
     }
   }, [selectedCamera]);
 
-  // Initialize WebSocket connection
+  // Function to fetch transcription from the file
+  const fetchTranscription = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/transcription`);
+      const data = await response.json();
+      
+      if (data.transcription) {
+        setTranscription(data.transcription);
+        
+        if (data.search_results) {
+          setSearchResults(data.search_results);
+        }
+        
+        setLastFetchTime(Date.now());
+      }
+    } catch (error) {
+      console.error('Error fetching transcription:', error);
+    }
+  };
+  
+  // Set up WebSocket connection and polling for transcription
   useEffect(() => {
-    // Connect to WebSocket when component mounts
+    // Connect to WebSocket
     connectWebSocket();
     
-    // Add event listener for media events (transcription and search results)
-    const removeMediaListener = addWebSocketEventListener('media', (data) => {
-      console.log('Received media event in ChatAgent:', data);
-      
-      // Update transcription
-      if (data.text) {
-        // Add transcription as a user message
-        const newUserMessage: Message = {
-          role: "user",
-          content: data.text
-        };
-        setMessages(prev => [...prev, newUserMessage]);
-        
-        // If we have search results, add them as an assistant message
-        if (data.search_results && data.search_results.matches && data.search_results.matches.length > 0) {
-          const searchResults = data.search_results;
-          const firstMatch = searchResults.matches[0];
-          
-          let responseContent = "";
-          
-          if (firstMatch && firstMatch.description && firstMatch.description.camera_id) {
-            const camera = cameras.find((c: Camera) => c.id === firstMatch.description.camera_id);
-            
-            if (camera) {
-              setSelectedCamera(camera);
-              responseContent = `I found a match on camera ${camera.name}. I've switched to that camera view.\n\n${formatSearchResults(searchResults)}`;
-            } else {
-              responseContent = formatSearchResults(searchResults);
-            }
-          } else {
-            responseContent = formatSearchResults(searchResults);
-          }
-          
-          const assistantMessage: Message = {
-            role: "assistant",
-            content: responseContent
-          };
-          
-          setMessages(prev => [...prev, assistantMessage]);
-        }
+    // Add event listener for WebSocket connection status
+    const removeConnectedListener = addWebSocketEventListener('connected', () => {
+      setIsCallActive(true);
+    });
+    
+    const removeDisconnectedListener = addWebSocketEventListener('disconnected', () => {
+      setIsCallActive(false);
+    });
+    
+    const removeStatusListener = addWebSocketEventListener('status', (data) => {
+      if (data.message === 'Transcription updated') {
+        // Fetch the updated transcription
+        fetchTranscription();
       }
     });
     
-    // Check WebSocket connection status periodically
-    const intervalId = setInterval(() => {
-      setIsWebSocketReady(isWebSocketConnected());
-    }, 5000);
+    // Set up polling for transcription updates
+    const pollInterval = setInterval(() => {
+      if (isWebSocketConnected()) {
+        fetchTranscription();
+      }
+    }, 2000); // Poll every 2 seconds
     
-    // Clean up on unmount
+    // Clean up
     return () => {
-      removeMediaListener();
-      clearInterval(intervalId);
+      disconnectWebSocket();
+      removeConnectedListener();
+      removeDisconnectedListener();
+      removeStatusListener();
+      clearInterval(pollInterval);
     };
-  }, [cameras, setSelectedCamera]);
+  }, []);
 
   const formatSearchResults = (results: SearchResult): string => {
     if (!results.matches || results.matches.length === 0) {
@@ -346,6 +348,39 @@ export default function ChatAgent() {
           </Button>
         </form>
       </div>
+
+      {/* Transcription Section */}
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-2">Transcription</h3>
+        <div className="bg-gray-100 p-4 rounded-lg">
+          {transcription ? (
+            <p>{transcription}</p>
+          ) : (
+            <p className="text-gray-500 italic">
+              {isCallActive ? 'Listening...' : 'No active call'}
+            </p>
+          )}
+        </div>
+      </div>
+      
+      {/* Search Results Section */}
+      {searchResults && searchResults.matches && searchResults.matches.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold mb-2">Search Results</h3>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <ul>
+              {searchResults.matches.map((match: any, index: number) => (
+                <li key={index} className="mb-2">
+                  <p className="font-medium">{match.description}</p>
+                  <p className="text-sm text-gray-600">
+                    Similarity: {match.similarity_percentage}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

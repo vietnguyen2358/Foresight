@@ -19,7 +19,7 @@ load_dotenv()
 ORIGINAL_SAMPLE_RATE = 8000  # Twilio audio
 TARGET_SAMPLE_RATE = 16000   # What Whisper expects
 CHUNK_DURATION = 3.0        # Seconds of audio to buffer before transcribing
-MAX_MESSAGE_SIZE = 65536    # Maximum WebSocket message size (64KB)
+TRANSCRIPTION_FILE = "transcription.txt"  # File to store transcription
 
 # Init Groq Whisper client
 client = Groq(
@@ -28,6 +28,26 @@ client = Groq(
 
 # Create a lock for WebSocket operations
 ws_lock = asyncio.Lock()
+
+# Function to write transcription to file
+def write_transcription_to_file(text, search_results=None):
+    try:
+        # Create a dictionary with the transcription and search results
+        data = {
+            "transcription": text,
+            "search_results": search_results or {},
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        
+        # Write to file
+        with open(TRANSCRIPTION_FILE, "w") as f:
+            json.dump(data, f)
+        
+        logging.info(f"Transcription written to {TRANSCRIPTION_FILE}")
+        return True
+    except Exception as e:
+        logging.error(f"Error writing transcription to file: {e}")
+        return False
 
 @app.websocket("/process_stream")
 async def process_stream(websocket: WebSocket):
@@ -40,6 +60,9 @@ async def process_stream(websocket: WebSocket):
     connection_active = True  # Flag to track if the connection is still active
 
     try:
+        # Clear the transcription file at the start of a new call
+        write_transcription_to_file("", {})
+        
         # Send an initial message to verify the connection
         try:
             await websocket.send_text(json.dumps({
@@ -118,34 +141,19 @@ async def process_stream(websocket: WebSocket):
                                             search_results = response.json()
                                             logging.info("Received search results")
 
-                                        # Prepare the message to send
-                                        message_data = {
-                                            "event": "media",
-                                            "text": full_transcript.strip(),
-                                            "search_results": search_results
-                                        }
+                                        # Write transcription and search results to file
+                                        write_transcription_to_file(full_transcript.strip(), search_results)
                                         
-                                        # Convert to JSON and check size
-                                        message_to_send = json.dumps(message_data)
-                                        message_size = len(message_to_send.encode('utf-8'))
-                                        
-                                        if message_size > MAX_MESSAGE_SIZE:
-                                            logging.warning(f"Message too large ({message_size} bytes), truncating search results")
-                                            # Truncate search results if message is too large
-                                            if "matches" in search_results:
-                                                search_results["matches"] = search_results["matches"][:5]  # Keep only first 5 matches
-                                            message_data["search_results"] = search_results
-                                            message_to_send = json.dumps(message_data)
-                                        
-                                        # Send the message with explicit error handling
+                                        # Send a simple status message via WebSocket
                                         try:
-                                            logging.info(f"Sending WebSocket message ({len(message_to_send)} bytes)")
-                                            await websocket.send_text(message_to_send)
-                                            logging.info("WebSocket message sent successfully")
+                                            await websocket.send_text(json.dumps({
+                                                "event": "status",
+                                                "message": "Transcription updated"
+                                            }))
+                                            logging.info("Status message sent via WebSocket")
                                         except Exception as send_error:
-                                            logging.error(f"Failed to send WebSocket message: {send_error}")
-                                            connection_active = False
-                                            break
+                                            logging.error(f"Failed to send status message: {send_error}")
+                                            # Don't break the connection for status message failures
                                             
                                         logging.info(f"[✓] Transcribed and searched: {transcribed_text}")
                                     else:

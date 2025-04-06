@@ -18,6 +18,7 @@ from app_init import app
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
+import json
 
 from tracker import process_image, process_video
 from embedder import embed_image, embed_text, describe_person, embed_description
@@ -539,6 +540,24 @@ async def process_frame(request: FrameRequest):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+@app.get("/transcription")
+async def get_transcription():
+    """Get the current transcription from the file."""
+    try:
+        # Check if the file exists
+        if not os.path.exists("transcription.txt"):
+            return {"transcription": "", "search_results": {}, "timestamp": 0}
+        
+        # Read the file
+        with open("transcription.txt", "r") as f:
+            data = json.load(f)
+        
+        return data
+    except Exception as e:
+        logging.error(f"Error reading transcription file: {e}")
+        return {"transcription": "", "search_results": {}, "timestamp": 0, "error": str(e)}
 
 
 if __name__ == "__main__":
