@@ -13,17 +13,28 @@
 * FastAPI
 * Uvicorn
 * YOLOV11
-* Google Gemini (API Keys required)
-* Groq (Add or remove accordingly)
-* Twilio (Add or remove accordingly)
-* ChromaDB 
+* Google Gemini (API Key required)
+* Groq (API Key required)
+* Twilio (Twilio Number required)
+* MongoDB Atlas
 * OpenCV
-* Ngrok (Add or remove accordingly)
+* Ngrok 
 
 ## Storing API Keys
 Remove .example from .env and place API Keys inside
 ```
 .env.example --> .env
+```
+
+## Frontend Setup
+Enter frontend/sfhacksfinal folder and install dependencies
+```
+cd frontend/sfhacksfinal
+npm install
+```
+Running the frontend server
+```
+npm run dev
 ```
 
 ## Backend Setup
@@ -55,13 +66,16 @@ Running the backend server
 python3 main.py
 ```
 
-## Frontend Setup
-Enter frontend/sfhacksfinal folder and install dependencies
+## Ngrok
+Once the backend server is running, expose its endpoints with ngrok
 ```
-cd frontend/sfhacksfinal
-npm install
+ngrok http 8000
 ```
-Running the frontend server
-```
-npm run dev
-```
+Copy the forwarding url for http://localhost:8000
+
+## Twilio Integration Setup
+* Obtain a Twilio number at https://www.twilio.com/console <br />
+* Navigate to Active Numbers in Twilio's console and open its configuration page <br />
+* Voice Configuration: 
+  * Configure call ins with Webhook
+  * Paste ngrok forwarding url
